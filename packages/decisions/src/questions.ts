@@ -1,5 +1,5 @@
-import { THROTTLE_LEVELS, type Action, type Rotate, type Throttle } from "@arena/engine";
-import type { ObservationTier } from "./observe.ts";
+import { THROTTLE_LEVELS, type Action, type LaneState, type Rotate, type Throttle } from "@arena/engine";
+import { observe, type ObservationTier } from "./observe.ts";
 import type { Probabilities } from "./types.ts";
 
 export const ROTATES: readonly Rotate[] = ["left", "none", "right"];
@@ -123,6 +123,29 @@ const COACHED_MATCHED: SystemOneQuestions = {
 };
 
 /**
+ * Sixth wording: COACHED_MATCHED cut to a few words per option, for the
+ * brief observation. Laya's time per answer grows with input length.
+ */
+const BRIEF: SystemOneQuestions = {
+  rotate: {
+    type: "choice",
+    instructions: "Read 'good tilt now'. Rotate which way?",
+    criteria: { left: "Left. Tilt too far right.", none: "Hold. Tilt about right.", right: "Right. Tilt too far left." },
+  },
+  throttle: {
+    type: "score",
+    instructions: "Read 'safe vertical speed now'. Throttle?",
+    criteria: [
+      "Off. Over 1.5 m/s too much upward.",
+      "Low. Up to 1.5 m/s too much upward.",
+      "Medium. About right.",
+      "High. Up to 3 m/s too much downward.",
+      "Full. Over 3 m/s too much downward.",
+    ],
+  },
+};
+
+/**
  * A complete prompt: observation tier plus question wording. Results and
  * replays record the prompt id, so numbers from different prompts are never
  * mixed. Add a new id rather than editing one that has results.
@@ -131,6 +154,8 @@ export interface PromptSpec {
   readonly id: string;
   readonly tier: ObservationTier;
   readonly compact: boolean;
+  /** Only the lines a pilot acts on; see ObserveOptions.brief. */
+  readonly brief?: boolean;
   readonly questions: SystemOneQuestions;
   readonly summary: string;
 }
@@ -143,11 +168,17 @@ export const PROMPTS = {
   p5: { id: "p5", tier: 4, compact: false, questions: COACHED, summary: "Tier 4 observation (speed and tilt coaching), coached wording" },
   p7: { id: "p7", tier: 4, compact: false, questions: COACHED_MATCHED, summary: "Tier 4 observation, coached wording quoting the observation's own phrases" },
   p6: { id: "p6", tier: 4, compact: false, questions: COACHED_CHOICE, summary: "Tier 4 observation, coached wording, throttle as a choice" },
+  p8: { id: "p8", tier: 4, compact: true, brief: true, questions: BRIEF, summary: "Brief tier 4 observation (coaching lines only), short wording" },
 } as const satisfies Record<string, PromptSpec>;
 
 export type PromptId = keyof typeof PROMPTS;
 /** Jev's prompt since the 2026-10-29 sweep (docs/prompt-tuning.md); each lane's own is in MODEL_LANES. */
 export const DEFAULT_PROMPT: PromptId = "p5";
+
+/** The state text a prompt sends for this lane state. */
+export function observePrompt(lane: LaneState, spec: PromptSpec): string {
+  return observe(lane, spec.tier, { compact: spec.compact, brief: spec.brief ?? false });
+}
 
 export function isPromptId(id: unknown): id is PromptId {
   return typeof id === "string" && Object.hasOwn(PROMPTS, id);

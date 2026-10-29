@@ -27,6 +27,12 @@ export type ObservationTier = 1 | 2 | 3 | 4;
 export interface ObserveOptions {
   /** Drop the fixed rules (conventions, gravity, touchdown limits) that never change between calls. */
   readonly compact?: boolean;
+  /**
+   * Tier 4 only: just the lines a pilot acts on (velocity, angle, height
+   * above the ground, coaching). For models whose time grows with input
+   * length, such as Laya, which takes ~3x as long on the full text.
+   */
+  readonly brief?: boolean;
 }
 
 const f1 = (n: number): string => n.toFixed(1);
@@ -40,6 +46,15 @@ export function observe(lane: LaneState, tier: ObservationTier = 2, options: Obs
   const { lander: l, level } = lane;
   const padCx = (level.pad.x0 + level.pad.x1) / 2;
   const seconds = l.t / PHYSICS_HZ;
+  if (options.brief) {
+    if (tier !== 4) throw new Error("brief observations need tier 4: they are the coaching lines");
+    return [
+      `velocity: vx ${f1(l.vx)} m/s, vy ${f1(l.vy)} m/s`,
+      `angle: ${f1(l.angle)} deg`,
+      `height above ground below: ${f1(l.y - terrainHeightAt(level, l.x))} m`,
+      ...coaching(lane, true),
+    ].join("\n");
+  }
   const rules = options.compact
     ? []
     : [

@@ -25,7 +25,7 @@ from typing import Any, Protocol
 MAX_BODY_BYTES = 64 * 1024
 BASE_MODEL = "aac6fef/laya-mlx"
 # Made by finetune_colab.ipynb and `laya-mlx convert` (docs/lanes.md); not in git.
-FINE_TUNED = Path(__file__).parent / "models" / "laya-descent-v1-mlx"
+FINE_TUNED = Path(__file__).parent / "models" / "laya-descent-v2-mlx"
 
 
 class UnexpectedAnswer(Exception):

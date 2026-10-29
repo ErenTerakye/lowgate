@@ -11,7 +11,7 @@ All numbers are **measured** with `pnpm probe` from a MacBook on home broadband.
 | Jev | `jev-1.14.0` (TypeSafe) | Yes | $0.042 / free, third-party | p5 |
 | Clef-flash | `clef-flash` (Workers AI) | **No**: Cloudflare has no version selector; responses report `clef-flash` | $0.038 / free, vendor | p7 |
 | Llama 3.1 8B | `@cf/meta/llama-3.1-8b-instruct-fp8-fast` (Workers AI) | Yes, by id | $0.045 / $0.384, vendor | l3 |
-| Laya | `laya-descent-v1-mlx`, fine-tuned from `aac6fef/laya-mlx`, via `bridge/laya` on this Mac | Yes: the bridge reports the checkpoint it loaded | none (local) | p5 (trained on it) |
+| Laya | `laya-descent-v2-mlx`, fine-tuned from `aac6fef/laya-mlx`, via `bridge/laya` on this Mac | Yes: the bridge reports the checkpoint it loaded | none (local) | p8 (trained on it) |
 
 ## Prompts
 
@@ -21,6 +21,7 @@ System One prompts (`PROMPTS` in `questions.ts`) pair an observation tier with q
 |---|---|
 | p6 | p5 with throttle asked as a `choice` instead of a `score` |
 | p7 | p5 with each throttle level quoting the observation's own phrase ("up to 3 m/s too much downward") instead of rephrasing it ("descending too fast") |
+| p8 | Brief observation (velocity, angle, height above ground, the three coaching lines) with p7's levels cut to a few words. For Laya, whose time per answer grows with input length: 348 tokens instead of 814 |
 
 Chat prompts (`LLM_PROMPTS` in `llm.ts`) pair the tier-4 observation with a system message:
 
@@ -104,9 +105,9 @@ bridge/laya/.venv/bin/python bridge/laya/server.py
 
 The MLX port runs Laya but cannot train it; training is the upstream PyTorch package (`laya` 0.4.17, `laya.train.finetune`).
 
-1. `pnpm laya-dataset` writes `bridge/laya/data/train.jsonl` (10,852 states from courses 1000–1119) and `eval.jsonl` (1,087 from courses 9000–9011). Each state comes from an autopilot flight with noise, so recoveries are covered, and is labelled with the clean autopilot action (rotation 0.9 on the pick, throttle 0.8 with the rest on the neighbouring levels). Course 42 is in neither.
-2. `bridge/laya/finetune_colab.ipynb` fine-tunes the full model on a Colab GPU (3 epochs, effective batch 32, `max_len` 512) and reports held-out before/after accuracy.
-3. Back on the Mac: unzip into `bridge/laya/models/laya-descent-v1`, then `bridge/laya/.venv/bin/laya-mlx convert --model bridge/laya/models/laya-descent-v1 --output bridge/laya/models/laya-descent-v1-mlx`. `server.py` serves that folder by default when it exists.
+1. `pnpm laya-dataset --prompt <id>` writes `bridge/laya/data/<id>/train.jsonl` (10,852 states from courses 1000–1119) and `eval.jsonl` (1,087 from courses 9000–9011); the default is p8. Each state comes from an autopilot flight with noise, so recoveries are covered, and is labelled with the clean autopilot action (rotation 0.9 on the pick, throttle 0.8 with the rest on the neighbouring levels). Course 42 is in neither.
+2. `bridge/laya/finetune_colab.ipynb` (set `VERSION` in its first cell) fine-tunes the full model on a Colab GPU (3 epochs, effective batch 32, `max_len` 512) and reports held-out before/after accuracy.
+3. Back on the Mac: unzip into `bridge/laya/models/<VERSION>`, then `bridge/laya/.venv/bin/laya-mlx convert --model bridge/laya/models/<VERSION> --output bridge/laya/models/<VERSION>-mlx`. `server.py` serves `laya-descent-v2-mlx` by default when it exists.
 
 ### Results: `laya-descent-v1` (2026-10-29)
 
@@ -170,3 +171,41 @@ Free allowance per call, from the measured tokens: Qwen3 ≈ 3.6 neurons, Llama 
 **Verdict.** None of the candidates is faster than Llama, and no LLM tested on Workers AI answers inside a 200 ms tick. Qwen3 30B is the best replacement: in the catalog, the best answers of any chat lane (rotation 77 %, throttle r 0.80), and about the same cost, though it landed one fewer level closed loop than Llama in one flight. Gemma 4, the newest, needs about three times Llama's time per answer.
 
 The arena's default lanes are now `jev,clef,qwen,autopilot`. Llama, Gemma and GLM stay in the catalog and can be added with `?lanes=`.
+
+### Speed: why v2 trains on p8
+
+Time per answer on this M3, fine-tuned model, 40 states each (the model's own time, without the bridge):
+
+| Input | Tokens | p50 |
+|---|---|---|
+| p5, full observation (v1) | 814 | 284 ms |
+| Full questions, state cut to 5 lines | 396 | 138 ms |
+| Short questions, full state | 702 | 239 ms |
+| **p8** (6 state lines, short questions) | **348** | **137 ms** |
+| p8 without the velocity line and the "Read ..." pointers | 297 | 111 ms |
+
+Time grows by about 0.4 ms per token; float16 and bfloat16 are the same. laya-mlx already scores both questions in one batched pass, and the `parallel` option layout only makes answers independent of option order, so input length is the lever. p8 keeps the velocity line and the pointers for ~25 ms because it stays ~60 ms inside the 200 ms tick. `laya-descent-v2` is trained on p8 with the same states and labels as v1, so the two compare directly.
+
+### Results: `laya-descent-v2` on p8 (2026-10-29)
+
+Trained exactly as v1 (same states, labels, settings) but on p8, on a Colab A100 in **14.9 min** (v1: 21.6). Fitted temperatures: choice 1.09, score 1.16.
+
+| | Held-out accuracy | Loss | ECE | Brier |
+|---|---|---|---|---|
+| v1 (p5) | 0.953 | 0.575 | 0.142 | 0.045 |
+| **v2 (p8)** | 0.941 | 0.604 | 0.140 | 0.060 |
+
+The base model scores 0.223 on p8 (0.354 on p5): the short text gives an untrained Laya less to go on, but after training the gap is about one point.
+
+On course 42, same tests as every lane:
+
+| Test | v1 on p5 | **v2 on p8** |
+|---|---|---|
+| Sweep: rotate agrees | 100 % | 100 % |
+| Sweep: throttle agrees / follows (r) | 97 % / 0.97 | 93 % / 0.95 |
+| Sweep: latency p50 / p95 (through the bridge) | 281 / 296 ms | **126 / 176 ms** |
+| Closed loop, no deadline | Landed both, 30.7 s and 36.4 s | Landed both, 30.8 s (vy −1.8) and 36.3 s (vy −1.6) |
+| Live, 90 s with Jev and Autopilot | 1 / 1, 141 points, 51 % missed | **2 / 0, 291 points, 1 % missed** (4 ticks), p50 136 ms |
+
+In v2's live run Jev landed 1 / 1 (139 points, 47 % missed, p50 214 ms) and Autopilot scored 289. Laya v2 is the first model lane to keep up with the 5 Hz tick: it decides 4.8 times a second, as often as the autopilot, and it scored two points more than the autopilot's rule it was trained to copy. One live run, so this is a result, not yet a ranking; replays over many seeds come next. v2 is the Laya lane from now on; v1 stays on disk for comparison.
+

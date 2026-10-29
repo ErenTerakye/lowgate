@@ -1,7 +1,6 @@
 import { THROTTLE_LEVELS } from "@arena/engine";
 import { DecisionFailure, postJson, toFailure, upstreamMs, type Fetch } from "./http.ts";
-import { observe } from "./observe.ts";
-import { DEFAULT_PROMPT, PROMPTS, ROTATES, actionFromProbs, type PromptId } from "./questions.ts";
+import { DEFAULT_PROMPT, PROMPTS, ROTATES, actionFromProbs, observePrompt, type PromptId } from "./questions.ts";
 import type { DecisionClient, DecisionRequest, DecisionResult, ModelInfo, Probabilities, Usage } from "./types.ts";
 
 export interface SystemOneOptions {
@@ -59,7 +58,7 @@ export class SystemOneClient implements DecisionClient {
         this.options.endpoint,
         {
           model: this.model.model,
-          state: observe(lane, spec.tier, { compact: spec.compact }),
+          state: observePrompt(lane, spec),
           questions: spec.questions,
           ...(this.options.viaProxy ? { prompt: spec.id } : {}),
         },

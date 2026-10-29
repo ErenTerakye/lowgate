@@ -137,19 +137,19 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
   },
   laya: {
     id: "laya",
-    prompt: "p5",
+    prompt: "p8",
     label: "Laya",
     protocol: "systemone",
     model: {
       provider: "local (MLX)",
       // Fine-tuned on autopilot labels (docs/lanes.md). The bridge reports the checkpoint it
       // loaded, so the pin check flags a run on any other one, such as the base model.
-      model: "laya-descent-v1-mlx",
+      model: "laya-descent-v2-mlx",
       pinned: true,
       price: { input: 0, output: 0, source: "none" },
     },
     upstream: "http://127.0.0.1:8765/v1/systemone",
-    priceNote: "Runs on this Mac through bridge/laya: no per-token price. Fine-tuned once on a Colab A100 (21.6 min).",
+    priceNote: "Runs on this Mac through bridge/laya: no per-token price. Fine-tuned on a Colab A100: v2 on p8 in 14.9 min.",
   },
 };
 

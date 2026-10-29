@@ -24,12 +24,14 @@ import {
   isLlmPromptId,
   isPromptId,
   observe,
+  observePrompt,
   percentile,
   resolveUpstream,
   usdFor,
   type Decision,
   type DecisionClient,
   type DecisionResult,
+  type PromptSpec,
 } from "../src/index.ts";
 
 const { values } = parseArgs({
@@ -206,7 +208,7 @@ const summary = {
   },
   rotateMeanTopProbability: topOrNull(withProbs.map((r) => Math.max(...Object.values(r.d.probs!.rotate)))),
   flights,
-  observationChars: observe(createLane(seed), prompt.tier, { compact: prompt.compact ?? false }).length,
+  observationChars: (lane.protocol === "systemone" ? observePrompt(createLane(seed), prompt as PromptSpec) : observe(createLane(seed), prompt.tier)).length,
   at: new Date().toISOString(),
 };
 
