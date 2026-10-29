@@ -1,5 +1,15 @@
-import { DT, IDLE, createLane, decisionTick, needsDecision, stepLane, type Action, type LaneState } from "@arena/engine";
-import { LaneRunner, type CallRecord, type DecisionClient } from "@arena/decisions";
+import { DT, ENGINE_VERSION, IDLE, createLane, decisionTick, needsDecision, stateHash, stepLane, type Action, type LaneState } from "@arena/engine";
+import {
+  LaneRunner,
+  REPLAY_FORMAT,
+  REPLAY_VERSION,
+  ReplayClient,
+  ReplayRunner,
+  compactCall,
+  type CallRecord,
+  type DecisionClient,
+  type Recording,
+} from "@arena/decisions";
 
 /** Never simulate more than this many steps per frame (e.g. after a background tab). */
 const MAX_STEPS_PER_FRAME = 20;
@@ -12,13 +22,16 @@ export interface LaneSlot {
   action: Action;
   /** Points gained on the most recent landing, for the outcome banner. */
   lastScoreDelta: number;
+  /** Every finished call and the state hash at every decision tick: the lane's recording. */
+  readonly calls: CallRecord[];
+  readonly hashes: string[];
 }
 
 export interface ArenaOptions {
   seed: number;
   runSeconds: number;
   clients: readonly DecisionClient[];
-  /** Every finished call, per lane, for logging and (later) replays. */
+  /** Every finished call, per lane, for logging. */
   onCall?: (laneId: string, record: CallRecord) => void;
 }
 
@@ -39,13 +52,24 @@ export class Arena {
   constructor(options: ArenaOptions, onFrame: (arena: Arena) => void) {
     this.options = options;
     this.onFrame = onFrame;
-    this.lanes = options.clients.map((client) => ({
-      client,
-      runner: new LaneRunner(client, { onCall: (r) => options.onCall?.(client.id, r) }),
-      state: createLane(options.seed, options.runSeconds),
-      action: IDLE,
-      lastScoreDelta: 0,
-    }));
+    this.lanes = options.clients.map((client) => {
+      const calls: CallRecord[] = [];
+      const runnerOptions = {
+        onCall: (r: CallRecord) => {
+          calls.push(compactCall(r));
+          options.onCall?.(client.id, r);
+        },
+      };
+      return {
+        client,
+        runner: client instanceof ReplayClient ? new ReplayRunner(client, runnerOptions) : new LaneRunner(client, runnerOptions),
+        state: createLane(options.seed, options.runSeconds),
+        action: IDLE,
+        lastScoreDelta: 0,
+        calls,
+        hashes: [],
+      };
+    });
   }
 
   get isRunning(): boolean {
@@ -82,7 +106,10 @@ export class Arena {
   /** Advance exactly one physics step for every lane. */
   step(): void {
     for (const slot of this.lanes) {
-      if (needsDecision(slot.state)) slot.action = slot.runner.tick(slot.state, decisionTick(slot.state));
+      if (needsDecision(slot.state)) {
+        slot.hashes.push(stateHash(slot.state));
+        slot.action = slot.runner.tick(slot.state, decisionTick(slot.state));
+      }
       const before = slot.state.stats.score;
       const level = slot.state.level.index;
       slot.state = stepLane(slot.state, slot.action);
@@ -92,6 +119,28 @@ export class Arena {
       }
       if (slot.state.stats.score !== before) slot.lastScoreDelta = slot.state.stats.score - before;
     }
+  }
+
+  /** The run so far as a replayable recording. */
+  toRecording(recordedAt = new Date()): Recording {
+    return {
+      format: REPLAY_FORMAT,
+      version: REPLAY_VERSION,
+      engineVersion: ENGINE_VERSION,
+      recordedAt: recordedAt.toISOString(),
+      seed: this.options.seed,
+      runSeconds: this.options.runSeconds,
+      lanes: this.lanes.map(({ client, calls, hashes, state }) => ({
+        id: client.id,
+        label: client.label,
+        kind: client.kind,
+        note: client.note,
+        model: client.model,
+        calls,
+        hashes,
+        final: { ...state.stats },
+      })),
+    };
   }
 
   private readonly frame = (now: number): void => {

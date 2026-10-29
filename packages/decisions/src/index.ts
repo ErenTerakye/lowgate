@@ -9,3 +9,4 @@ export { LaneRunner, percentile, type CallRecord, type LaneStatus, type RunnerOp
 export { MODEL_LANES, resolveUpstream, type ModelLane } from "./catalog.ts";
 export { costSummary, usdFor, formatUsd, PRICE_SOURCE_TEXT, type CostSummary, type UsageTotals } from "./cost.ts";
 export { handleDecide, type ProxyEnv } from "./proxy.ts";
+export { ReplayClient, ReplayRunner, parseRecording, firstDivergence, compactCall, REPLAY_FORMAT, REPLAY_VERSION, type Recording, type RecordedLane } from "./replay.ts";

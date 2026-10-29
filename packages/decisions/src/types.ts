@@ -89,6 +89,6 @@ export interface DecisionClient {
   /** One line explaining how to read this lane. */
   readonly note: string;
   readonly model: ModelInfo | null;
-  decide(request: DecisionRequest): DecisionResult | Promise<DecisionResult>;
+  decide(request: DecisionRequest): DecisionResult | PromiseLike<DecisionResult>;
   dispose?(): void;
 }

@@ -76,6 +76,29 @@ body {
   max-width: 60ch;
 }
 
+/* Buttons set their own display, which would otherwise override [hidden]. */
+[hidden] {
+  display: none !important;
+}
+
+.brand .mode {
+  color: var(--paper);
+}
+
+.brand .mode:empty {
+  display: none;
+}
+
+.brand .mode.is-bad {
+  color: var(--bad);
+}
+
+/* A replay flies a fixed course: no keys to press, no course to pick. */
+.is-replay .live-only,
+.is-replay #new-seed {
+  display: none;
+}
+
 /* Controls fall into two groups: which course, and how the run plays. */
 .controls {
   display: flex;

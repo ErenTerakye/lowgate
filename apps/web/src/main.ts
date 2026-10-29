@@ -1,6 +1,20 @@
 import { DECISION_HZ, DEFAULT_RUN_SECONDS, ENGINE_VERSION } from "@arena/engine";
 import { Arena } from "./arena.ts";
-import { LlmJsonClient, MODEL_LANES, RandomClient, isLlmPromptId, isPromptId, ScriptedClient, SimulatedModelClient, SystemOneClient, type DecisionClient } from "@arena/decisions";
+import {
+  LlmJsonClient,
+  MODEL_LANES,
+  RandomClient,
+  ReplayClient,
+  ScriptedClient,
+  SimulatedModelClient,
+  SystemOneClient,
+  firstDivergence,
+  isLlmPromptId,
+  isPromptId,
+  parseRecording,
+  type DecisionClient,
+  type Recording,
+} from "@arena/decisions";
 import { KeyboardController } from "./controllers.ts";
 import { LaneView } from "./hud.ts";
 import { icons } from "./icons.ts";
@@ -20,6 +34,11 @@ const laneIds = (params.get("lanes") ?? "jev,clef,qwen,autopilot").split(",").ma
  * System One lanes, `?prompt=l1` for LLM lanes.
  */
 const promptParam = params.get("prompt");
+/**
+ * `?replay=showcase` plays apps/web/public/replays/showcase.json: no keys, no
+ * calls. The public build opens on the showcase replay; `?live` flies live.
+ */
+const replayName = params.get("replay") ?? (import.meta.env.PROD && !params.has("live") ? "showcase" : null);
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
@@ -27,6 +46,7 @@ app.innerHTML = `
     <div class="brand">
       <h1>Decision Arena</h1>
       <p>Every lane flies the same seeded course and decides ${DECISION_HZ} times a second.</p>
+      <p class="mode" id="mode"></p>
     </div>
     <div class="controls">
       <div class="group">
@@ -37,6 +57,7 @@ app.innerHTML = `
       <div class="group">
         <button id="toggle" type="button" class="primary"></button>
         <button id="restart" type="button" title="Restart this course (R)">${icons.restart}<span>Restart</span></button>
+        <button id="save" type="button" title="Save this finished run as a replay" hidden>${icons.save}<span>Save replay</span></button>
         <div class="segmented" id="speed" role="group" aria-label="Simulation speed">
           ${[1, 2, 4].map((n) => `<button type="button" data-speed="${n}" aria-pressed="${n === 1}">${n}×</button>`).join("")}
         </div>
@@ -49,8 +70,8 @@ app.innerHTML = `
   </header>
   <main class="lanes" id="lanes"></main>
   <footer class="help">
-    <span><kbd>←</kbd><kbd>→</kbd> rotate</span>
-    <span><kbd>↑</kbd><kbd>↓</kbd> or <kbd>0</kbd>–<kbd>4</kbd> throttle</span>
+    <span class="live-only"><kbd>←</kbd><kbd>→</kbd> rotate</span>
+    <span class="live-only"><kbd>↑</kbd><kbd>↓</kbd> or <kbd>0</kbd>–<kbd>4</kbd> throttle</span>
     <span><kbd>Space</kbd> start / pause</span>
     <span><kbd>R</kbd> restart</span>
     <span class="muted">Land upright on the pad: under 3 m/s down, 1.5 m/s sideways, 8° tilt. Engine version ${ENGINE_VERSION}.</span>
@@ -64,6 +85,8 @@ const speedGroup = $<HTMLDivElement>("speed");
 const clock = $<HTMLSpanElement>("clock");
 const progress = $<HTMLDivElement>("progress");
 const lanesRoot = $<HTMLElement>("lanes");
+const modeLine = $<HTMLParagraphElement>("mode");
+const saveBtn = $<HTMLButtonElement>("save");
 
 const keyboard = new KeyboardController();
 
@@ -102,6 +125,13 @@ function makeClients(seed: number): DecisionClient[] {
 let arena: Arena;
 let views: LaneView[] = [];
 let speed = 1;
+/** Set while playing a recording; the run is then fixed and nothing is called. */
+let recording: Recording | null = null;
+/**
+ * Set once a live run steps faster than real time. Models then get less wall
+ * time per decision than live, so the run is not saved as a replay.
+ */
+let spedUp = false;
 
 function fmt(seconds: number): string {
   const s = Math.floor(seconds);
@@ -110,8 +140,14 @@ function fmt(seconds: number): string {
 
 function render(a: Arena): void {
   a.lanes.forEach((slot, i) => views[i]?.update(slot, a.elapsed));
-  clock.textContent = `${fmt(a.elapsed)} / ${fmt(runSeconds)}`;
-  progress.style.width = `${Math.min(100, (a.elapsed / runSeconds) * 100).toFixed(2)}%`;
+  const total = a.options.runSeconds;
+  clock.textContent = `${fmt(a.elapsed)} / ${fmt(total)}`;
+  progress.style.width = `${Math.min(100, (a.elapsed / total) * 100).toFixed(2)}%`;
+  if (recording) showVerification(a, recording);
+  if (a.isRunning && a.speed !== 1) spedUp = true;
+  saveBtn.hidden = recording !== null || !a.finished;
+  saveBtn.disabled = spedUp;
+  saveBtn.title = spedUp ? "Only runs flown at 1× can be saved: faster speeds give models less time per decision." : "Save this finished run as a replay";
   if (a.finished) setToggle("Finished", "");
   else if (a.isRunning) setToggle("Pause", icons.pause);
   else setToggle(a.elapsed > 0 ? "Resume" : "Start", icons.play);
@@ -129,12 +165,16 @@ function setToggle(label: string, icon: string): void {
 function setup(seed: number): void {
   arena?.dispose();
   keyboard.reset();
+  spedUp = false;
   seedInput.value = String(seed);
-  const url = new URL(location.href);
-  url.searchParams.set("seed", String(seed));
-  history.replaceState(null, "", url);
-
-  arena = new Arena({ seed, runSeconds, clients: makeClients(seed) }, render);
+  if (recording) {
+    arena = new Arena({ seed: recording.seed, runSeconds: recording.runSeconds, clients: recording.lanes.map((l) => new ReplayClient(l)) }, render);
+  } else {
+    const url = new URL(location.href);
+    url.searchParams.set("seed", String(seed));
+    history.replaceState(null, "", url);
+    arena = new Arena({ seed, runSeconds, clients: makeClients(seed) }, render);
+  }
   arena.speed = speed;
   views = arena.lanes.map((slot) => new LaneView(slot, seed));
   lanesRoot.replaceChildren(...views.map((v) => v.root));
@@ -158,6 +198,48 @@ function fitLanes(): void {
   lanesRoot.style.setProperty("--lane-count", String(lanesRoot.childElementCount));
 }
 
+/**
+ * A replay re-simulates physics from the recorded answers. Every decision
+ * tick's state hash must match the recording's, or the page says where it
+ * stopped matching instead of passing the run off as the recorded one.
+ */
+function showVerification(a: Arena, rec: Recording): void {
+  let text = "Replay matches the recording so far.";
+  let bad = false;
+  for (const [i, slot] of a.lanes.entries()) {
+    const at = firstDivergence(rec.lanes[i]!.hashes, slot.hashes, slot.state.finished);
+    if (at !== null) {
+      text = `${slot.client.label} differs from the recording from decision ${at + 1}. This build no longer reproduces it.`;
+      bad = true;
+      break;
+    }
+  }
+  if (!bad && a.finished) text = `Replay matched the recording on all ${a.lanes.length} lanes, decision for decision.`;
+  setMode(`Replay of a live run on ${new Date(rec.recordedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}, played back without calling any model. ${text}`, bad);
+}
+
+function setMode(text: string, bad = false): void {
+  if (modeLine.textContent !== text) modeLine.textContent = text;
+  modeLine.classList.toggle("is-bad", bad);
+}
+
+/** In dev the run is written to public/replays; the public build downloads it. */
+async function saveReplay(): Promise<void> {
+  const rec = arena.toRecording();
+  const name = `seed-${rec.seed}-${rec.recordedAt.slice(0, 19).replace(/[:T]/g, "-")}`;
+  const json = JSON.stringify(rec);
+  if (import.meta.env.DEV) {
+    const res = await fetch(`/api/replays/${name}`, { method: "POST", headers: { "content-type": "application/json" }, body: json });
+    setMode(res.ok ? `Saved as apps/web/public/replays/${name}.json. Watch it at ?replay=${name}.` : `Could not save the replay: HTTP ${res.status}.`, !res.ok);
+    return;
+  }
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+  link.download = `${name}.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
 function toggle(): void {
   if (arena.isRunning) arena.pause();
   else arena.start();
@@ -165,6 +247,7 @@ function toggle(): void {
 }
 
 toggleBtn.addEventListener("click", toggle);
+saveBtn.addEventListener("click", () => void saveReplay());
 $("restart").addEventListener("click", () => setup(Number(seedInput.value) || initialSeed));
 $("new-seed").addEventListener("click", () => setup(1 + Math.floor(Math.random() * 99_999)));
 seedInput.addEventListener("change", () => setup(Number(seedInput.value) || initialSeed));
@@ -189,4 +272,26 @@ window.addEventListener("resize", () => {
   render(arena);
 });
 
-setup(initialSeed);
+async function loadReplay(name: string): Promise<void> {
+  if (!/^[\w-]+$/.test(name)) throw new Error(`"${name}" is not a replay name`);
+  const res = await fetch(`${import.meta.env.BASE_URL}replays/${name}.json`);
+  // The dev server and static hosts answer unknown paths with the page itself.
+  if (!res.ok || !res.headers.get("content-type")?.includes("json")) throw new Error(`no replay called "${name}"`);
+  recording = parseRecording(await res.json());
+  document.body.classList.add("is-replay");
+  seedInput.readOnly = true;
+  seedInput.title = "A replay always flies the course it was recorded on.";
+}
+
+if (replayName) {
+  try {
+    await loadReplay(replayName);
+    setup(recording!.seed);
+  } catch (err) {
+    recording = null;
+    setup(initialSeed);
+    setMode(`Could not load the replay: ${err instanceof Error ? err.message : String(err)}. Flying live instead.`, true);
+  }
+} else {
+  setup(initialSeed);
+}
