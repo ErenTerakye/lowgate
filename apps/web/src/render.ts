@@ -1,5 +1,6 @@
 import {
   DT,
+  FUEL_CAPACITY,
   LEVEL_TIME_LIMIT_S,
   TERRAIN_SEGMENT,
   WORLD_HEIGHT,
@@ -394,12 +395,18 @@ export class LaneRenderer {
     ctx.font = `500 ${Math.round(13 * dpr)}px ${FONT}`;
     ctx.fillStyle = color("--overlay-dim");
     ctx.fillText(`${Math.max(0, LEVEL_TIME_LIMIT_S - seconds).toFixed(0)} s left`, pad, pad + 18 * dpr);
+    ctx.fillText(`Fuel ${Math.round((lander.fuel / FUEL_CAPACITY) * 100)}%`, pad, pad + 36 * dpr);
 
+    // Flight readouts live on the screen, like a lander's HUD; the panel
+    // below the canvas is for the decision model.
     ctx.textAlign = "right";
-    const arrow = wind > 0.02 ? "→" : wind < -0.02 ? "←" : "";
-    ctx.fillText(`Wind ${Math.abs(wind).toFixed(2)} ${arrow}`.trim(), w - pad, pad);
     const altitude = Math.max(0, lander.y - terrainHeightAt(level, lander.x));
-    ctx.fillText(`Altitude ${altitude.toFixed(0)} m`, w - pad, pad + 18 * dpr);
+    ctx.fillText(`Altitude ${altitude.toFixed(0)} m`, w - pad, pad);
+    const hArrow = lander.vx > 0.05 ? "→" : lander.vx < -0.05 ? "←" : "";
+    const vArrow = lander.vy > 0.05 ? "↑" : lander.vy < -0.05 ? "↓" : "";
+    ctx.fillText(`Speed ${hArrow}${Math.abs(lander.vx).toFixed(1)}  ${vArrow}${Math.abs(lander.vy).toFixed(1)} m/s`, w - pad, pad + 18 * dpr);
+    const arrow = wind > 0.02 ? "→" : wind < -0.02 ? "←" : "";
+    ctx.fillText(`Wind ${Math.abs(wind).toFixed(2)} ${arrow}`.trim(), w - pad, pad + 36 * dpr);
     ctx.textAlign = "left";
 
     if (lane.outcome !== null) {

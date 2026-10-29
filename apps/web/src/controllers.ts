@@ -1,30 +1,16 @@
-import { autopilot, type Action, type LaneState, type Rotate, type Throttle } from "@arena/engine";
-
-/**
- * Something that picks a lane's action at each decision tick. Milestone 1
- * controllers answer synchronously; model-backed ones (milestone 2) will
- * answer asynchronously against a deadline behind the same idea.
- */
-export interface Controller {
-  readonly id: string;
-  readonly label: string;
-  /** Short tag shown on the lane, e.g. "keyboard" or "scripted". */
-  readonly kind: string;
-  /** One line under the lane explaining what its bars mean. */
-  readonly note: string;
-  decide(lane: LaneState): Action;
-  dispose?(): void;
-}
+import type { Rotate, Throttle } from "@arena/engine";
+import type { DecisionClient, DecisionResult } from "@arena/decisions";
 
 /**
  * Human lane. Input is sampled only at decision ticks (5 Hz), the same
  * cadence every model gets, so the comparison stays fair.
  */
-export class KeyboardController implements Controller {
+export class KeyboardController implements DecisionClient {
   readonly id = "keyboard";
   readonly label = "You";
   readonly kind = "keyboard";
   readonly note = "Your keys, read 5 times a second like every model. Bars show the chosen action.";
+  readonly model = null;
   private left = false;
   private right = false;
   private throttle: Throttle = 0;
@@ -38,9 +24,9 @@ export class KeyboardController implements Controller {
     return this.throttle;
   }
 
-  decide(): Action {
+  decide(): DecisionResult {
     const rotate: Rotate = this.left === this.right ? "none" : this.left ? "left" : "right";
-    return { rotate, throttle: this.throttle };
+    return { ok: true, decision: { action: { rotate, throttle: this.throttle }, probs: null, latencyMs: 0, usage: null } };
   }
 
   reset(): void {
@@ -89,15 +75,4 @@ export class KeyboardController implements Controller {
     if (e.key === "ArrowLeft" || e.key === "a") this.left = false;
     if (e.key === "ArrowRight" || e.key === "d") this.right = false;
   };
-}
-
-export class AutopilotController implements Controller {
-  readonly id = "autopilot";
-  readonly label = "Autopilot";
-  readonly kind = "scripted";
-  readonly note = "Hand-written controller with no model: shows the chosen action at 100%, with no probabilities.";
-
-  decide(lane: LaneState): Action {
-    return autopilot(lane.level, lane.lander);
-  }
 }

@@ -1,14 +1,15 @@
-import { DT, IDLE, createLane, needsDecision, stepLane, type Action, type LaneState } from "@arena/engine";
-import type { Controller } from "./controllers.ts";
+import { DT, IDLE, createLane, decisionTick, needsDecision, stepLane, type Action, type LaneState } from "@arena/engine";
+import { LaneRunner, type CallRecord, type DecisionClient } from "@arena/decisions";
 
 /** Never simulate more than this many steps per frame (e.g. after a background tab). */
 const MAX_STEPS_PER_FRAME = 20;
 
 export interface LaneSlot {
-  readonly controller: Controller;
+  readonly client: DecisionClient;
+  /** Owns the client's timing: deadlines, missed ticks, errors. */
+  readonly runner: LaneRunner;
   state: LaneState;
   action: Action;
-  decisions: number;
   /** Points gained on the most recent landing, for the outcome banner. */
   lastScoreDelta: number;
 }
@@ -16,7 +17,9 @@ export interface LaneSlot {
 export interface ArenaOptions {
   seed: number;
   runSeconds: number;
-  controllers: readonly Controller[];
+  clients: readonly DecisionClient[];
+  /** Every finished call, per lane, for logging and (later) replays. */
+  onCall?: (laneId: string, record: CallRecord) => void;
 }
 
 /**
@@ -35,11 +38,11 @@ export class Arena {
     readonly options: ArenaOptions,
     private readonly onFrame: (arena: Arena) => void,
   ) {
-    this.lanes = options.controllers.map((controller) => ({
-      controller,
+    this.lanes = options.clients.map((client) => ({
+      client,
+      runner: new LaneRunner(client, { onCall: (r) => options.onCall?.(client.id, r) }),
       state: createLane(options.seed, options.runSeconds),
       action: IDLE,
-      decisions: 0,
       lastScoreDelta: 0,
     }));
   }
@@ -69,15 +72,23 @@ export class Arena {
     cancelAnimationFrame(this.rafId);
   }
 
+  /** Stops the loop and cancels every call in flight. */
+  dispose(): void {
+    this.pause();
+    for (const slot of this.lanes) slot.runner.dispose();
+  }
+
   /** Advance exactly one physics step for every lane. */
   step(): void {
     for (const slot of this.lanes) {
-      if (needsDecision(slot.state)) {
-        slot.action = slot.controller.decide(slot.state);
-        slot.decisions++;
-      }
+      if (needsDecision(slot.state)) slot.action = slot.runner.tick(slot.state, decisionTick(slot.state));
       const before = slot.state.stats.score;
+      const level = slot.state.level.index;
       slot.state = stepLane(slot.state, slot.action);
+      if (slot.state.level.index !== level) {
+        slot.runner.newEpisode();
+        slot.action = slot.runner.action;
+      }
       if (slot.state.stats.score !== before) slot.lastScoreDelta = slot.state.stats.score - before;
     }
   }
@@ -95,7 +106,7 @@ export class Arena {
     if (steps >= MAX_STEPS_PER_FRAME * this.speed) this.accumulator = 0;
     this.onFrame(this);
     if (this.finished) {
-      this.running = false;
+      this.dispose();
       return;
     }
     this.rafId = requestAnimationFrame(this.frame);

@@ -1,6 +1,7 @@
 import { DECISION_HZ, DEFAULT_RUN_SECONDS, ENGINE_VERSION } from "@arena/engine";
 import { Arena } from "./arena.ts";
-import { AutopilotController, KeyboardController } from "./controllers.ts";
+import { RandomClient, ScriptedClient, SimulatedModelClient, type DecisionClient } from "@arena/decisions";
+import { KeyboardController } from "./controllers.ts";
 import { LaneView } from "./hud.ts";
 import { icons } from "./icons.ts";
 import "./style.css";
@@ -8,6 +9,8 @@ import "./style.css";
 const params = new URLSearchParams(location.search);
 const initialSeed = Number(params.get("seed")) || 42;
 const runSeconds = Number(params.get("seconds")) || DEFAULT_RUN_SECONDS;
+/** `?lanes=you,simulated,autopilot,random,flaky,broke` picks the lanes and their order. */
+const laneIds = (params.get("lanes") ?? "you,simulated").split(",").map((s) => s.trim());
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
@@ -54,6 +57,29 @@ const progress = $<HTMLDivElement>("progress");
 const lanesRoot = $<HTMLElement>("lanes");
 
 const keyboard = new KeyboardController();
+
+/** Built fresh per course so seeded clients restart with it. */
+function makeClients(seed: number): DecisionClient[] {
+  const make: Record<string, () => DecisionClient> = {
+    you: () => keyboard,
+    autopilot: () => new ScriptedClient(),
+    random: () => new RandomClient(seed),
+    simulated: () => new SimulatedModelClient({ seed }),
+    // Fails a quarter of its calls, to show the retry state.
+    flaky: () => new SimulatedModelClient({ seed: seed + 1, failureRate: 0.25, id: "flaky", label: "Flaky model" }),
+    // Out of credit on the first call, to show a lane that stops cleanly.
+    broke: () =>
+      new SimulatedModelClient({
+        seed,
+        failureRate: 1,
+        failWith: { kind: "quota", status: 402, message: "HTTP 402: simulated, credit used up" },
+        id: "broke",
+        label: "Out-of-credit model",
+      }),
+  };
+  const clients = laneIds.flatMap((id) => make[id]?.() ?? []);
+  return clients.length > 0 ? clients : [keyboard, new SimulatedModelClient({ seed })];
+}
 let arena: Arena;
 let views: LaneView[] = [];
 let speed = 1;
@@ -82,14 +108,14 @@ function setToggle(label: string, icon: string): void {
 }
 
 function setup(seed: number): void {
-  arena?.pause();
+  arena?.dispose();
   keyboard.reset();
   seedInput.value = String(seed);
   const url = new URL(location.href);
   url.searchParams.set("seed", String(seed));
   history.replaceState(null, "", url);
 
-  arena = new Arena({ seed, runSeconds, controllers: [keyboard, new AutopilotController()] }, render);
+  arena = new Arena({ seed, runSeconds, clients: makeClients(seed) }, render);
   arena.speed = speed;
   views = arena.lanes.map((slot) => new LaneView(slot, seed));
   lanesRoot.replaceChildren(...views.map((v) => v.root));

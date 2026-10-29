@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@arena/engine": "workspace:*"
+    "@arena/engine": "workspace:*",
+    "@arena/decisions": "workspace:*"
   }
 }

@@ -333,6 +333,38 @@ button.primary:hover:not(:disabled) {
   white-space: nowrap;
 }
 
+.lane-screen {
+  position: relative;
+}
+
+.lane-screen canvas {
+  display: block;
+}
+
+/* Error state sits over the bottom of the canvas so it never moves the layout. */
+.lane-alert {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--paper);
+  background: color-mix(in srgb, var(--lane-bg) 82%, transparent);
+  border-left: 3px solid var(--foil);
+}
+
+.lane.is-stopped .lane-alert {
+  border-left-color: var(--bad);
+}
+
+.lane.is-stopped .lane-screen canvas {
+  opacity: 0.55;
+}
+
 .decision {
   display: grid;
   grid-template-columns: 3fr 5fr;
