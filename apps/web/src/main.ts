@@ -1,6 +1,6 @@
 import { DECISION_HZ, DEFAULT_RUN_SECONDS, ENGINE_VERSION } from "@arena/engine";
 import { Arena } from "./arena.ts";
-import { DEFAULT_PROMPT, MODEL_LANES, RandomClient, isPromptId, ScriptedClient, SimulatedModelClient, SystemOneClient, type DecisionClient } from "@arena/decisions";
+import { LlmJsonClient, MODEL_LANES, RandomClient, isLlmPromptId, isPromptId, ScriptedClient, SimulatedModelClient, SystemOneClient, type DecisionClient } from "@arena/decisions";
 import { KeyboardController } from "./controllers.ts";
 import { LaneView } from "./hud.ts";
 import { icons } from "./icons.ts";
@@ -10,13 +10,16 @@ const params = new URLSearchParams(location.search);
 const initialSeed = Number(params.get("seed")) || 42;
 const runSeconds = Number(params.get("seconds")) || DEFAULT_RUN_SECONDS;
 /**
- * `?lanes=jev,autopilot,you,random,simulated,flaky,broke` picks the lanes and
- * their order. Model lanes call /api/decide/:lane, which holds the keys.
+ * `?lanes=jev,clef,qwen,llama,gemma,glm,laya,autopilot,you,random,simulated,flaky,broke`
+ * picks the lanes and their order. Model lanes call /api/decide/:lane, which
+ * holds the keys. Laya needs the local bridge (bridge/laya).
  */
-const laneIds = (params.get("lanes") ?? "jev,autopilot").split(",").map((s) => s.trim());
-/** `?prompt=p2` flies model lanes with another prompt from PROMPTS. */
+const laneIds = (params.get("lanes") ?? "jev,clef,qwen,autopilot").split(",").map((s) => s.trim());
+/**
+ * Each model lane flies its own tuned prompt. `?prompt=p2` overrides it for
+ * System One lanes, `?prompt=l1` for LLM lanes.
+ */
 const promptParam = params.get("prompt");
-const promptId = isPromptId(promptParam) ? promptParam : DEFAULT_PROMPT;
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
@@ -84,9 +87,14 @@ function makeClients(seed: number): DecisionClient[] {
       }),
   };
   for (const lane of Object.values(MODEL_LANES)) {
-    if (lane.protocol !== "systemone") continue;
-    make[lane.id] = () =>
-      new SystemOneClient({ id: lane.id, label: lane.label, model: lane.model, endpoint: `/api/decide/${lane.id}`, viaProxy: true, prompt: promptId });
+    const common = { id: lane.id, label: lane.label, model: lane.model, endpoint: `/api/decide/${lane.id}`, viaProxy: true };
+    if (lane.protocol === "systemone") {
+      const prompt = isPromptId(promptParam) ? promptParam : isPromptId(lane.prompt) ? lane.prompt : undefined;
+      make[lane.id] = () => new SystemOneClient({ ...common, ...(prompt ? { prompt } : {}) });
+    } else {
+      const prompt = isLlmPromptId(promptParam) ? promptParam : isLlmPromptId(lane.prompt) ? lane.prompt : "l1";
+      make[lane.id] = () => new LlmJsonClient({ ...common, prompt });
+    }
   }
   const clients = laneIds.flatMap((id) => make[id]?.() ?? []);
   return clients.length > 0 ? clients : [keyboard, new SimulatedModelClient({ seed })];

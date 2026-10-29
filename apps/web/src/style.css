@@ -226,9 +226,9 @@ button.primary:hover:not(:disabled) {
   --lane-max: calc((100svh - var(--lane-chrome)) * 4 / 3 + 34px);
   display: grid;
   /* auto-fit counts columns from the minimum; the cap goes on the container and lanes. */
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 24px;
-  max-width: calc(var(--lane-count, 1) * (var(--lane-max) + 24px) + 24px);
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  max-width: calc(var(--lane-count, 1) * (var(--lane-max) + 20px) + 28px);
   margin-inline: auto;
   padding: 4px 24px 20px;
 }
@@ -313,9 +313,7 @@ button.primary:hover:not(:disabled) {
   grid-template-columns: repeat(4, minmax(0, auto));
   justify-content: space-between;
   gap: 8px 12px;
-  margin: 14px 0 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--edge);
+  margin: 14px 0 10px;
 }
 
 .stats dt {
@@ -531,5 +529,45 @@ kbd {
 .unit {
   margin-left: 3px;
   font-size: 14px;
+  color: var(--muted);
+}
+
+/* Cost: one sentence under the stats, so both rates and the price source read as words. */
+.cost {
+  margin: 0 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--edge);
+  font-size: 13px;
+  color: var(--muted);
+  cursor: help;
+}
+
+.cost b {
+  font-family: "Barlow Condensed", Barlow, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--paper);
+  font-variant-numeric: tabular-nums;
+}
+
+.cost-label {
+  margin-right: 6px;
+  font-size: 12px;
+}
+
+.cost-sep::before {
+  content: "";
+  display: inline-block;
+  width: 1px;
+  height: 0.9em;
+  margin: 0 10px;
+  vertical-align: -1px;
+  background: var(--edge);
+}
+
+/* A price nobody could confirm with the vendor is marked as an estimate. */
+.cost.is-estimate b::before {
+  content: "≈";
+  margin-right: 1px;
   color: var(--muted);
 }

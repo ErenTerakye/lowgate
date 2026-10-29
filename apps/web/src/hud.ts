@@ -1,5 +1,5 @@
 import { THROTTLE_LEVELS, type Rotate } from "@arena/engine";
-import { oneHot, percentile, type DecisionError, type LaneRunner } from "@arena/decisions";
+import { PRICE_SOURCE_TEXT, costSummary, formatUsd, oneHot, percentile, type DecisionClient, type DecisionError, type LaneRunner } from "@arena/decisions";
 
 const ALERT_HOLD_MS = 2000;
 import type { LaneSlot } from "./arena.ts";
@@ -42,6 +42,7 @@ export class LaneView {
   private readonly score: HTMLElement;
   private readonly stat: Record<"record" | "dps" | "latency" | "missed", HTMLElement>;
   private readonly alert: HTMLElement;
+  private readonly cost: HTMLElement;
   private shownError: DecisionError | null = null;
   private alertUntil = 0;
   private readonly rotateBars = new Map<Rotate, ReturnType<typeof barCol>>();
@@ -90,6 +91,9 @@ export class LaneView {
     this.stat.latency.parentElement!.title = "Median / 95th percentile round trip, measured in this browser on every call.";
     this.stat.missed.parentElement!.title = "Ticks where the answer was not back in time, so the lane repeated its last action.";
 
+    // Cost is its own line: both rates plus the price's source need words, not a cell.
+    this.cost = el("p", "cost");
+
     const decision = el("div", "decision");
     const rot = barGroup("Rotate", "rotate");
     for (const r of ROTATES) {
@@ -105,7 +109,7 @@ export class LaneView {
     }
     decision.append(rot.root, thr.root);
 
-    this.root.append(head, screen, stats, decision);
+    this.root.append(head, screen, stats, this.cost, decision);
   }
 
   update(slot: LaneSlot, elapsedSeconds: number): void {
@@ -116,10 +120,41 @@ export class LaneView {
     const rate = elapsedSeconds > 0 ? (runner.decisions / elapsedSeconds).toFixed(1) : "0.0";
     this.stat.dps.innerHTML = `${runner.decisions}<span class="unit">at ${rate}/s</span>`;
     this.updateModelStats(runner);
+    this.updateCost(slot.client, runner, elapsedSeconds);
 
     const probs = runner.probs ?? oneHot(action);
     for (const [r, bar] of this.rotateBars) setBar(bar, probs.rotate[r], r === action.rotate);
     this.throttleBars.forEach((bar, i) => setBar(bar, probs.throttle[i] ?? 0, i === action.throttle));
+  }
+
+  private updateCost(client: DecisionClient, runner: LaneRunner, elapsedSeconds: number): void {
+    const cost = costSummary(client.model, runner.usage, elapsedSeconds);
+    let html: string;
+    let title: string;
+    if (!cost) {
+      html = `<span class="cost-label">Cost</span> free, runs in this browser`;
+      title = "No model calls.";
+    } else if (cost.source === "none") {
+      html = `<span class="cost-label">Cost</span> $0, runs on this machine`;
+      title = PRICE_SOURCE_TEXT.none;
+    } else if (runner.usage.calls === 0 && runner.decisions > 0) {
+      html = `<span class="cost-label">Cost</span> unknown: no token counts reported`;
+      title = "The provider did not report token usage, so cost cannot be measured.";
+    } else if (runner.usage.calls === 0) {
+      html = `<span class="cost-label">Cost</span> <b>$0</b> so far, no answered calls`;
+      title = `Price: ${PRICE_SOURCE_TEXT[cost.source]} ($${client.model!.price.input}/M in, $${client.model!.price.output}/M out).`;
+    } else {
+      const per1k = cost.per1kUsd === null ? "—" : formatUsd(cost.per1kUsd);
+      html =
+        `<span class="cost-label">Cost</span> <b>${formatUsd(cost.perHourUsd)}</b> an hour` +
+        `<span class="cost-sep"></span><b>${per1k}</b> per 1k decisions`;
+      title =
+        `${formatUsd(cost.spentUsd)} spent this run. Measured tokens × ${PRICE_SOURCE_TEXT[cost.source]} ` +
+        `($${client.model!.price.input}/M in, $${client.model!.price.output}/M out). The hourly rate uses this lane's measured decision rate.`;
+    }
+    if (this.cost.innerHTML !== html) this.cost.innerHTML = html;
+    this.cost.title = title;
+    this.cost.classList.toggle("is-estimate", cost?.source === "third_party" && runner.usage.calls > 0);
   }
 
   private updateModelStats(runner: LaneRunner): void {

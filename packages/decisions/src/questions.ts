@@ -4,10 +4,15 @@ import type { Probabilities } from "./types.ts";
 
 export const ROTATES: readonly Rotate[] = ["left", "none", "right"];
 
-/** The two System One questions asked every tick, in one request. */
+/**
+ * The two System One questions asked every tick, in one request. Throttle is
+ * an ordered score, or a choice keyed "0".."4" (both come back per level).
+ */
 export interface SystemOneQuestions {
   readonly rotate: { readonly type: "choice"; readonly instructions: string; readonly criteria: Readonly<Record<Rotate, string>> };
-  readonly throttle: { readonly type: "score"; readonly instructions: string; readonly criteria: readonly string[] };
+  readonly throttle:
+    | { readonly type: "score"; readonly instructions: string; readonly criteria: readonly string[] }
+    | { readonly type: "choice"; readonly instructions: string; readonly criteria: Readonly<Record<string, string>> };
 }
 
 /** First wording: describes each control, not when to use it. */
@@ -58,6 +63,14 @@ const SITUATIONAL: SystemOneQuestions = {
   },
 };
 
+const COACHED_THROTTLE = [
+  "Off. The lander is rising, or descending much more slowly than the safe vertical speed.",
+  "Low. It is descending a little more slowly than the safe vertical speed.",
+  "Medium. Its vertical speed is about right.",
+  "High. It is descending too fast, by 1 to 3 m/s.",
+  "Full. It is descending far too fast, by more than 3 m/s.",
+];
+
 /** Third wording: for coached observations; each option names the coaching line that calls for it. */
 const COACHED: SystemOneQuestions = {
   rotate: {
@@ -72,12 +85,39 @@ const COACHED: SystemOneQuestions = {
   throttle: {
     type: "score",
     instructions: "Read the 'safe vertical speed now' line. Medium thrust roughly balances gravity. Which throttle for the next 0.2 seconds?",
+    criteria: COACHED_THROTTLE,
+  },
+};
+
+/**
+ * Fourth wording: COACHED, with throttle asked as a choice. Clef-flash's
+ * score answers stayed near the middle level whatever the state.
+ */
+const COACHED_CHOICE: SystemOneQuestions = {
+  rotate: COACHED.rotate,
+  throttle: {
+    type: "choice",
+    instructions: COACHED.throttle.instructions,
+    criteria: Object.fromEntries(COACHED_THROTTLE.map((text, i) => [String(i), text])),
+  },
+};
+
+/**
+ * Fifth wording: COACHED, with each throttle level quoting the words the
+ * 'safe vertical speed now' line uses ("too much downward"), so no
+ * rephrasing is needed to match them.
+ */
+const COACHED_MATCHED: SystemOneQuestions = {
+  rotate: COACHED.rotate,
+  throttle: {
+    type: "score",
+    instructions: "Read the 'safe vertical speed now' line, which says how the current vertical speed compares. Which throttle for the next 0.2 seconds?",
     criteria: [
-      "Off. The lander is rising, or descending much more slowly than the safe vertical speed.",
-      "Low. It is descending a little more slowly than the safe vertical speed.",
-      "Medium. Its vertical speed is about right.",
-      "High. It is descending too fast, by 1 to 3 m/s.",
-      "Full. It is descending far too fast, by more than 3 m/s.",
+      "Off. Current is more than 1.5 m/s too much upward.",
+      "Low. Current is up to 1.5 m/s too much upward.",
+      "Medium. Current is about right.",
+      "High. Current is up to 3 m/s too much downward.",
+      "Full. Current is more than 3 m/s too much downward.",
     ],
   },
 };
@@ -101,10 +141,12 @@ export const PROMPTS = {
   p3: { id: "p3", tier: 2, compact: true, questions: SITUATIONAL, summary: "Tier 2 observation without fixed rules, situational wording" },
   p4: { id: "p4", tier: 3, compact: false, questions: SITUATIONAL, summary: "Tier 3 observation (safe-speed coaching), situational wording" },
   p5: { id: "p5", tier: 4, compact: false, questions: COACHED, summary: "Tier 4 observation (speed and tilt coaching), coached wording" },
+  p7: { id: "p7", tier: 4, compact: false, questions: COACHED_MATCHED, summary: "Tier 4 observation, coached wording quoting the observation's own phrases" },
+  p6: { id: "p6", tier: 4, compact: false, questions: COACHED_CHOICE, summary: "Tier 4 observation, coached wording, throttle as a choice" },
 } as const satisfies Record<string, PromptSpec>;
 
 export type PromptId = keyof typeof PROMPTS;
-/** Adopted after the 2026-10-29 sweep: the only prompt that landed (docs/prompt-tuning.md). */
+/** Jev's prompt since the 2026-10-29 sweep (docs/prompt-tuning.md); each lane's own is in MODEL_LANES. */
 export const DEFAULT_PROMPT: PromptId = "p5";
 
 export function isPromptId(id: unknown): id is PromptId {

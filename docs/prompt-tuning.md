@@ -50,3 +50,7 @@ The Jev lane flies **p5**, and its badge shows "model · tier 4". This is coache
 ## Cost of this experiment
 
 772 probe calls and 652,926 input tokens: **$0.027**, plus about $0.01 for three short live runs in the browser.
+
+## Later: p6 and p7 (tuning the other lanes)
+
+Two prompts added while tuning Clef-flash were also run on Jev (30 states each): p6 (throttle as a choice) gave r 0.74 and p7 (throttle levels quoting the observation's phrases) gave r 0.64, with rotation unchanged at 77 %. Jev stays on p5. See docs/lanes.md.

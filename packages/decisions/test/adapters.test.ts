@@ -121,7 +121,7 @@ describe("LlmJsonClient", () => {
   const completion = (content: string) => ({ choices: [{ message: { content } }], usage: { prompt_tokens: 310, completion_tokens: 12 } });
 
   it("parses an OpenAI-style completion with measured usage", async () => {
-    const llm = new LlmJsonClient({ id: "llama", label: "Llama", model, endpoint: "https://x/chat", fetch: fakeFetch(() => json(completion('{"rotate":"left","throttle":3}'))) });
+    const llm = new LlmJsonClient({ id: "llama", label: "Llama", model, prompt: "l1", endpoint: "https://x/chat", fetch: fakeFetch(() => json(completion('{"rotate":"left","throttle":3}'))) });
     const r = await llm.decide({ lane, tick: 0, signal });
     expect(r.ok && r.decision).toMatchObject({ action: { rotate: "left", throttle: 3 }, probs: null, usage: { inputTokens: 310, outputTokens: 12 } });
   });
@@ -132,6 +132,11 @@ describe("LlmJsonClient", () => {
 
   it("reads Workers AI's native shape", () => {
     expect(parseLlmResponse({ result: { response: { rotate: "right", throttle: 0 } } }).action).toEqual({ rotate: "right", throttle: 0 });
+  });
+
+  it("reads the reply from reasoning_content when content is empty (Qwen3 with thinking off)", () => {
+    const body = { choices: [{ message: { content: null, reasoning_content: '{"tilt":"about right","vertical":"about right","rotate":"none","throttle":2}' } }] };
+    expect(parseLlmResponse(body).action).toEqual({ rotate: "none", throttle: 2 });
   });
 
   it.each([

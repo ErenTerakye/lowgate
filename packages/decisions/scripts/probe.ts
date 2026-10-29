@@ -4,6 +4,7 @@
  *
  *   pnpm probe --lane jev --prompt p2 --calls 30     answers on autopilot states
  *   pnpm probe --lane jev --prompt p2 --fly 2        flies 2 levels, closed loop
+ *   pnpm probe --lane llama --calls 30               LLM lanes use the prompt's observation tier
  *
  * Calls go one at a time, straight to the provider, using the key from the
  * repo's .env. In --fly mode the world waits for each answer (no deadline),
@@ -13,12 +14,28 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { DECISION_HZ, IDLE, PHYSICS_HZ, autopilot, createLane, needsDecision, stepLane, type Action, type LaneState } from "@arena/engine";
-import { DEFAULT_PROMPT, FATAL_ERRORS, MODEL_LANES, PROMPTS, SystemOneClient, isPromptId, observe, percentile, type Decision, type DecisionResult } from "../src/index.ts";
+import {
+  FATAL_ERRORS,
+  LLM_PROMPTS,
+  LlmJsonClient,
+  MODEL_LANES,
+  PROMPTS,
+  SystemOneClient,
+  isLlmPromptId,
+  isPromptId,
+  observe,
+  percentile,
+  resolveUpstream,
+  usdFor,
+  type Decision,
+  type DecisionClient,
+  type DecisionResult,
+} from "../src/index.ts";
 
 const { values } = parseArgs({
   options: {
     lane: { type: "string", default: "jev" },
-    prompt: { type: "string", default: DEFAULT_PROMPT },
+    prompt: { type: "string" },
     calls: { type: "string", default: "30" },
     fly: { type: "string" },
     seed: { type: "string", default: "42" },
@@ -26,17 +43,24 @@ const { values } = parseArgs({
 });
 const lane = MODEL_LANES[values.lane];
 if (!lane) throw new Error(`Unknown lane "${values.lane}". Known: ${Object.keys(MODEL_LANES).join(", ")}`);
-if (lane.protocol !== "systemone") throw new Error(`Lane "${lane.id}" is not a System One lane`);
-if (!isPromptId(values.prompt)) throw new Error(`Unknown prompt "${values.prompt}". Known: ${Object.keys(PROMPTS).join(", ")}`);
-const prompt = PROMPTS[values.prompt];
+// Defaults to the lane's own tuned prompt; System One and chat lanes have separate prompt sets.
+const promptId = values.prompt ?? lane.prompt;
+const known = lane.protocol === "systemone" ? PROMPTS : LLM_PROMPTS;
+if (!(lane.protocol === "systemone" ? isPromptId(promptId) : isLlmPromptId(promptId))) {
+  throw new Error(`Unknown prompt "${promptId}" for ${lane.label}. Known: ${Object.keys(known).join(", ")}`);
+}
+const prompt = (known as Record<string, { id: string; tier: 1 | 2 | 3 | 4; summary: string; compact?: boolean }>)[promptId]!;
 const seed = Number(values.seed);
-const key = process.env[lane.keyEnv];
-if (!key) {
-  console.error(`${lane.keyEnv} is not set. Add it to .env at the repo root (see .env.example).`);
+const key = lane.keyEnv ? process.env[lane.keyEnv] : undefined;
+const upstream = resolveUpstream(lane, process.env);
+const missing = lane.keyEnv && !key ? lane.keyEnv : "missing" in upstream ? upstream.missing : null;
+if (missing || "missing" in upstream) {
+  console.error(`${missing} is not set. Add it to .env at the repo root (see .env.example).`);
   process.exit(1);
 }
 
-const client = new SystemOneClient({ id: lane.id, label: lane.label, model: lane.model, endpoint: lane.upstream, apiKey: key, prompt: prompt.id, timeoutMs: 5000 });
+const common = { id: lane.id, label: lane.label, model: lane.model, endpoint: upstream.url, timeoutMs: 5000, ...(key ? { apiKey: key } : {}) };
+const client: DecisionClient = lane.protocol === "systemone" ? new SystemOneClient({ ...common, prompt: promptId as keyof typeof PROMPTS }) : new LlmJsonClient({ ...common, prompt: promptId as keyof typeof LLM_PROMPTS, ...(lane.requestExtras ? { requestExtras: lane.requestExtras } : {}) });
 const signal = new AbortController().signal;
 const records: Record<string, unknown>[] = [];
 const decisions: { d: Decision; expected: Action }[] = [];
@@ -146,11 +170,14 @@ function correlation(xs: number[], ys: number[]): number | null {
 
 const latencies = decisions.map((r) => r.d.latencyMs);
 const meanIn = mean(decisions.flatMap((r) => (r.d.usage ? [r.d.usage.inputTokens] : [])));
-const costPerCall = (meanIn / 1e6) * lane.model.price.input;
+const meanOut = mean(decisions.flatMap((r) => (r.d.usage ? [r.d.usage.outputTokens] : [])));
+const costPerCall = usdFor(meanIn, meanOut, lane.model.price);
 const served = [...new Set(decisions.map((r) => r.d.servedModel ?? "(not reported)"))];
 const p95 = percentile(latencies, 95);
 const withProbs = decisions.filter((r) => r.d.probs);
-const expectedThrottle = withProbs.map((r) => r.d.probs!.throttle.reduce((sum, p, i) => sum + p * i, 0));
+/** Expected throttle from probabilities; for lanes that only pick (LLMs), the pick itself. */
+const throttleOf = (d: Decision): number => (d.probs ? d.probs.throttle.reduce((sum, p, i) => sum + p * i, 0) : d.action.throttle);
+const topOrNull = (xs: number[]): number | null => (withProbs.length ? mean(xs) : null);
 const share = (pred: (r: (typeof decisions)[number]) => boolean): number => decisions.filter(pred).length / (decisions.length || 1);
 
 const summary = {
@@ -167,18 +194,19 @@ const summary = {
   errors: Object.fromEntries([...new Set(errors)].map((k) => [k, errors.filter((e) => e === k).length])),
   latencyMs: { p50: percentile(latencies, 50), p95, max: latencies.length ? Math.max(...latencies) : null, source: "measured" },
   inputTokensPerCall: Math.round(meanIn),
+  outputTokensPerCall: Math.round(meanOut),
   costUsd: { perCall: costPerCall, per1kDecisions: costPerCall * 1000, perHourAt5Hz: costPerCall * DECISION_HZ * 3600, priceSource: lane.model.price.source },
   fitsTick: p95 !== null ? p95 < 1000 / DECISION_HZ : null,
   agreesWithAutopilot: { rotate: share((r) => r.d.action.rotate === r.expected.rotate), throttle: share((r) => r.d.action.throttle === r.expected.throttle) },
   throttle: {
     /** Does the model's expected throttle rise and fall with what the situation needs? */
-    correlationWithAutopilot: correlation(expectedThrottle, withProbs.map((r) => r.expected.throttle)),
-    meanTopProbability: mean(withProbs.map((r) => Math.max(...r.d.probs!.throttle))),
+    correlationWithAutopilot: correlation(decisions.map((r) => throttleOf(r.d)), decisions.map((r) => r.expected.throttle)),
+    meanTopProbability: topOrNull(withProbs.map((r) => Math.max(...r.d.probs!.throttle))),
     picks: [0, 1, 2, 3, 4].map((t) => decisions.filter((r) => r.d.action.throttle === t).length),
   },
-  rotateMeanTopProbability: mean(withProbs.map((r) => Math.max(...Object.values(r.d.probs!.rotate)))),
+  rotateMeanTopProbability: topOrNull(withProbs.map((r) => Math.max(...Object.values(r.d.probs!.rotate)))),
   flights,
-  observationChars: observe(createLane(seed), prompt.tier, { compact: prompt.compact }).length,
+  observationChars: observe(createLane(seed), prompt.tier, { compact: prompt.compact ?? false }).length,
   at: new Date().toISOString(),
 };
 
@@ -187,12 +215,12 @@ const file = `measurements/${lane.id}-${prompt.id}-${mode}-${summary.at.replace(
 writeFileSync(file, [JSON.stringify({ summary }), ...records.map((r) => JSON.stringify(r))].join("\n") + "\n");
 
 const ms = (n: number | null) => (n === null ? "—" : `${Math.round(n)} ms`);
-const pct = (n: number) => `${Math.round(n * 100)}%`;
+const pct = (n: number | null) => (n === null ? "— (picks only)" : `${Math.round(n * 100)}%`);
 const corr = summary.throttle.correlationWithAutopilot;
 console.log(`${lane.label} ${lane.model.model}, prompt ${prompt.id}   served: ${served.join(", ")}${summary.pinHeld ? "" : "   ⚠ differs from the pin"}
 calls       ${decisions.length}/${records.length} ok${errors.length ? `, errors: ${JSON.stringify(summary.errors)}` : ""}
 latency     p50 ${ms(summary.latencyMs.p50)}   p95 ${ms(p95)}   max ${ms(summary.latencyMs.max)}   (measured, from this machine)
-tokens in   ${summary.inputTokensPerCall} per call (measured); observation ${summary.observationChars} chars
+tokens      ${summary.inputTokensPerCall} in, ${summary.outputTokensPerCall} out per call (measured); observation ${summary.observationChars} chars
 cost        $${summary.costUsd.per1kDecisions.toFixed(4)} per 1k decisions (price: ${lane.model.price.source})
 rotate      agrees ${pct(summary.agreesWithAutopilot.rotate)} with autopilot, top probability ${pct(summary.rotateMeanTopProbability)} on average
 throttle    agrees ${pct(summary.agreesWithAutopilot.throttle)}, follows the situation r = ${corr === null ? "—" : corr.toFixed(2)}, top probability ${pct(summary.throttle.meanTopProbability)}, picks Off..Full ${summary.throttle.picks.join("/")}`);
