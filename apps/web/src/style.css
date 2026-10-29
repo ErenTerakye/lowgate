@@ -1,0 +1,503 @@
+/*
+ * Palette from the materials of a lunar landing: indigo night sky,
+ * regolith greys, and the gold Kapton foil of a descent stage.
+ */
+:root {
+  --night: #171b2e;
+  --panel: #1e2338;
+  --lane-bg: #1b1f33;
+  --edge: #2f3550;
+  --paper: #ecebe6;
+  --muted: #9a9fb3;
+  --foil: #d9a62e;
+  --foil-shadow: #9c7418;
+  --good: #8fd3b0;
+  --bad: #e5604a;
+
+  /* Canvas tokens, read by the renderer. */
+  --sky-top: #0f1222;
+  --sky-low: #262b48;
+  --star: rgba(236, 235, 230, 0.7);
+  --regolith: #8f8b83;
+  --regolith-shadow: #3f3e3c;
+  --rim: #a9a49a;
+  --rim-lit: #ddd8cc;
+  --pad: #ecebe6;
+  --beacon: #d9a62e;
+  --trail: rgba(236, 235, 230, 0.28);
+  --metal: #c9ccd6;
+  --window: #262b48;
+  --flame-core: #fff4d6;
+  --flame: #ffb454;
+  --dust: #c8c3b8;
+  --overlay: #ecebe6;
+  --overlay-dim: rgba(236, 235, 230, 0.7);
+  --banner-bg: rgba(15, 18, 34, 0.82);
+
+  color-scheme: dark;
+  font-family: Barlow, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--paper);
+  background: var(--night);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--night);
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  align-items: end;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+}
+
+.brand h1 {
+  margin: 0;
+  font-family: "Barlow Condensed", Barlow, sans-serif;
+  font-weight: 600;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.brand p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  max-width: 60ch;
+}
+
+/* Controls fall into two groups: which course, and how the run plays. */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  align-items: center;
+}
+
+.group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.group label {
+  color: var(--muted);
+}
+
+#seed {
+  width: 76px;
+  text-align: center;
+  font-family: "Barlow Condensed", Barlow, sans-serif;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+input,
+button {
+  font: inherit;
+  color: var(--paper);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  padding: 6px 12px;
+  height: 36px;
+}
+
+button {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.icon {
+  flex: none;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+:is(button, input):focus-visible {
+  outline: 2px solid var(--foil);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--foil);
+  border-color: var(--foil);
+  color: var(--night);
+  font-weight: 600;
+  min-width: 104px;
+}
+
+button.primary:hover:not(:disabled) {
+  border-color: var(--paper);
+}
+
+/* Speed is a single choice of three, so all three stay visible. */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.segmented button {
+  border: 0;
+  border-radius: 0;
+  min-width: 40px;
+  padding: 0 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--edge);
+}
+
+/* Hover lifts the label only: the shared border hover would light up the dividers. */
+.segmented button:hover:not(:disabled) {
+  border-color: var(--edge);
+  color: var(--paper);
+  background: color-mix(in srgb, var(--edge) 45%, var(--panel));
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--edge);
+  color: var(--paper);
+  font-weight: 600;
+}
+
+.segmented button:focus-visible {
+  outline-offset: -2px;
+}
+
+.clock {
+  display: grid;
+  gap: 5px;
+  min-width: 108px;
+  font-family: "Barlow Condensed", Barlow, sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.progress {
+  height: 3px;
+  background: var(--edge);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress > div {
+  height: 100%;
+  width: 0;
+  background: var(--foil);
+}
+
+/*
+ * The canvas is 4:3, so a lane's width sets its height. Cap the width so a
+ * whole lane (head, canvas, telemetry) fits the window height. main.ts
+ * measures --lane-chrome, the height of everything on screen but the canvas.
+ */
+.lanes {
+  --lane-chrome: 330px;
+  --lane-max: calc((100svh - var(--lane-chrome)) * 4 / 3 + 34px);
+  display: grid;
+  /* auto-fit counts columns from the minimum; the cap goes on the container and lanes. */
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 24px;
+  max-width: calc(var(--lane-count, 1) * (var(--lane-max) + 24px) + 24px);
+  margin-inline: auto;
+  padding: 4px 24px 20px;
+}
+
+/* A lane is a camera viewport with its telemetry underneath, framed so
+ * each lane's numbers read as its own. */
+.lane {
+  width: 100%;
+  max-width: var(--lane-max);
+  justify-self: center;
+  min-width: 0;
+  padding: 14px 16px 16px;
+  background: var(--lane-bg);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+}
+
+.lane-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.lane-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.lane-score {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.lane-score-value {
+  font-family: "Barlow Condensed", Barlow, sans-serif;
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.lane-score-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.lane-name {
+  margin: 0;
+  font-family: "Barlow Condensed", Barlow, sans-serif;
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.badge {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: underline dotted var(--edge);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.badge:focus-visible {
+  outline: 2px solid var(--foil);
+  outline-offset: 2px;
+}
+
+.lane-canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--edge);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, auto));
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 14px 0 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--edge);
+}
+
+.stats dt {
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stats dd {
+  margin: 0;
+  font-family: "Barlow Condensed", Barlow, sans-serif;
+  font-size: 19px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.decision {
+  display: grid;
+  grid-template-columns: 3fr 5fr;
+  gap: 24px;
+}
+
+.bars h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bar-cols {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.bar-col {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.bar-col.chosen {
+  color: var(--paper);
+}
+
+.bar-track {
+  display: flex;
+  background: var(--edge);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  background: var(--muted);
+  transition: height 120ms linear, width 120ms linear;
+}
+
+.bar-col.chosen .bar-fill {
+  background: var(--foil);
+}
+
+/* Throttle: vertical power levels, filling upward. */
+.bars-throttle .bar-track {
+  align-items: flex-end;
+  width: 10px;
+  height: 30px;
+}
+
+.bars-throttle .bar-fill {
+  width: 100%;
+  height: var(--p, 0%);
+}
+
+/* Rotate: one horizontal steering axis. Left fills toward the left, right
+   toward the right, hold grows from the centre, so the bar points the way
+   the craft turns. */
+.bars-rotate .bar-cols {
+  gap: 3px;
+}
+
+.bars-rotate .bar-track {
+  width: 100%;
+  height: 10px;
+  margin-block: 10px;
+  justify-content: center;
+}
+
+.bars-rotate .bar-col:first-child .bar-track {
+  justify-content: flex-end;
+  border-radius: 5px 2px 2px 5px;
+}
+
+.bars-rotate .bar-col:last-child .bar-track {
+  justify-content: flex-start;
+  border-radius: 2px 5px 5px 2px;
+}
+
+.bars-rotate .bar-fill {
+  height: 100%;
+  width: var(--p, 0%);
+}
+
+.bar-value {
+  font-family: "Barlow Condensed", Barlow, sans-serif;
+  font-size: 14px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-label {
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.help {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding: 0 24px 28px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+kbd {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 1px 6px;
+  margin-right: 2px;
+  border: 1px solid var(--edge);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--paper);
+}
+
+@media (max-width: 560px) {
+  .topbar,
+  .lanes,
+  .help {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .lanes {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .lanes {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: none;
+  }
+
+  .lane {
+    max-width: none;
+  }
+
+  .lane {
+    padding: 12px;
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .clock {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-fill {
+    transition: none;
+  }
+}
+
+.unit {
+  margin-left: 3px;
+  font-size: 14px;
+  color: var(--muted);
+}
