@@ -1,10 +1,17 @@
 import { THROTTLE_LEVELS, type Action, type Rotate, type Throttle } from "@arena/engine";
+import type { ObservationTier } from "./observe.ts";
 import type { Probabilities } from "./types.ts";
 
 export const ROTATES: readonly Rotate[] = ["left", "none", "right"];
 
 /** The two System One questions asked every tick, in one request. */
-export const SYSTEM_ONE_QUESTIONS = {
+export interface SystemOneQuestions {
+  readonly rotate: { readonly type: "choice"; readonly instructions: string; readonly criteria: Readonly<Record<Rotate, string>> };
+  readonly throttle: { readonly type: "score"; readonly instructions: string; readonly criteria: readonly string[] };
+}
+
+/** First wording: describes each control, not when to use it. */
+const GENERIC: SystemOneQuestions = {
   rotate: {
     type: "choice",
     instructions: "Which way should the lander rotate during the next 0.2 seconds to reach a safe landing on the pad?",
@@ -25,7 +32,87 @@ export const SYSTEM_ONE_QUESTIONS = {
       "Full thrust.",
     ],
   },
-} as const;
+};
+
+/** Second wording: each option says what situation calls for it, with the physics in numbers. */
+const SITUATIONAL: SystemOneQuestions = {
+  rotate: {
+    type: "choice",
+    instructions: "The lander should move toward the pad and arrive slow and upright. Which way should it rotate for the next 0.2 seconds?",
+    criteria: {
+      left: "Rotate left (angle decreases). Right when the lander needs to accelerate toward the left: the pad is to the left, or it drifts right too fast, or it leans too far right.",
+      none: "Hold the angle. Right when the current tilt already pushes the lander the way it needs to go.",
+      right: "Rotate right (angle increases). Right when the lander needs to accelerate toward the right: the pad is to the right, or it drifts left too fast, or it leans too far left.",
+    },
+  },
+  throttle: {
+    type: "score",
+    instructions: "Gravity pulls down at 3.2 m/s2. Which throttle for the next 0.2 seconds keeps the lander on course for a gentle, upright touchdown on the pad?",
+    criteria: [
+      "Off (0 m/s2 up). Right when the lander is rising, or descending slowly with plenty of height left.",
+      "Low (2.1 m/s2 up, less than gravity). Right when it should keep sinking, a little slower.",
+      "Medium (4.2 m/s2 up, a bit more than gravity). Right when a descent should slow gently, or to roughly hold height.",
+      "High (6.3 m/s2 up). Right when it is descending too fast for its height.",
+      "Full (8.4 m/s2 up). Right when it is descending fast close to the ground and must brake hard.",
+    ],
+  },
+};
+
+/** Third wording: for coached observations; each option names the coaching line that calls for it. */
+const COACHED: SystemOneQuestions = {
+  rotate: {
+    type: "choice",
+    instructions: "Read the 'good tilt now' line. Which way should the lander rotate for the next 0.2 seconds?",
+    criteria: {
+      left: "Rotate left. Choose when the current tilt is too far right of the good tilt.",
+      none: "Hold the angle. Choose when the current tilt is about right.",
+      right: "Rotate right. Choose when the current tilt is too far left of the good tilt.",
+    },
+  },
+  throttle: {
+    type: "score",
+    instructions: "Read the 'safe vertical speed now' line. Medium thrust roughly balances gravity. Which throttle for the next 0.2 seconds?",
+    criteria: [
+      "Off. The lander is rising, or descending much more slowly than the safe vertical speed.",
+      "Low. It is descending a little more slowly than the safe vertical speed.",
+      "Medium. Its vertical speed is about right.",
+      "High. It is descending too fast, by 1 to 3 m/s.",
+      "Full. It is descending far too fast, by more than 3 m/s.",
+    ],
+  },
+};
+
+/**
+ * A complete prompt: observation tier plus question wording. Results and
+ * replays record the prompt id, so numbers from different prompts are never
+ * mixed. Add a new id rather than editing one that has results.
+ */
+export interface PromptSpec {
+  readonly id: string;
+  readonly tier: ObservationTier;
+  readonly compact: boolean;
+  readonly questions: SystemOneQuestions;
+  readonly summary: string;
+}
+
+export const PROMPTS = {
+  p1: { id: "p1", tier: 2, compact: false, questions: GENERIC, summary: "Tier 2 observation, generic question wording" },
+  p2: { id: "p2", tier: 2, compact: false, questions: SITUATIONAL, summary: "Tier 2 observation, situational wording" },
+  p3: { id: "p3", tier: 2, compact: true, questions: SITUATIONAL, summary: "Tier 2 observation without fixed rules, situational wording" },
+  p4: { id: "p4", tier: 3, compact: false, questions: SITUATIONAL, summary: "Tier 3 observation (safe-speed coaching), situational wording" },
+  p5: { id: "p5", tier: 4, compact: false, questions: COACHED, summary: "Tier 4 observation (speed and tilt coaching), coached wording" },
+} as const satisfies Record<string, PromptSpec>;
+
+export type PromptId = keyof typeof PROMPTS;
+/** Adopted after the 2026-10-29 sweep: the only prompt that landed (docs/prompt-tuning.md). */
+export const DEFAULT_PROMPT: PromptId = "p5";
+
+export function isPromptId(id: unknown): id is PromptId {
+  return typeof id === "string" && Object.hasOwn(PROMPTS, id);
+}
+
+/** Kept for callers that predate prompt versions. */
+export const SYSTEM_ONE_QUESTIONS = PROMPTS[DEFAULT_PROMPT].questions;
 
 export function argmax(values: readonly number[]): number {
   let best = 0;

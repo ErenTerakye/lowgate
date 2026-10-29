@@ -1,6 +1,6 @@
 import { DECISION_HZ, DEFAULT_RUN_SECONDS, ENGINE_VERSION } from "@arena/engine";
 import { Arena } from "./arena.ts";
-import { RandomClient, ScriptedClient, SimulatedModelClient, type DecisionClient } from "@arena/decisions";
+import { DEFAULT_PROMPT, MODEL_LANES, RandomClient, isPromptId, ScriptedClient, SimulatedModelClient, SystemOneClient, type DecisionClient } from "@arena/decisions";
 import { KeyboardController } from "./controllers.ts";
 import { LaneView } from "./hud.ts";
 import { icons } from "./icons.ts";
@@ -9,8 +9,14 @@ import "./style.css";
 const params = new URLSearchParams(location.search);
 const initialSeed = Number(params.get("seed")) || 42;
 const runSeconds = Number(params.get("seconds")) || DEFAULT_RUN_SECONDS;
-/** `?lanes=you,simulated,autopilot,random,flaky,broke` picks the lanes and their order. */
-const laneIds = (params.get("lanes") ?? "you,simulated").split(",").map((s) => s.trim());
+/**
+ * `?lanes=jev,autopilot,you,random,simulated,flaky,broke` picks the lanes and
+ * their order. Model lanes call /api/decide/:lane, which holds the keys.
+ */
+const laneIds = (params.get("lanes") ?? "jev,autopilot").split(",").map((s) => s.trim());
+/** `?prompt=p2` flies model lanes with another prompt from PROMPTS. */
+const promptParam = params.get("prompt");
+const promptId = isPromptId(promptParam) ? promptParam : DEFAULT_PROMPT;
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
@@ -77,6 +83,11 @@ function makeClients(seed: number): DecisionClient[] {
         label: "Out-of-credit model",
       }),
   };
+  for (const lane of Object.values(MODEL_LANES)) {
+    if (lane.protocol !== "systemone") continue;
+    make[lane.id] = () =>
+      new SystemOneClient({ id: lane.id, label: lane.label, model: lane.model, endpoint: `/api/decide/${lane.id}`, viaProxy: true, prompt: promptId });
+  }
   const clients = laneIds.flatMap((id) => make[id]?.() ?? []);
   return clients.length > 0 ? clients : [keyboard, new SimulatedModelClient({ seed })];
 }

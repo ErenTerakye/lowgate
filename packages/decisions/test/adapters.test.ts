@@ -1,6 +1,6 @@
 import { createLane } from "@arena/engine";
 import { describe, expect, it } from "vitest";
-import { LlmJsonClient, SystemOneClient, observe, parseLlmResponse, parseSystemOne, type Fetch, type ModelInfo } from "../src/index.ts";
+import { DEFAULT_PROMPT, LlmJsonClient, PROMPTS, SystemOneClient, observe, parseLlmResponse, parseSystemOne, type Fetch, type ModelInfo } from "../src/index.ts";
 
 const lane = createLane(42);
 const signal = new AbortController().signal;
@@ -75,7 +75,7 @@ describe("SystemOneClient", () => {
     const r = await client(fakeFetch(() => json(answer, 200, { "x-upstream-ms": "37" }), log)).decide({ lane, tick: 0, signal });
     const body = JSON.parse(log[0]!.init.body as string);
     expect(body.model).toBe("jev-1.14.0");
-    expect(body.state).toBe(observe(lane));
+    expect(body.state).toBe(observe(lane, PROMPTS[DEFAULT_PROMPT].tier));
     expect(Object.keys(body.questions)).toEqual(["rotate", "throttle"]);
     expect((log[0]!.init.headers as Record<string, string>).authorization).toBe("Bearer k");
     expect(r.ok && r.decision.action).toEqual({ rotate: "right", throttle: 2 });
@@ -140,5 +140,11 @@ describe("LlmJsonClient", () => {
     ["I would rotate left", /no JSON/],
   ])("rejects %s", (content, message) => {
     expect(() => parseLlmResponse(completion(content))).toThrow(message);
+  });
+});
+
+describe("pin check", () => {
+  it("reports the model the provider served", () => {
+    expect(parseSystemOne(answer).servedModel).toBe("jev-1.14.0");
   });
 });

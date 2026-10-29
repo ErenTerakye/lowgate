@@ -20,6 +20,8 @@ export type DecisionErrorKind =
   | "quota"
   | "rate_limited"
   | "auth"
+  /** The proxy has no key for this lane (e.g. TYPESAFE_API_KEY unset). */
+  | "not_configured"
   /** Provider answered, but not with something we can turn into an action. */
   | "bad_response"
   | "http"
@@ -33,7 +35,7 @@ export interface DecisionError {
 }
 
 /** Errors after which retrying cannot help: the lane stops asking. */
-export const FATAL_ERRORS: ReadonlySet<DecisionErrorKind> = new Set(["quota", "auth"]);
+export const FATAL_ERRORS: ReadonlySet<DecisionErrorKind> = new Set(["quota", "auth", "not_configured"]);
 
 export interface Decision {
   readonly action: Action;
@@ -43,12 +45,18 @@ export interface Decision {
   /** Provider-side time when the transport reports it (e.g. the Worker's x-upstream-ms). */
   readonly upstreamMs?: number;
   readonly usage: Usage | null;
+  /** Model id the provider says it served; compared against the pin. */
+  readonly servedModel?: string;
 }
 
 export type DecisionResult = { readonly ok: true; readonly decision: Decision } | { readonly ok: false; readonly error: DecisionError; readonly latencyMs: number };
 
-/** Where a lane's price comes from. Every number on screen carries one of these. */
-export type PriceSource = "vendor" | "measured" | "none";
+/**
+ * Where a lane's price comes from. Every number on screen carries one of
+ * these: the vendor's own pages, someone else's report we could not confirm,
+ * our own billing, or free.
+ */
+export type PriceSource = "vendor" | "third_party" | "measured" | "none";
 
 export interface ModelInfo {
   /** e.g. "TypeSafe", "Cloudflare Workers AI", "local". */

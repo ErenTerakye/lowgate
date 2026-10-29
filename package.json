@@ -10,7 +10,8 @@
     "dev": "pnpm --filter @arena/web dev",
     "build": "pnpm --filter @arena/web build",
     "test": "vitest run",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "probe": "node --env-file-if-exists=.env packages/decisions/scripts/probe.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

@@ -64,8 +64,10 @@ export class SimulatedModelClient implements DecisionClient {
   readonly note = "No API: the autopilot's pick blurred into probabilities, with a made-up 40–400 ms delay. Shows how a model lane behaves.";
   readonly model = null;
   private readonly rng: Rng;
+  private readonly options: SimulatedOptions;
 
-  constructor(private readonly options: SimulatedOptions) {
+  constructor(options: SimulatedOptions) {
+    this.options = options;
     this.id = options.id ?? "simulated";
     this.label = options.label ?? "Simulated model";
     this.rng = createRng(options.seed ^ 0x51a7);

@@ -66,11 +66,13 @@ export class LaneRunner {
   private retryAt = 0;
   private consecutiveErrors = 0;
   private readonly abort = new AbortController();
+  readonly client: DecisionClient;
+  private readonly options: RunnerOptions;
 
-  constructor(
-    readonly client: DecisionClient,
-    private readonly options: RunnerOptions = {},
-  ) {}
+  constructor(client: DecisionClient, options: RunnerOptions = {}) {
+    this.client = client;
+    this.options = options;
+  }
 
   /** Call on every decision tick; returns the action to fly until the next one. */
   tick(lane: LaneState, tick: number): Action {

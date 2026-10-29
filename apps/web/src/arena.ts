@@ -33,11 +33,12 @@ export class Arena {
   private accumulator = 0;
   private lastFrame = 0;
   private rafId = 0;
+  readonly options: ArenaOptions;
+  private readonly onFrame: (arena: Arena) => void;
 
-  constructor(
-    readonly options: ArenaOptions,
-    private readonly onFrame: (arena: Arena) => void,
-  ) {
+  constructor(options: ArenaOptions, onFrame: (arena: Arena) => void) {
+    this.options = options;
+    this.onFrame = onFrame;
     this.lanes = options.clients.map((client) => ({
       client,
       runner: new LaneRunner(client, { onCall: (r) => options.onCall?.(client.id, r) }),

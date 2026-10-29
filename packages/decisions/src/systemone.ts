@@ -1,7 +1,7 @@
 import { THROTTLE_LEVELS } from "@arena/engine";
 import { DecisionFailure, postJson, toFailure, upstreamMs, type Fetch } from "./http.ts";
-import { observe, type ObservationTier } from "./observe.ts";
-import { ROTATES, SYSTEM_ONE_QUESTIONS, actionFromProbs } from "./questions.ts";
+import { observe } from "./observe.ts";
+import { DEFAULT_PROMPT, PROMPTS, ROTATES, actionFromProbs, type PromptId } from "./questions.ts";
 import type { DecisionClient, DecisionRequest, DecisionResult, ModelInfo, Probabilities, Usage } from "./types.ts";
 
 export interface SystemOneOptions {
@@ -17,7 +17,10 @@ export interface SystemOneOptions {
   /** Only set server-side (Worker, Node scripts). The browser talks to the Worker without one. */
   readonly apiKey?: string;
   readonly headers?: Record<string, string>;
-  readonly tier?: ObservationTier;
+  /** Observation tier and question wording; see PROMPTS. */
+  readonly prompt?: PromptId;
+  /** Talking to our proxy, which picks the questions from the prompt id. */
+  readonly viaProxy?: boolean;
   readonly timeoutMs?: number;
   readonly fetch?: Fetch;
 }
@@ -29,35 +32,53 @@ export interface SystemOneOptions {
 export class SystemOneClient implements DecisionClient {
   readonly id: string;
   readonly label: string;
-  readonly kind = "model";
+  /** Shows the observation tier, since results depend on it. */
+  readonly kind: string;
   readonly note: string;
   readonly model: ModelInfo;
   private readonly fetchImpl: Fetch;
+  private readonly options: SystemOneOptions;
 
-  constructor(private readonly options: SystemOneOptions) {
+  constructor(options: SystemOneOptions) {
+    this.options = options;
     this.id = options.id;
     this.label = options.label;
     this.model = options.model;
-    this.note = options.note ?? `${options.model.model} via ${options.model.provider}. Bars are the model's probabilities.`;
+    const spec = PROMPTS[options.prompt ?? DEFAULT_PROMPT];
+    this.kind = `model · tier ${spec.tier}`;
+    this.note = options.note ?? `${options.model.model} via ${options.model.provider}, prompt ${spec.id} (observation tier ${spec.tier}). Bars are the model's probabilities.`;
     this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
   }
 
   async decide({ lane, signal }: DecisionRequest): Promise<DecisionResult> {
     const started = performance.now();
+    const spec = PROMPTS[this.options.prompt ?? DEFAULT_PROMPT];
     try {
       const { body, headers } = await postJson(
         this.fetchImpl,
         this.options.endpoint,
-        { model: this.model.model, state: observe(lane, this.options.tier ?? 2), questions: SYSTEM_ONE_QUESTIONS },
+        {
+          model: this.model.model,
+          state: observe(lane, spec.tier, { compact: spec.compact }),
+          questions: spec.questions,
+          ...(this.options.viaProxy ? { prompt: spec.id } : {}),
+        },
         { ...this.options.headers, ...(this.options.apiKey ? { authorization: `Bearer ${this.options.apiKey}` } : {}) },
         signal,
         this.options.timeoutMs ?? 2000,
       );
-      const { probs, usage } = parseSystemOne(body);
+      const { probs, usage, servedModel } = parseSystemOne(body);
       const up = upstreamMs(headers);
       return {
         ok: true,
-        decision: { action: actionFromProbs(probs), probs, usage, latencyMs: performance.now() - started, ...(up ? { upstreamMs: up } : {}) },
+        decision: {
+          action: actionFromProbs(probs),
+          probs,
+          usage,
+          latencyMs: performance.now() - started,
+          ...(up ? { upstreamMs: up } : {}),
+          ...(servedModel ? { servedModel } : {}),
+        },
       };
     } catch (err) {
       return { ok: false, error: toFailure(err), latencyMs: performance.now() - started };
@@ -77,7 +98,7 @@ function num(v: unknown, what: string): number {
  * Reads a System One response. Accepts Cloudflare's REST envelope
  * (`{ result: {...} }`) as well as the bare object the binding returns.
  */
-export function parseSystemOne(raw: unknown): { probs: Probabilities; usage: Usage | null } {
+export function parseSystemOne(raw: unknown): { probs: Probabilities; usage: Usage | null; servedModel?: string } {
   let body = raw as Record<string, unknown> | null;
   if (body && typeof body === "object" && "result" in body && body.result && typeof body.result === "object") {
     body = body.result as Record<string, unknown>;
@@ -97,5 +118,6 @@ export function parseSystemOne(raw: unknown): { probs: Probabilities; usage: Usa
 
   const u = body?.usage as Record<string, unknown> | undefined;
   const usage = u ? { inputTokens: num(u.input_tokens ?? 0, "usage.input_tokens"), outputTokens: num(u.output_tokens ?? 0, "usage.output_tokens") } : null;
-  return { probs: { rotate, throttle }, usage };
+  const served = typeof body?.model === "string" ? { servedModel: body.model } : {};
+  return { probs: { rotate, throttle }, usage, ...served };
 }

@@ -44,8 +44,10 @@ export class LlmJsonClient implements DecisionClient {
   readonly note: string;
   readonly model: ModelInfo;
   private readonly fetchImpl: Fetch;
+  private readonly options: LlmJsonOptions;
 
-  constructor(private readonly options: LlmJsonOptions) {
+  constructor(options: LlmJsonOptions) {
+    this.options = options;
     this.id = options.id;
     this.label = options.label;
     this.model = options.model;

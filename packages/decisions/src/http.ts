@@ -9,8 +9,11 @@ export interface PostResult {
 
 /** Thrown inside adapters and turned into a failed DecisionResult at the edge. */
 export class DecisionFailure extends Error {
-  constructor(readonly error: DecisionError) {
+  readonly error: DecisionError;
+
+  constructor(error: DecisionError) {
     super(error.message);
+    this.error = error;
   }
 }
 
@@ -19,6 +22,7 @@ const QUOTA_HINT = /quota|credit|insufficient|balance|billing|daily (free )?(lim
 /** Maps an HTTP failure to the error kinds the arena knows how to show. */
 export function classifyHttp(status: number, message: string): DecisionError {
   const base = { status, message: `HTTP ${status}: ${message}`.slice(0, 300) };
+  if (status === 501) return { kind: "not_configured", ...base };
   if (status === 401 || status === 403) return { kind: "auth", ...base };
   if (status === 402 || QUOTA_HINT.test(message)) return { kind: "quota", ...base };
   if (status === 429) return { kind: "rate_limited", ...base };

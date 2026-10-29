@@ -60,7 +60,10 @@ export class LaneRenderer {
   private flash = 0;
   private cam = { zoom: 1, x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
 
-  constructor(private readonly canvas: HTMLCanvasElement, seed: number) {
+  private readonly canvas: HTMLCanvasElement;
+
+  constructor(canvas: HTMLCanvasElement, seed: number) {
+    this.canvas = canvas;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("2D canvas unavailable");
     this.ctx = ctx;

@@ -167,6 +167,7 @@ const ERROR_TEXT: Partial<Record<string, string>> = {
   quota: "Out of quota",
   rate_limited: "Rate limited",
   auth: "API key rejected",
+  not_configured: "No API key on the server",
   bad_response: "Unreadable answer",
   network: "Network error",
 };

@@ -14,8 +14,10 @@ export class KeyboardController implements DecisionClient {
   private left = false;
   private right = false;
   private throttle: Throttle = 0;
+  private readonly target: Window;
 
-  constructor(private readonly target: Window = window) {
+  constructor(target: Window = window) {
+    this.target = target;
     target.addEventListener("keydown", this.onKeyDown);
     target.addEventListener("keyup", this.onKeyUp);
   }
