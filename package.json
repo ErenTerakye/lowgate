@@ -11,7 +11,8 @@
     "build": "pnpm --filter @arena/web build",
     "test": "vitest run",
     "typecheck": "tsc -b",
-    "probe": "node --env-file-if-exists=.env packages/decisions/scripts/probe.ts"
+    "probe": "node --env-file-if-exists=.env packages/decisions/scripts/probe.ts",
+    "laya-dataset": "node packages/decisions/scripts/laya-dataset.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

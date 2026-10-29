@@ -3,7 +3,8 @@ Serves a local Laya model over the System One HTTP shape, so the arena's
 SystemOneClient talks to it like any hosted lane.
 
     python -m pip install -r bridge/laya/requirements.txt
-    python bridge/laya/server.py --model aac6fef/laya-mlx
+    python bridge/laya/server.py                            # fine-tuned model if present
+    python bridge/laya/server.py --model aac6fef/laya-mlx   # base model from Hugging Face
 
 POST /v1/systemone  {model, state, questions}  ->  {model, answers, usage}
 GET  /health        ->  {ok, model}
@@ -17,10 +18,14 @@ from __future__ import annotations
 import argparse
 import json
 import time
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Protocol
 
 MAX_BODY_BYTES = 64 * 1024
+BASE_MODEL = "aac6fef/laya-mlx"
+# Made by finetune_colab.ipynb and `laya-mlx convert` (docs/lanes.md); not in git.
+FINE_TUNED = Path(__file__).parent / "models" / "laya-descent-v1-mlx"
 
 
 class UnexpectedAnswer(Exception):
@@ -120,15 +125,18 @@ def make_handler(agent: Agent, model: str) -> type[BaseHTTPRequestHandler]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--model", default="aac6fef/laya-mlx", help="Hugging Face id or local path of an MLX checkpoint")
+    parser.add_argument("--model", help=f"Hugging Face id or local path of an MLX checkpoint (default: {FINE_TUNED.name} if present, else {BASE_MODEL})")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
 
     import laya_mlx  # imported here so the tests run without MLX installed
 
-    agent = laya_mlx.load(args.model)
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(agent, args.model))
-    print(f"Laya bridge serving {args.model} on http://127.0.0.1:{args.port}/v1/systemone")
+    model = args.model or (str(FINE_TUNED) if FINE_TUNED.is_dir() else BASE_MODEL)
+    # A local checkpoint is reported by its folder name, which is what the arena's catalog pins.
+    served = Path(model).name if Path(model).is_dir() else model
+    agent = laya_mlx.load(model)
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(agent, served))
+    print(f"Laya bridge serving {served} on http://127.0.0.1:{args.port}/v1/systemone")
     server.serve_forever()
 
 

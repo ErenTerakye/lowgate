@@ -11,7 +11,7 @@ All numbers are **measured** with `pnpm probe` from a MacBook on home broadband.
 | Jev | `jev-1.14.0` (TypeSafe) | Yes | $0.042 / free, third-party | p5 |
 | Clef-flash | `clef-flash` (Workers AI) | **No**: Cloudflare has no version selector; responses report `clef-flash` | $0.038 / free, vendor | p7 |
 | Llama 3.1 8B | `@cf/meta/llama-3.1-8b-instruct-fp8-fast` (Workers AI) | Yes, by id | $0.045 / $0.384, vendor | l3 |
-| Laya | `laya-mlx` via `bridge/laya` on this Mac | Checkpoint chosen at bridge start | none (local) | p5 (to be tuned) |
+| Laya | `laya-descent-v1-mlx`, fine-tuned from `aac6fef/laya-mlx`, via `bridge/laya` on this Mac | Yes: the bridge reports the checkpoint it loaded | none (local) | p5 (trained on it) |
 
 ## Prompts
 
@@ -90,7 +90,50 @@ Today's experiments used roughly 5,800 neurons, within one day's free allowance,
 
 ## Laya
 
-`bridge/laya/server.py` serves a Laya MLX checkpoint at `127.0.0.1:8765/v1/systemone`, and the arena reaches it through the same proxy route (`?lanes=laya,...`). The HTTP path was checked end to end with a stand-in model; the real `laya-mlx` package has not been installed yet. The English checkpoint reads 512 tokens and p5 is about 830 characters of state plus the questions, so the fine-tuned Laya will need a shorter prompt or the 1,024-token multilingual checkpoint.
+`bridge/laya/server.py` serves a Laya MLX checkpoint at `127.0.0.1:8765/v1/systemone`, and the arena reaches it through the same proxy route (`?lanes=laya,...`). Setup, in a venv the repo ignores (laya-mlx needs Python 3.11+ on Apple silicon; the base checkpoint is about 843 MB):
+
+```bash
+python3.14 -m venv bridge/laya/.venv
+bridge/laya/.venv/bin/pip install -r bridge/laya/requirements.txt
+bridge/laya/.venv/bin/python bridge/laya/server.py
+```
+
+**Base Laya (`aac6fef/laya-mlx`, laya-mlx 0.6.0), p5, 30 autopilot states, measured on an M3 with 16 GB:** rotation agrees 40 %, throttle 53 % with r = 0.04, top probability 37 % (rotate) and 28 % (throttle): close to guessing, as the model card says. p50 259 ms, p95 314 ms. Laya scores each question in its own encoder pass (state plus question, ~800 tokens in all), and the package caches only the tokenized questions, so this M3 cannot answer inside a 200 ms tick; the card's 13 ms was an M3 Max. Inputs are not truncated: the state is ~300 tokens and each question is encoded beside it.
+
+### Fine-tuning
+
+The MLX port runs Laya but cannot train it; training is the upstream PyTorch package (`laya` 0.4.17, `laya.train.finetune`).
+
+1. `pnpm laya-dataset` writes `bridge/laya/data/train.jsonl` (10,852 states from courses 1000–1119) and `eval.jsonl` (1,087 from courses 9000–9011). Each state comes from an autopilot flight with noise, so recoveries are covered, and is labelled with the clean autopilot action (rotation 0.9 on the pick, throttle 0.8 with the rest on the neighbouring levels). Course 42 is in neither.
+2. `bridge/laya/finetune_colab.ipynb` fine-tunes the full model on a Colab GPU (3 epochs, effective batch 32, `max_len` 512) and reports held-out before/after accuracy.
+3. Back on the Mac: unzip into `bridge/laya/models/laya-descent-v1`, then `bridge/laya/.venv/bin/laya-mlx convert --model bridge/laya/models/laya-descent-v1 --output bridge/laya/models/laya-descent-v1-mlx`. `server.py` serves that folder by default when it exists.
+
+### Results: `laya-descent-v1` (2026-10-29)
+
+Trained on a Colab A100 (40 GB) in **21.6 min**: laya 0.4.17, torch 2.11, 3 epochs, 1,998 optimizer updates, effective batch 32, full model. Each row gives two items (rotate and throttle), hence 21,304 training items; 400 held back for calibration (fitted temperatures: choice 1.05, score 1.15).
+
+Held-out courses (`eval.jsonl`, 2,174 items), from laya.train's report:
+
+| | Accuracy | Loss | ECE | Brier |
+|---|---|---|---|---|
+| Base | 0.354 | 1.287 | 0.075 | 0.451 |
+| **Fine-tuned** | **0.953** | 0.575 | 0.142 | 0.045 |
+
+ECE rose because the labels are smoothed (the pick is 0.8–0.9, never 1.0), so a model that has learnt them looks under-confident when it is right.
+
+Measured in the arena's own tests, course 42 (which it never saw), same as every other lane:
+
+| Test | Base Laya | Fine-tuned Laya |
+|---|---|---|
+| Sweep, 30 states: rotate agrees | 40 % | **100 %** |
+| Sweep: throttle agrees / follows (r) | 53 % / 0.04 | **97 % / 0.97** |
+| Sweep: top probability, rotate / throttle | 37 % / 28 % | 89 % / 74 % |
+| Sweep: latency p50 / p95 | 259 / 314 ms | 281 / 296 ms |
+| Closed loop, no deadline | — | **Landed both**: 30.7 s (vy −1.5, angle 0°) and 36.4 s (vy −1.8, angle 0°), fastest of any lane |
+| Live, 90 s with Jev and Autopilot | — | 1 landed / 1 failed, 141 points, 51 % missed, p50 289 ms |
+
+In the same live run Jev landed 2 / 0 (283 points) and Autopilot 289. Laya now makes the best decisions of any model lane, but at ~280 ms per answer on this M3 it misses half its ticks and acts on stale states, as the Cloudflare lanes do. Ways to close the gap, not yet tried: a shorter state (it is ~300 tokens and both questions re-encode it), the `parallel` option layout that scores both questions in one pass (needs retraining with `TrainConfig(option_layout="parallel")`), or recording on a faster Mac. A second round on states from Laya's own flights (DAgger) would harden it further.
+
 
 ## Replacing Llama 3.1 8B? Candidates tested 2026-10-29
 

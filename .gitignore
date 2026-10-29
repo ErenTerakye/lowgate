@@ -10,3 +10,6 @@ coverage/
 .DS_Store
 __pycache__/
 .venv/
+# Laya fine-tuning data and checkpoints: rebuilt by pnpm laya-dataset, too big for git
+bridge/laya/data/
+bridge/laya/models/
