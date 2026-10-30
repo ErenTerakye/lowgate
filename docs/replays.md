@@ -48,3 +48,21 @@ recorded on a different `ENGINE_VERSION`.
 Tests: `apps/web/test/replay.test.ts` records a run with slow, failing and
 out-of-quota models, replays it, and checks that every lane's hashes, counters,
 latencies and usage match. It also checks that a tampered answer is caught.
+
+## The showcase run
+
+`showcase.json` was recorded on 30 Oct 2026, 05:17–05:22 UTC: course 42, 5
+minutes at 1×, with Workers AI's daily allowance freshly reset so no lane ran
+out. It is 1.07 MB, or 159 KB gzipped. All figures were measured during that
+run. Prices are the vendor or third-party ones in the catalog.
+
+| Lane | Points | Landed / failed | Decisions | Latency p50 / p95 | Missed ticks | Cost |
+|---|---|---|---|---|---|---|
+| Laya v2 (local, p8) | 1,152 | 8 / 0 | 1,428 at 4.8/s | 169 / 180 ms | 11 (1%) | $0, runs on this Mac |
+| Autopilot (no model) | 1,173 | 8 / 0 | 1,439 at 4.8/s | instant | 0 | free |
+| Jev (p5) | 585 | 4 / 4 | 937 at 3.1/s | 204 / 236 ms | 501 (35%) | ≈ $0.40/h, third-party price |
+| Qwen3 30B (l3) | 271 | 2 / 5 | 546 at 1.8/s | 423 / 622 ms | 905 (62%) | $0.27/h |
+| Clef-flash (p7) | 130 | 1 / 6 | 449 at 1.5/s | 444 / 912 ms | 992 (69%) | $0.15/h |
+
+Played back with the Laya bridge stopped, the replay matched the recording on
+all 5 lanes, decision for decision, and called no model.
