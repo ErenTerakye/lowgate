@@ -206,7 +206,37 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
     upstream: "http://127.0.0.1:8765/v1/systemone",
     priceNote: "Runs on this Mac through bridge/laya: no per-token price. Fine-tuned on a Colab A100: v2 on p8 in 14.9 min.",
   },
+  // Kev, the open-weight Jev-style family, served by its own `kev.serve` on a Colab GPU next to the benchmark
+  // (bridge/kev/kev_colab.ipynb), so the upstream is local to the Colab machine. Flies Jev's prompt, untuned.
+  "kev-0.8b": kevLane("kev-0.8b", "Kev 0.8B", "jaredpalmer/kev-0.8b@v1.0"),
+  "kev-4b": kevLane("kev-4b", "Kev 4B", "jaredpalmer/kev-4b@v1.0", {
+    provider: "OpenRouter",
+    model: "jaredpalmer/kev-4b",
+    input: 0.042,
+    output: 0,
+    source: "vendor",
+    checked: "2026-10-30",
+    url: "https://openrouter.ai/jaredpalmer/kev-4b/providers",
+  }),
+  "kev-9b": kevLane("kev-9b", "Kev 9B", "jaredpalmer/kev-9b@v1.0"),
 };
+
+/**
+ * A Kev lane on `kev.serve --port 8009`. The pin is the Hub repo and release tag passed to `--run`; the `v1.0` tag was
+ * read on the 4B model card (2026-10-31), and the notebook's probe shows what the server reports for the others.
+ */
+function kevLane(id: string, label: string, model: string, hostedEquivalent?: HostedPrice): ModelLane {
+  return {
+    id,
+    prompt: "f1",
+    label,
+    protocol: "systemone",
+    model: { provider: "self-hosted (Colab GPU)", model, pinned: true, price: { input: 0, output: 0, source: "none" } },
+    upstream: "http://127.0.0.1:8009/v1/systemone",
+    priceNote: "Runs on a Colab GPU under the Colab Pro plan: no per-token price. Answer times measure that GPU, not a hosted service.",
+    ...(hostedEquivalent ? { hostedEquivalent } : {}),
+  };
+}
 
 /** The upstream URL with its account filled in, or the name of the missing variable. */
 export function resolveUpstream(lane: ModelLane, env: Readonly<Record<string, string | undefined>>): { url: string } | { missing: string } {

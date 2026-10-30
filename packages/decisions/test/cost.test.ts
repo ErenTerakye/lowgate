@@ -16,6 +16,19 @@ describe("cost", () => {
     expect(c.source).toBe("third_party");
   });
 
+  it("gives the Kev lanes a pinned local model, Jev's prompt, and a hosted price only where one is listed", () => {
+    for (const id of ["kev-0.8b", "kev-4b", "kev-9b"]) {
+      const lane = MODEL_LANES[id]!;
+      expect(lane.protocol).toBe("systemone");
+      expect(lane.prompt).toBe(MODEL_LANES.jev!.prompt);
+      expect(lane.model.pinned).toBe(true);
+      expect(usdFor(1_000_000, 0, lane.model.price)).toBe(0);
+      expect(lane.upstream).toBe("http://127.0.0.1:8009/v1/systemone");
+    }
+    expect(MODEL_LANES["kev-4b"]!.hostedEquivalent?.input).toBe(0.042);
+    expect(MODEL_LANES["kev-9b"]!.hostedEquivalent).toBeUndefined();
+  });
+
   it("has no cost for lanes without a model and no per-1k figure before usage arrives", () => {
     expect(costSummary(null, { inputTokens: 0, outputTokens: 0, calls: 0 }, 10)).toBeNull();
     const c = costSummary(MODEL_LANES.jev!.model, { inputTokens: 0, outputTokens: 0, calls: 0 }, 0)!;

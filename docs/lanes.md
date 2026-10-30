@@ -169,6 +169,21 @@ Intervals: Wilson for landing rate, normal-approximation 95% for the mean qualit
 - **Clef-flash is far behind** at 43% on the 12 courses flown. The remaining 8 run after the daily Workers AI allowance resets; this row will change.
 - Gemma's generation speed on this Mac, estimated from the latency of 3,444 decisions against their output tokens: about 10.5 output tokens/s, plus about 1.8 s to read each ~600-token prompt (7.1 output tokens/s end to end, measured).
 
+## Kev on Colab (prepared 2026-10-31, not flown yet)
+
+Kev is an open-weight, Jev-style family on Qwen3.5 bases (Apache-2.0, [github.com/jaredpalmer/kev](https://github.com/jaredpalmer/kev)). Its `kev.serve` speaks the same `/v1/systemone` contract as Jev, so the Kev lanes reuse `SystemOneClient` with no adapter changes; a test pins the answer shape from Kev's README. This Mac (16 GB) cannot hold Kev-4B (it needs a 32 GB Mac), so the lanes run on a Colab Pro GPU, chosen over OpenRouter (Kev-4B only, paid) on 2026-10-30.
+
+| Lane | Pin (`--run`) | GPU | Hosted-equivalent price |
+|---|---|---|---|
+| `kev-0.8b` | `jaredpalmer/kev-0.8b@v1.0` | L4 | none listed |
+| `kev-4b` | `jaredpalmer/kev-4b@v1.0` | L4 (about 14.3 GB resident, model card) | $0.042/M input, output free (OpenRouter, vendor, checked 2026-10-30) |
+| `kev-9b` | `jaredpalmer/kev-9b@v1.0` | L4 if about 17 GB fits, else A100 | none listed |
+
+- `bridge/kev/kev_colab.ipynb` clones this repo (read-only token from Colab Secrets), starts Kev on `127.0.0.1:8009` next to the benchmark, probes course 42, flies courses 5001–5020 and downloads `bench/<lane>/`.
+- Every Kev lane flies Jev's prompt f1, untuned, so the comparison with Jev is like for like.
+- The `v1.0` tag was read on the 4B model card only. The notebook prints the model name the server reports; the benchmark refuses to save a course served by anything other than the pin.
+- Answer times measure the Colab GPU, not a hosted service.
+
 ## Archive: real-time arena prompts (2026-10-29, tag v0-realtime)
 
 These prompts asked rotate and throttle five times a second. They were removed in R2; the code is under the `v0-realtime` tag.

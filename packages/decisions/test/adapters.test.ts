@@ -71,6 +71,24 @@ describe("parseSystemOne", () => {
     expect(() => parseSystemOne({ answers: { tilt: split.answers.tilt, throttle: { probabilities: [1, 0] } } })).toThrow(/expected 5/);
   });
 
+  it("reads Kev's answer shape: a score keyed by level, with extra fields beside the probabilities", () => {
+    // Shape from github.com/jaredpalmer/kev's README (checked 2026-10-31), on f1's questions.
+    const kev = {
+      model: "jaredpalmer/kev-4b@v1.0",
+      answers: {
+        tilt: { type: "choice", choice: "R15", confidence: 0.4, probabilities: { R15: 0.8, UP: 0.2 } },
+        throttle: { type: "score", score: 2.5, confidence: 0.3, legend: { "0": "Off" }, probabilities: { "0": 0, "1": 0, "2": 0.5, "3": 0.5, "4": 0 } },
+      },
+      usage: { input_tokens: 412, output_tokens: 0 },
+      latency_ms: 95,
+    };
+    const { probs, usage, servedModel } = parseSystemOne(kev);
+    expect(probs[optionIndex("R15-T3")]).toBeCloseTo(0.4);
+    expect(probs[optionIndex("UP-T2")]).toBeCloseTo(0.1);
+    expect(usage).toEqual({ inputTokens: 412, outputTokens: 0 });
+    expect(servedModel).toBe("jaredpalmer/kev-4b@v1.0");
+  });
+
   it("reads Cloudflare's REST envelope", () => {
     expect(parseSystemOne({ success: true, result: answer }).probs[optionIndex("R5-T3")]).toBe(0.3);
   });
