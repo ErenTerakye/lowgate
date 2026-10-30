@@ -149,6 +149,26 @@ v4 is better on every measure, though two landings on 16 levels is within the no
 
 What Laya is: a small model trained to imitate the autopilot, so its ceiling is roughly the autopilot. The other model lanes get a prompt tuned on one held-out course and no training. Both facts go next to its results.
 
+## R5 benchmark: courses 5001–5020 (engine descent-3, 2026-10-30/31)
+
+Every lane flew the same 20 courses (160 levels), unseen by every lane during tuning and training. `pnpm bench`; the figures below come from `bench/results.json` (`pnpm bench --summary`), and every recording passed its replay check. Landings, quality and latency are measured here. Costs are measured tokens times a listed price, labelled by where the price comes from.
+
+| Lane | Courses | Landed | 95% interval | Quality (mean ± 95%) | Same pick as autopilot | Median answer | Waiting per course | Cost, 20 courses |
+|---|---|---|---|---|---|---|---|---|
+| Autopilot | 20/20 | 159/160 (99%) | 97–100% | 42.3 ± 1.3 | 100% | 0 ms | 0 s | $0 |
+| Jev `jev-1.14.0` | 20/20 | 156/160 (98%) | 94–99% | 46.7 ± 1.6 | 39% | 203 ms | 65 s | $0.25 (third-party price) |
+| Gemma 4 12B, local | 20/20 | 147/160 (92%) | 87–95% | 46.8 ± 1.8 | 38% | 5,490 ms | 1,691 s | $0 here; $0.45 hosted-equivalent (SiliconFlow's listed price, vendor) |
+| Laya v4, local | 20/20 | 142/160 (89%) | 83–93% | 41.1 ± 1.6 | 79% | 199 ms | 74 s | $0 |
+| Clef-flash | 12/20 so far | 41/96 (43%) | 33–53% | 42.0 ± 3.4 | 23% | 496 ms | 226 s | $0.15 for 12 courses (vendor price) |
+
+Intervals: Wilson for landing rate, normal-approximation 95% for the mean quality of landed levels.
+
+- **Jev lands nearly as often as the autopilot** and lands better (quality 46.7 vs 42.3), while agreeing with the autopilot's exact pick only 39% of the time. It flies its own way, not a copy of the script.
+- **Gemma matches Jev's landing quality** (46.8) but lands less often: 13 misses against Jev's 4. The intervals barely overlap, so the gap is probably real but not large. It is also 27× slower per answer and the only lane whose run took a night (about 9.4 hours of answers on this Mac).
+- **Laya v4 is close to the autopilot's picks** (79% the same, as trained) but lands less softly than any other lane (41.1). Imitation got it to 89% landed; it does not improve on its teacher.
+- **Clef-flash is far behind** at 43% on the 12 courses flown. The remaining 8 run after the daily Workers AI allowance resets; this row will change.
+- Gemma's generation speed on this Mac, estimated from the latency of 3,444 decisions against their output tokens: about 10.5 output tokens/s, plus about 1.8 s to read each ~600-token prompt (7.1 output tokens/s end to end, measured).
+
 ## Archive: real-time arena prompts (2026-10-29, tag v0-realtime)
 
 These prompts asked rotate and throttle five times a second. They were removed in R2; the code is under the `v0-realtime` tag.

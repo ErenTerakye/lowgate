@@ -322,13 +322,13 @@
       "servedModels": [
         "google/gemma-4-12b-qat"
       ],
-      "courses": 15,
-      "levels": 120,
-      "landed": 111,
-      "landingRate": 0.925,
+      "courses": 20,
+      "levels": 160,
+      "landed": 147,
+      "landingRate": 0.91875,
       "landingRate95": {
-        "low": 0.8635908233423942,
-        "high": 0.9600428847986623
+        "low": 0.8659596257291238,
+        "high": 0.9519041855122281
       },
       "perCourse": [
         {
@@ -390,41 +390,61 @@
         {
           "seed": 5015,
           "landed": 7
+        },
+        {
+          "seed": 5016,
+          "landed": 6
+        },
+        {
+          "seed": 5017,
+          "landed": 8
+        },
+        {
+          "seed": 5018,
+          "landed": 7
+        },
+        {
+          "seed": 5019,
+          "landed": 7
+        },
+        {
+          "seed": 5020,
+          "landed": 8
         }
       ],
       "quality": {
-        "mean": 46.380180180180176,
-        "sd": 11.231213160569476,
+        "mean": 46.83401360544218,
+        "sd": 11.413555366729625,
         "ci": {
-          "low": 44.29082018530734,
-          "high": 48.46954017505301
+          "low": 44.9889541011629,
+          "high": 48.67907310972146
         },
-        "n": 111
+        "n": 147
       },
       "outcomes": {
-        "landed": 111,
-        "crashed_tilt": 1,
-        "timeout": 2,
+        "landed": 147,
+        "crashed_tilt": 2,
+        "timeout": 3,
         "crashed_terrain": 1,
-        "crashed_speed": 5
+        "crashed_speed": 7
       },
-      "decisions": 4685,
+      "decisions": 6306,
       "unanswered": 0,
       "retried": 0,
       "agreesWithAutopilot": {
-        "exact": 0.3812166488794024,
-        "tilt": 0.6508004268943437,
-        "throttle": 0.5780149413020278
+        "exact": 0.37995559784332383,
+        "tilt": 0.6503330161750713,
+        "throttle": 0.5745321915635903
       },
       "meanTopProbability": null,
       "latencyMs": {
-        "p50": 5492,
-        "p95": 5911,
+        "p50": 5490,
+        "p95": 5825,
         "source": "measured, from this machine"
       },
       "tokensPerDecision": {
-        "input": 602.2533617929563,
-        "output": 38.10736392742796,
+        "input": 602.2767205835712,
+        "output": 38.1221059308595,
         "source": "provider-reported"
       },
       "costUsd": {
@@ -432,7 +452,7 @@
         "priceSource": "none"
       },
       "hostedEquivalentUsd": {
-        "total": 0.3357156000000004,
+        "total": 0.45191509999999835,
         "price": {
           "provider": "SiliconFlow",
           "model": "google/gemma-4-12B-it",
@@ -443,7 +463,7 @@
           "url": "https://www.siliconflow.com/models/gemma-4-12b-it"
         }
       },
-      "answerSecondsPerCourse": 1679.7434
+      "answerSecondsPerCourse": 1691.35985
     },
     {
       "lane": "laya",
@@ -715,5 +735,5 @@
       "answerSecondsPerCourse": 225.52441666666667
     }
   ],
-  "at": "2026-10-30T20:48:03.628Z"
+  "at": "2026-10-30T22:47:03.686Z"
 }
