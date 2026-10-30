@@ -2,7 +2,7 @@
  * Every tunable of the simulation lives here. Changing any value changes
  * replays, so bump ENGINE_VERSION whenever one of them changes.
  */
-export const ENGINE_VERSION = "descent-2";
+export const ENGINE_VERSION = "descent-3";
 
 export const PHYSICS_HZ = 60;
 /** Every decision picks one manoeuvre and holds it this long. The game waits for the answer. */
@@ -33,7 +33,8 @@ export const SAFE_VY = 3;
 export const SAFE_VX = 1.5;
 export const SAFE_TILT_DEG = 8;
 
-export const LEVEL_TIME_LIMIT_S = 45;
+/** Raised from 45 s in descent-3: the menu sweep showed sound flights timing out a second from touchdown. */
+export const LEVEL_TIME_LIMIT_S = 60;
 export const WIND_KNOT_S = 4;
 
 /** A course is this many levels of one seed, flown in order. Every lane flies all of them. */

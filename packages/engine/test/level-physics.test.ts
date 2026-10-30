@@ -4,7 +4,9 @@ import {
   FUEL_CAPACITY,
   GRAVITY,
   IDLE,
+  LEVEL_TIME_LIMIT_S,
   MAX_TILT_DEG,
+  PHYSICS_HZ,
   SAFE_VY,
   TERRAIN_POINTS,
   WORLD_WIDTH,
@@ -85,7 +87,7 @@ describe("stepLander", () => {
   });
 
   it("times out after the level limit", () => {
-    const l = { ...hovering, y: 200, t: 45 * 60 - 1 };
+    const l = { ...hovering, y: 200, t: LEVEL_TIME_LIMIT_S * PHYSICS_HZ - 1 };
     expect(stepLander(flatLevel(), l, { rotate: "none", throttle: 2 }).outcome).toBe("timeout");
   });
 });

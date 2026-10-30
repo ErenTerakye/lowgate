@@ -1,6 +1,6 @@
 import { createLane } from "@arena/engine";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PROMPT, LlmJsonClient, OPTION_KEYS, PROMPTS, SystemOneClient, observe, optionIndex, parseLlmResponse, parseSystemOne, type Fetch, type ModelInfo } from "../src/index.ts";
+import { LlmJsonClient, OPTION_KEYS, PROMPTS, SystemOneClient, observe, optionIndex, parseLlmResponse, parseSystemOne, type Fetch, type ModelInfo } from "../src/index.ts";
 
 const lane = createLane(42);
 const signal = new AbortController().signal;
@@ -57,6 +57,20 @@ describe("parseSystemOne", () => {
     expect(usage).toEqual({ inputTokens: 1231, outputTokens: 4 });
   });
 
+  it("multiplies split tilt and throttle answers back into the menu", () => {
+    const split = {
+      answers: {
+        tilt: { probabilities: { R15: 0.75, UP: 0.25 } },
+        throttle: { probabilities: [0, 0, 0.5, 0.5, 0] },
+      },
+    };
+    const { probs } = parseSystemOne(split);
+    expect(probs[optionIndex("R15-T3")]).toBeCloseTo(0.375);
+    expect(probs[optionIndex("UP-T2")]).toBeCloseTo(0.125);
+    expect(probs.reduce((a, b) => a + b, 0)).toBeCloseTo(1);
+    expect(() => parseSystemOne({ answers: { tilt: split.answers.tilt, throttle: { probabilities: [1, 0] } } })).toThrow(/expected 5/);
+  });
+
   it("reads Cloudflare's REST envelope", () => {
     expect(parseSystemOne({ success: true, result: answer }).probs[optionIndex("R5-T3")]).toBe(0.3);
   });
@@ -74,14 +88,14 @@ describe("parseSystemOne", () => {
 
 describe("SystemOneClient", () => {
   const client = (fetch: Fetch, timeoutMs = 2000) =>
-    new SystemOneClient({ id: "jev", label: "Jev", model, endpoint: "https://api.example/v1/systemone", apiKey: "k", fetch, timeoutMs });
+    new SystemOneClient({ id: "jev", label: "Jev", model, endpoint: "https://api.example/v1/systemone", apiKey: "k", prompt: "m2", fetch, timeoutMs });
 
   it("sends the pinned model, the observation and the menu question, and flies the most likely option", async () => {
     const log: Sent[] = [];
     const r = await client(fakeFetch(() => json(answer, 200, { "x-upstream-ms": "37" }), log)).decide({ lane, signal });
     const body = JSON.parse(log[0]!.init.body as string);
     expect(body.model).toBe("jev-1.14.0");
-    expect(body.state).toBe(observe(lane, PROMPTS[DEFAULT_PROMPT].tier));
+    expect(body.state).toBe(observe(lane, PROMPTS.m2.tier));
     expect(Object.keys(body.questions)).toEqual(["manoeuvre"]);
     expect(Object.keys(body.questions.manoeuvre.criteria)).toEqual(OPTION_KEYS);
     expect((log[0]!.init.headers as Record<string, string>).authorization).toBe("Bearer k");

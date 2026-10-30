@@ -1,6 +1,6 @@
 import { MANOEUVRES, MENU_TILTS, createLane } from "@arena/engine";
 import { describe, expect, it } from "vitest";
-import { LLM_PROMPTS, OPTION_KEYS, PROMPTS, describeManoeuvre, observePrompt, optionIndex, tiltBand, tiltBandText } from "../src/index.ts";
+import { LLM_PROMPTS, OPTION_KEYS, PROMPTS, TILT_KEYS, describeManoeuvre, observePrompt, optionIndex, tiltBand, tiltBandText } from "../src/index.ts";
 
 describe("menu wording", () => {
   it("gives every manoeuvre a unique key, in menu order", () => {
@@ -24,20 +24,33 @@ describe("menu wording", () => {
     for (let i = 1; i < MENU_TILTS.length; i++) expect(tiltBand(MENU_TILTS[i]!).low).toBe(tiltBand(MENU_TILTS[i - 1]!).high);
   });
 
-  it("asks System One one choice over the whole menu", () => {
-    for (const spec of Object.values(PROMPTS)) {
-      expect(spec.questions.manoeuvre.type).toBe("choice");
-      expect(Object.keys(spec.questions.manoeuvre.criteria)).toEqual(OPTION_KEYS);
+  it("asks System One one choice over the whole menu, or a tilt choice and a five-level throttle question", () => {
+    for (const { questions } of Object.values(PROMPTS)) {
+      if ("manoeuvre" in questions) {
+        expect(questions.manoeuvre.type).toBe("choice");
+        expect(Object.keys(questions.manoeuvre.criteria)).toEqual(OPTION_KEYS);
+      } else {
+        expect(Object.keys(questions.tilt.criteria)).toEqual(TILT_KEYS);
+        expect(Object.keys(questions.throttle.criteria)).toHaveLength(5);
+      }
     }
   });
 
-  it("lists every key in the chat prompts", () => {
-    for (const spec of Object.values(LLM_PROMPTS)) for (const key of OPTION_KEYS) expect(spec.system).toContain(`${key}: `);
+  it("lists every key in the chat prompts that show the menu, and every tilt part in the rules", () => {
+    for (const key of OPTION_KEYS) expect(LLM_PROMPTS.c1.system).toContain(`${key}: `);
+    for (const key of TILT_KEYS) expect(LLM_PROMPTS.c3.system).toContain(`: ${key}`);
+    expect(LLM_PROMPTS.c3.system.length).toBeLessThan(LLM_PROMPTS.c2.system.length / 2);
+  });
+
+  it("makes m4 and the split prompts shorter than m2", () => {
+    const size = (q: object) => JSON.stringify(q).length;
+    expect(size(PROMPTS.m4.questions)).toBeLessThan((size(PROMPTS.m2.questions) * 2) / 3);
+    expect(size(PROMPTS.f1.questions)).toBeLessThan(size(PROMPTS.m2.questions) / 3);
   });
 
   it("keeps Laya's prompt well inside its 512-token context", () => {
-    const { questions } = PROMPTS.m3;
-    const text = observePrompt(createLane(42), PROMPTS.m3) + questions.manoeuvre.instructions + Object.entries(questions.manoeuvre.criteria).flat().join(" ");
+    const { manoeuvre } = PROMPTS.m3.questions;
+    const text = observePrompt(createLane(42), PROMPTS.m3) + manoeuvre.instructions + Object.entries(manoeuvre.criteria).flat().join(" ");
     // ~4 characters per English token; a generous bound.
     expect(text.length / 3).toBeLessThan(400);
   });

@@ -14,16 +14,16 @@ there are far fewer of them.
 | Topic | Decision |
 |---|---|
 | What the score measures | Judgment only. The game waits for every answer. Latency and cost are measured and shown next to the score but never change it. |
-| How a model flies | One choice per decision from a fixed menu of manoeuvres. Each manoeuvre is a target tilt and a throttle level, held for 1 second. Every lane, Qwen included, answers the same choice question. |
+| How a model flies | One choice per decision from a fixed menu of manoeuvres. Each manoeuvre is a target tilt and a throttle level, held for 1 second. Every lane, the chat model included, answers the same choice question. |
 | Decisions | About 35 per level (measured with the autopilot), against about 225 in the real-time version. |
 | Rehearsal | None. One answer per decision, with no way to test it first. |
 | Thinking | No extended thinking. Every model answers directly, with the same output cap. |
 | Run shape | A course is 8 fixed levels. Every lane flies all 8, even after a crash. |
 | Evidence | 20 courses (160 levels per lane), flown offline. The page replays one course and shows the results of all 20. |
 | Ranking | Landing rate across all levels, ties broken by an average landing-quality score made of distance from the pad centre, touchdown speed and fuel left. Both are shown with their spread. |
-| Explaining a decision | The probability bars across the menu, and a timeline of how confident the lane was. Qwen returns no probabilities, so it gets a single bar for the manoeuvre it picked. |
+| Explaining a decision | The probability bars across the menu, and a timeline of how confident the lane was. The chat model (Gemma) returns no probabilities, so it gets a single bar for the manoeuvre it picked. |
 | View | One shared course: every lander on the same terrain in its own colour, with a trail. A panel per lane shows its bars, score, latency and cost. |
-| Roster | Jev, Clef-flash, Qwen3 30B, Laya (retrained for the menu) and the autopilot (adapted to the menu). Kev joins when OpenRouter has credit. |
+| Roster | Jev, Clef-flash, Gemma 4 12B on this Mac (the chat lane; replaced Qwen3 30B on 2026-10-30 to leave the Workers AI allowance to Clef-flash, docs/lanes.md), Laya (retrained for the menu) and the autopilot (adapted to the menu). Kev joins when OpenRouter has credit. |
 | Old version | Tagged `v0-realtime`, then removed from the working tree, including `showcase.json`. Nothing is lost. |
 
 Replaced during the discussion: free-form plans with six segments, a
@@ -34,7 +34,7 @@ rationale became the probability bars.
 
 ## Design details
 
-**Engine (`descent-2`).**
+**Engine (`descent-3`).**
 - Physics stays at 60 Hz. A decision holds for 60 steps (1 s).
 - The action is a target tilt and a throttle level. The lander turns toward
   the target at the existing rate limit (30°/s).
@@ -45,7 +45,7 @@ rationale became the probability bars.
   level 7. Each level ends in an outcome. Each landing records its offset from
   the pad centre, its touchdown speed, the fuel left, and a 0–100 quality
   score: equal thirds for centring, gentleness and fuel.
-- No run timer. A level still times out at 45 s.
+- No run timer. A level times out at 60 s (45 s in descent-2; raised after the R3 sweep showed sound flights timing out a second from touchdown).
 
 **Lockstep.**
 - Each lane's simulation advances only once its answer arrives. Live, the
@@ -64,7 +64,7 @@ rationale became the probability bars.
 **Prompts.**
 - System One models get one `choice` question with 35 options, each described
   in words: "tilt 15° right, throttle 3 of 4".
-- Qwen gets the same menu in a chat prompt and answers with a JSON object
+- The chat lane gets the same menu in a chat prompt and answers with a JSON object
   naming the option.
 - Every lane receives the same observation, tuned per lane in a small sweep,
   as now.
@@ -92,11 +92,14 @@ rationale became the probability bars.
 
 **Budget estimate.**
 - About 5,600 decisions per lane for the 20 courses, at the autopilot's 35 per
-  level. Models that fly slower or longer use more, up to the 45 s limit.
-- Jev costs about $0.20, from the third-party price.
-- Each Workers AI lane uses roughly 2 days of the free 10,000-neuron daily
-  allowance.
-- Laya and the autopilot cost nothing.
+  level. Models that fly slower or longer use more, up to the 60 s limit.
+- Jev costs about $0.22 on f1, from the third-party price (measured tokens).
+- Clef-flash on f1 uses about 2.9 neurons per decision at the vendor's
+  rates, about 2 days of the free 10,000-neuron daily allowance, which it
+  has to itself: the chat lane runs locally (decided 2026-10-30, after the
+  R3 sweep ran the allowance out with two Workers AI lanes).
+- Laya, Gemma (local) and the autopilot cost nothing. Gemma answers in ~6 s,
+  so its benchmark runs about 10 hours.
 
 ## Milestones
 
@@ -105,7 +108,7 @@ rationale became the probability bars.
 | R0 | Tag `v0-realtime`; remove the real-time loop and the showcase | Done 2026-10-30. Tag is local; pushed only when you say. |
 | R1 | Engine `descent-2`: manoeuvre menu, 1 s decisions, 8-level courses, landing-quality metrics | Done 2026-10-30: 98% landed on 20 courses, 97% on 100. `node packages/engine/scripts/balance.ts 100` |
 | R2 | Decision layer: menu prompts for System One and chat models, lockstep runner, failure rules | Done 2026-10-30: 106 tests pass, and each lane flew level 1 of course 42 in a probe (below). `pnpm probe --lane <id>` |
-| R3 | Small prompt sweep per lane on the menu | Results in `docs/lanes.md`. |
+| R3 | Small prompt sweep per lane on the menu | Done 2026-10-30 on held-out course 1001: Jev and Clef-flash fly f1, the chat lane c3 (now Gemma 4 12B, local). Clef-flash f2 and m2 not flown (daily quota). Results in `docs/lanes.md`. |
 | R4 | Laya v3 retrained on menu labels (Colab) | The bridge serves v3, and its probe score is measured. |
 | R5 | `pnpm bench`: 20 courses, recording v2, results with spread | Results table in the docs, with every figure labelled. |
 | R6 | New UI: shared course, trails, lane panels, confidence timeline, results table, replay player | A replay matches its recording on every lane. Works on desktop and mobile. |

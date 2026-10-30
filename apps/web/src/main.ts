@@ -18,7 +18,7 @@ import { LaneRenderer, OUTCOME_TEXT } from "./render.ts";
 import "./style.css";
 
 /**
- * Course viewer for engine descent-2 (redesign milestone R1): the menu
+ * Course viewer for engine descent-3: the menu
  * autopilot flies one course of 8 levels, one manoeuvre per second. The
  * arena with model lanes, the shared view and replays replace this in R6.
  */

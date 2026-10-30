@@ -5,6 +5,7 @@
  *
  *   pnpm probe --lane jev                     one level of course 42, the lane's own prompt
  *   pnpm probe --lane qwen --prompt c1 --levels 2 --seed 7
+ *   pnpm probe --lane clef --prompt f1 --levels 8 --seed 1001,1002   a sweep run: whole courses
  *   pnpm probe --lane autopilot               no model, no key
  *
  * Calls go one at a time, straight to the provider, with the key from the
@@ -29,6 +30,7 @@ import {
   observe,
   observePrompt,
   usdFor,
+  type CourseRun,
   type DecisionClient,
   type DecisionRecord,
 } from "../src/index.ts";
@@ -38,10 +40,13 @@ const { values } = parseArgs({
     lane: { type: "string", default: "jev" },
     prompt: { type: "string" },
     levels: { type: "string", default: "1" },
+    /** One course, or several separated by commas, flown one after another. */
     seed: { type: "string", default: "42" },
   },
 });
-const seed = Number(values.seed);
+const seeds = values.seed.split(",").map(Number);
+if (seeds.some((s) => !Number.isInteger(s) || s <= 0)) throw new Error(`--seed takes positive integers separated by commas, got "${values.seed}"`);
+const seed = seeds[0]!;
 const levels = Math.min(COURSE_LEVELS, Math.max(1, Number(values.levels)));
 /** Decisions per lane for the 20-course benchmark, at the autopilot's pace (docs/redesign.md). */
 const BENCH_DECISIONS = 5600;
@@ -61,8 +66,8 @@ function makeClient(): { client: DecisionClient; promptId: string; promptChars: 
   if (lane.protocol === "systemone") {
     if (!isPromptId(promptId)) fail(`Unknown prompt "${promptId}" for ${lane.label}. Known: ${Object.keys(PROMPTS).join(", ")}`);
     const spec = PROMPTS[promptId as keyof typeof PROMPTS];
-    const q = spec.questions.manoeuvre;
-    const chars = observePrompt(start, spec).length + q.instructions.length + Object.entries(q.criteria).flat().join(" ").length;
+    // The question text the model reads, without JSON punctuation.
+    const chars = observePrompt(start, spec).length + JSON.stringify(spec.questions).replace(/[{}"[\],:]/g, "").length;
     return { client: new SystemOneClient({ ...common, prompt: spec.id }), promptId, promptChars: chars };
   }
   if (!isLlmPromptId(promptId)) fail(`Unknown prompt "${promptId}" for ${lane.label}. Known: ${Object.keys(LLM_PROMPTS).join(", ")}`);
@@ -78,17 +83,25 @@ function fail(message: string): never {
 
 const { client, promptId, promptChars } = makeClient();
 const model = client.model;
-console.log(`Probing ${client.label}${model ? ` (${model.model})` : ""}, prompt ${promptId}: ${levels} level(s) of course ${seed}`);
+console.log(`Probing ${client.label}${model ? ` (${model.model})` : ""}, prompt ${promptId}: ${levels} level(s) of course ${seeds.join(", ")}`);
 
-const records: (DecisionRecord & { autopilot: number })[] = [];
-const run = await flyCourse(client, seed, {
-  levels,
-  onDecision: (record, lane) => {
-    records.push({ ...record, autopilot: autopilot(lane.level, lane.lander) });
-    process.stdout.write(record.answered ? (record.retries ? "r" : ".") : "x");
-  },
-});
-console.log(run.stoppedBy ? `\nStopped: ${run.stoppedBy.kind}: ${run.stoppedBy.message}` : "");
+const records: (DecisionRecord & { seed: number; autopilot: number })[] = [];
+const runs: CourseRun[] = [];
+for (const s of seeds) {
+  const run = await flyCourse(client, s, {
+    levels,
+    onDecision: (record, lane) => {
+      records.push({ ...record, seed: s, autopilot: autopilot(lane.level, lane.lander) });
+      process.stdout.write(record.answered ? (record.retries ? "r" : ".") : "x");
+    },
+  });
+  runs.push(run);
+  console.log(run.stoppedBy ? `\nStopped: ${run.stoppedBy.kind}: ${run.stoppedBy.message}` : "");
+  // A fatal error will stop every later course too.
+  if (run.stoppedBy) break;
+}
+const results = runs.flatMap((r) => r.results);
+const stoppedBy = runs.find((r) => r.stoppedBy)?.stoppedBy ?? null;
 
 const mean = (xs: number[]): number | null => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 function percentile(xs: number[], p: number): number | null {
@@ -105,17 +118,17 @@ const perDecisionUsd = model && inTokens !== null ? usdFor(inTokens, outTokens ?
 const served = [...new Set(answered.map((r) => r.servedModel ?? "(not reported)"))];
 const errors = records.flatMap((r) => (r.error ? [r.error.kind] : []));
 const withProbs = answered.filter((r) => r.probs);
-const course = summarize(run.results);
+const course = summarize(results);
 
 const summary = {
   lane: client.id,
   model: model?.model ?? null,
   prompt: promptId,
-  seed,
+  seeds,
   levels,
-  results: run.results,
-  notFlown: run.notFlown,
-  stoppedBy: run.stoppedBy,
+  results: runs.map((r) => ({ seed: r.seed, results: r.results, notFlown: r.notFlown })),
+  stoppedBy,
+  levelsFlown: course.levels,
   landed: course.landed,
   meanQuality: course.meanQuality,
   decisions: records.length,
@@ -151,9 +164,12 @@ latency     p50 ${ms(summary.latencyMs.p50)}   p95 ${ms(summary.latencyMs.p95)} 
 tokens      ${inTokens === null ? "not reported" : `${Math.round(inTokens)} in, ${Math.round(outTokens ?? 0)} out per decision (provider-reported)`}; prompt ${promptChars ?? "–"} chars
 cost        ${perDecisionUsd === null ? "–" : `$${(perDecisionUsd * 1000).toFixed(4)} per 1k decisions, about $${(perDecisionUsd * BENCH_DECISIONS).toFixed(2)} for the benchmark (price: ${model!.price.source})`}
 picks       ${summary.distinctPicks} distinct of ${OPTION_KEYS.length}; same as the autopilot ${pct(a.exact)} (tilt ${pct(a.tilt)}, throttle ${pct(a.throttle)}); top probability ${withProbs.length ? pct(summary.meanTopProbability) : "– (picks only)"}`);
-for (const r of run.results) {
-  const detail = r.landing ? `landed, quality ${r.landing.quality.toFixed(1)}, ${r.landing.offset.toFixed(1)} m off centre` : r.outcome;
-  console.log(`level ${r.index + 1}     ${detail} after ${r.seconds.toFixed(0)} s, ${r.decisions} decisions`);
+for (const run of runs) {
+  for (const r of run.results) {
+    const detail = r.landing ? `landed, quality ${r.landing.quality.toFixed(1)}, ${r.landing.offset.toFixed(1)} m off centre` : r.outcome;
+    console.log(`${run.seed}/${r.index + 1}`.padEnd(12) + `${detail} after ${r.seconds.toFixed(0)} s, ${r.decisions} decisions`);
+  }
+  for (const i of run.notFlown) console.log(`${run.seed}/${i + 1}`.padEnd(12) + "not flown");
 }
-for (const i of run.notFlown) console.log(`level ${i + 1}     not flown`);
+console.log(`course      ${course.landed}/${course.levels} landed, mean quality ${course.meanQuality === null ? "–" : course.meanQuality.toFixed(1)}`);
 console.log(`saved       ${file}`);

@@ -46,14 +46,14 @@ describe("lane", () => {
   it("matches the golden run for this engine version", () => {
     // If this fails you changed the simulation: bump ENGINE_VERSION and update.
     const { lane, hashes } = runAutopilot(42);
-    expect(ENGINE_VERSION).toBe("descent-2");
+    expect(ENGINE_VERSION).toBe("descent-3");
     const s = summarize(lane.results);
     expect({ landed: s.landed, quality: s.meanQuality?.toFixed(3), last: hashes.at(-1), count: hashes.length }).toMatchInlineSnapshot(`
       {
-        "count": 278,
+        "count": 275,
         "landed": 8,
-        "last": "3941ff85",
-        "quality": "39.862",
+        "last": "7d34dc75",
+        "quality": "41.675",
       }
     `);
   });

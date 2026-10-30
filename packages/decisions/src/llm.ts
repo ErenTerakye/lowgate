@@ -1,6 +1,6 @@
 import { MANOEUVRES, MENU_TILTS, THROTTLE_LEVELS } from "@arena/engine";
 import { DEFAULT_TIMEOUT_MS, DecisionFailure, postJson, toFailure, upstreamMs, type Fetch } from "./http.ts";
-import { OPTION_KEYS, TURN_RATE_DEG_S, VERTICAL_FITS, describeManoeuvre, optionIndex, tiltBandText } from "./menu.ts";
+import { OPTION_KEYS, TILT_KEYS, TURN_RATE_DEG_S, VERTICAL_FITS, describeManoeuvre, optionIndex, tiltBandText } from "./menu.ts";
 import { observe, type ObservationTier } from "./observe.ts";
 import type { DecisionClient, DecisionRequest, DecisionResult, ModelInfo, Usage } from "./types.ts";
 
@@ -12,12 +12,12 @@ const MANOEUVRE_PROPERTY = { manoeuvre: { type: "string", enum: OPTION_KEYS } };
 const PICK_SCHEMA = { type: "object", properties: MANOEUVRE_PROPERTY, required: ["manoeuvre"], additionalProperties: false };
 
 /** Quote first, then decide: the copied phrases come before the pick in the reply. */
-const QUOTE_SCHEMA = {
+const quoteSchema = (tilt: "string" | "number") => ({
   type: "object",
-  properties: { tilt: { type: "string" }, vertical: { type: "string" }, ...MANOEUVRE_PROPERTY },
+  properties: { tilt: { type: tilt }, vertical: { type: "string" }, ...MANOEUVRE_PROPERTY },
   required: ["tilt", "vertical", "manoeuvre"],
   additionalProperties: false,
-};
+});
 
 const INTRO = [
   "You fly a lunar lander. Every second you choose one manoeuvre from the menu, and it is held for that whole second.",
@@ -30,7 +30,17 @@ const MENU_LINES = ["Menu (key: manoeuvre):", ...MANOEUVRES.map((m, i) => `${OPT
 /** The menu and the reply format, as System One lanes get it in their options (prompt m1). */
 const PICK_PROMPT = [...INTRO, "", ...MENU_LINES, "", 'Reply with JSON only: {"manoeuvre": "<key>"}.'].join("\n");
 
-const tiltKey = (tilt: number): string => OPTION_KEYS[MANOEUVRES.findIndex((m) => m.tilt === tilt)]!.split("-")[0]!;
+
+const QUOTE_RULES = [
+  'Reply with JSON only: {"tilt": ..., "vertical": ..., "manoeuvre": ...}, in that order.',
+  "- tilt: copy the number from the 'good tilt now' line.",
+  "- vertical: copy the words after 'current is' from the 'safe vertical speed now' line.",
+  "- manoeuvre: the key <tilt part>-T<throttle>.",
+  "  Tilt part, from the good tilt:",
+  ...MENU_TILTS.map((t, i) => `  ${tiltBandText(t)}: ${TILT_KEYS[i]}`),
+  "  Throttle, from vertical:",
+  ...Array.from({ length: THROTTLE_LEVELS }, (_, i) => `  ${VERTICAL_FITS[i]}: ${i}`),
+];
 
 /**
  * The coaching rules System One lanes get in prompt m2's options, written as
@@ -38,25 +48,17 @@ const tiltKey = (tilt: number): string => OPTION_KEYS[MANOEUVRES.findIndex((m) =
  * Small models follow rules better with the evidence written out (l3 in the
  * real-time arena).
  */
-const QUOTE_PROMPT = [
-  ...INTRO,
-  "",
-  'Reply with JSON only: {"tilt": ..., "vertical": ..., "manoeuvre": ...}, in that order.',
-  "- tilt: copy the number from the 'good tilt now' line.",
-  "- vertical: copy the words after 'current is' from the 'safe vertical speed now' line.",
-  "- manoeuvre: the key <tilt part>-T<throttle>.",
-  "  Tilt part, from the good tilt:",
-  ...MENU_TILTS.map((t) => `  ${tiltBandText(t)}: ${tiltKey(t)}`),
-  "  Throttle, from vertical:",
-  ...Array.from({ length: THROTTLE_LEVELS }, (_, i) => `  ${VERTICAL_FITS[i]}: ${i}`),
-  "",
-  ...MENU_LINES,
-].join("\n");
+const QUOTE_PROMPT = [...INTRO, "", ...QUOTE_RULES, "", ...MENU_LINES].join("\n");
+
+/** QUOTE_PROMPT without the menu listing, which the rules already spell out: half the input. */
+const QUOTE_SHORT_PROMPT = [...INTRO, "", ...QUOTE_RULES].join("\n");
 
 /** A chat prompt: observation tier plus system message. Add ids; never edit one with results. */
 export interface LlmPromptSpec {
   readonly id: string;
   readonly tier: ObservationTier;
+  /** Drop the observation's fixed rules; see ObserveOptions.compact. */
+  readonly compact?: boolean;
   readonly system: string;
   readonly summary: string;
   readonly schema: Record<string, unknown>;
@@ -65,7 +67,15 @@ export interface LlmPromptSpec {
 /** The l1–l3 prompts of the real-time arena are kept under the v0-realtime tag. */
 export const LLM_PROMPTS = {
   c1: { id: "c1", tier: 4, system: PICK_PROMPT, schema: PICK_SCHEMA, summary: "Tier 4 observation, the menu and the JSON format" },
-  c2: { id: "c2", tier: 4, system: QUOTE_PROMPT, schema: QUOTE_SCHEMA, summary: "Tier 4 observation, m2's coaching rules as lookups, reply quotes the coaching first" },
+  c2: { id: "c2", tier: 4, system: QUOTE_PROMPT, schema: quoteSchema("string"), summary: "Tier 4 observation, m2's coaching rules as lookups, reply quotes the coaching first" },
+  c3: {
+    id: "c3",
+    tier: 4,
+    compact: true,
+    system: QUOTE_SHORT_PROMPT,
+    schema: quoteSchema("number"),
+    summary: "c2 without the menu listing or the observation's fixed rules; the quoted tilt must be a number",
+  },
 } as const satisfies Record<string, LlmPromptSpec>;
 
 export type LlmPromptId = keyof typeof LLM_PROMPTS;
@@ -140,7 +150,8 @@ export class LlmJsonClient implements DecisionClient {
     const started = performance.now();
     try {
       const { prompt } = this.options;
-      const state = observe(lane, LLM_PROMPTS[prompt].tier);
+      const spec: LlmPromptSpec = LLM_PROMPTS[prompt];
+      const state = observe(lane, spec.tier, { compact: spec.compact ?? false });
       const { body, headers } = await postJson(
         this.fetchImpl,
         this.options.endpoint,

@@ -12,6 +12,9 @@ export function optionKey(m: Manoeuvre): string {
   return `${tilt}-T${m.throttle}`;
 }
 
+/** The tilt part of the keys, in MENU_TILTS order: "L30" ... "UP" ... "R30". */
+export const TILT_KEYS: readonly string[] = MENU_TILTS.map((t) => optionKey({ tilt: t, throttle: 0 }).split("-")[0]!);
+
 /** Keys in menu order: OPTION_KEYS[i] names MANOEUVRES[i]. */
 export const OPTION_KEYS: readonly string[] = MANOEUVRES.map(optionKey);
 

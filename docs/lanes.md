@@ -1,4 +1,92 @@
-# Lanes and per-lane prompt tuning (2026-10-29)
+# Lanes and per-lane prompts
+
+Every lane picks one of the 35 manoeuvres on the menu each second (docs/redesign.md). Each model lane flies the prompt that worked best for it in the R3 sweep below. The lane's prompt is `prompt` in `packages/decisions/src/catalog.ts`.
+
+All numbers are **measured** with `pnpm probe` from a MacBook on home broadband. Raw decisions are in `measurements/*-menu-*.jsonl`. Tokens are **provider-reported**. Prices are the **vendor's** for Cloudflare and **third-party** for Jev.
+
+## Lanes
+
+| Lane | Model | Pinned | Price per 1M tokens (in / out) | Prompt |
+|---|---|---|---|---|
+| Jev | `jev-1.14.0` (TypeSafe) | Yes | $0.042 / free, third-party | f1 |
+| Clef-flash | `clef-flash` (Workers AI) | **No**: Cloudflare has no version selector | $0.038 / free, vendor | f1 |
+| Gemma 4 12B (chat lane) | `google/gemma-4-12b-qat`, GGUF Q4_0 QAT (7.15 GB), via LM Studio on this Mac, thinking off | Yes: LM Studio key plus this build | none (local) | c3 |
+| Laya | `laya-descent-v2-mlx` via `bridge/laya` on this Mac | Yes: the bridge reports the checkpoint | none (local) | m3, until R4 retrains it |
+| Autopilot | none: rehearses one second of a simple controller | – | none | – |
+
+## Menu prompts
+
+System One prompts (`PROMPTS` in `questions.ts`). Sizes are characters of observation plus question text on course 42, level 1.
+
+| Prompt | Shape | What it says | Size |
+|---|---|---|---|
+| m1 | One choice, 35 options | Each option describes its manoeuvre | 2,545 |
+| m2 | One choice, 35 options | m1 plus, per option, the coaching readings it fits | 6,248 |
+| m3 | One choice, 35 options | Brief observation, a few words per option (Laya's 512-token context) | 926 |
+| m4 | One choice, 35 options | m2's coaching in fewer words, compact observation | 3,786 |
+| f1 | Tilt choice (7) and throttle score (5) | Each tilt names its 'good tilt now' range; each throttle level quotes the vertical-speed phrase. Probabilities are multiplied back into the 35 | 1,649 |
+| f2 | Tilt choice and throttle choice | f1 with throttle as a choice | 1,655 |
+
+Split prompts still fly one manoeuvre from the same menu: P(manoeuvre) = P(tilt) × P(throttle), so the pick is the most likely tilt with the most likely throttle, and the bars still cover all 35.
+
+Chat prompts (`LLM_PROMPTS` in `llm.ts`), all with a 64-token output cap and thinking off:
+
+| Prompt | What it says | Size |
+|---|---|---|
+| c1 | The menu and the JSON format | 2,783 |
+| c2 | m2's rules as two lookups (tilt part, throttle), the menu, and a reply that copies the good tilt and the vertical phrase before the key | 3,437 |
+| c3 | c2 without the menu listing and without the observation's fixed rules; the quoted tilt must be a number | 1,583 |
+
+## R3 sweep: course 1001, all 8 levels (2026-10-30)
+
+Course 1001 is held out: the benchmark will use other courses, so prompts are not tuned on the courses that score them. One course is 8 levels, so a difference of one or two landings is within noise.
+
+| Lane | Prompt | Landed | Mean quality | Same pick as autopilot (tilt / throttle) | Mean top probability | Tokens in per decision | p50 latency | Benchmark cost |
+|---|---|---|---|---|---|---|---|---|
+| Autopilot | – | 8/8 | 39.6 | 100% | – | – | 0 ms | $0 |
+| Jev | m2 | 4/8 | 44.4 | 41% (66% / 60%) | 65% | 2,805 | 213 ms | ~$0.66 |
+| Jev | m4 | 5/8 | 44.2 | 38% (67% / 55%) | 62% | 2,075 | 210 ms | ~$0.49 |
+| Jev | **f1** | **6/8** | 46.3 | 41% (67% / 56%) | 79% | 939 | 203 ms | **~$0.22** |
+| Clef-flash | m4 | 0/5, then stopped by quota | – | 24% (34% / 62%) | 11% | 2,022 | 693 ms | ~$0.43 |
+| Clef-flash | **f1** | **1/8** | 57.9 | 23% (32% / 72%) | **29%** | 833 | 699 ms | **~$0.18** |
+| Clef-flash | f2, m2 | not flown: daily quota | | | | | | |
+| Qwen3 30B | c2 | 1/8 | 54.2 | 28% (53% / 47%) | – (picks only) | 1,411 | 449 ms | ~$0.48 |
+| Qwen3 30B | **c3** | **1/8** | 56.5 | 36% (63% / 53%) | – | 591 | 431 ms | **~$0.24** |
+
+Benchmark cost is the measured cost per decision times ~5,600 decisions, at the catalog price. The autopilot row is the same course with no model.
+
+What it shows:
+
+- **Splitting the question is cheaper and no worse.** f1 is a third of m2's input for Jev and Clef-flash. Jev landed 6/8 on f1 against 4/8 on m2; Clef-flash's top option rose from 9–11% to 29%. Jev's benchmark cost is back at the ~$0.20 the budget assumed.
+- **Qwen does as well without the menu listing.** c3 lands the same 1/8 as c2 at 42% of the input, and its reply never broke (c2 needed 3 retries on 310 decisions).
+- **Most failures are timeouts, and many are nearly landings.** Replaying the picks: Jev's two f1 timeouts ended 3–4 m above the pad, 2–4 m off centre, descending; Clef-flash's ended within 25 m of the pad, three of them within 5 m of its height. The 45 s level limit comes from the real-time game, where the autopilot took ~35 s. Slower but sound flying is scored as a failure.
+- **Qwen flies away from the pad.** Four of its eight c3 levels ended out of bounds at 7–12 m/s, heading away; its tilt matches the autopilot's 63% of the time. That is a judgment result, not a prompt bug, but the next tuning step for it.
+- **The Workers AI free allowance ran out mid-sweep.** The 10,000 free neurons a day (reset 00:00 UTC) are shared by Clef-flash and Qwen. They ran out after about 1,140 sweep decisions, most of them on the long m4 and c2 prompts. At the vendor's rates (Clef-flash 3,455 neurons per million input tokens; Qwen3 4,625 in, 30,475 out) the sweep and the R2 probes come to about 6,700 neurons, so some of the day's allowance had gone earlier or the rates are not the whole story; the stop itself is the measured fact.
+- **Budget with f1, from the vendor's rates (estimated, not measured):** about 2.9 neurons per Clef-flash decision, so the free allowance covers about 3,400 of its decisions a day and its ~5,600-decision benchmark takes about 2 days, if Clef-flash has the allowance to itself. Qwen moves to a local model for that reason (below).
+
+Every number in this section was measured on engine descent-2. Engine descent-3 (60 s level limit, decided after this sweep) changes the courses, so the prompt choices carry over but these figures are not comparable with later runs.
+
+## Local chat lane (2026-10-30, engine descent-3)
+
+The R3 sweep ran the Workers AI allowance out with two lanes on it, so the chat lane moved to this Mac, leaving the allowance to Clef-flash. Candidates were the chat models already installed in LM Studio that fit in 16 GB: Qwen3.5 9B (MLX 4-bit, 5.98 GB) and Gemma 4 12B (QAT Q4_0, 7.15 GB). Both fly c3 through LM Studio's OpenAI-compatible server (`lms server start`).
+
+**Thinking off.** LM Studio ignores `chat_template_kwargs.enable_thinking` for both models. Gemma then reasoned until the 64-token cap and never answered (0 of 54 decisions). Of the four switches tried, only `reasoning_effort: "none"` worked for both; it is the local lanes' `requestExtras`.
+
+Held-out courses 1001 and 1002, all 8 levels each, engine descent-3, thinking off:
+
+| Lane | Course | Landed | Mean quality | Same pick as autopilot (tilt / throttle) | Answered | p50 latency | Tokens in / out |
+|---|---|---|---|---|---|---|---|
+| Autopilot | 1001 | 8/8 | 41.4 | 100% | – | 0 ms | – |
+| Autopilot | 1002 | 8/8 | 43.3 | 100% | – | 0 ms | – |
+| **Gemma 4 12B** | 1001 | **8/8** | 54.5 | 36% (62% / 53%) | 318/318, no retries | 6,153 ms | 603 / 38 |
+| **Gemma 4 12B** | 1002 | **8/8** | 38.6 | 39% (62% / 58%) | 299/299, no retries | 6,171 ms | 602 / 38 |
+| Qwen3.5 9B | 1001 | 0/8, all out of bounds | – | 17% (35% / 25%) | 116/116 | 4,957 ms | 608 / 28 |
+
+Gemma landed all 16 levels while agreeing with the autopilot's picks only 36–39% of the time: it flies its own way, not a copy. Its landing quality swings more than the autopilot's (54.5 then 38.6, against 41.4 and 43.3; 46.6 against 42.4 over both), so on quality the two courses do not separate them. Qwen3.5 picks a narrow set (13 of 35 manoeuvres) and flies off the course within 6–24 s. Gemma is the chat lane. At ~6 s a decision its ~5,600 benchmark decisions take about 10 hours on this Mac, which suits an offline overnight run. Qwen3 30B on Workers AI stays in the catalog but leaves the roster.
+
+## Archive: real-time arena prompts (2026-10-29, tag v0-realtime)
+
+These prompts asked rotate and throttle five times a second. They were removed in R2; the code is under the `v0-realtime` tag.
 
 Every model lane reads the same observation (tier 4, `observe()` in `packages/decisions/src/observe.ts`). Each lane then flies the prompt that worked best for it in a sweep of the same kind: about 30 autopilot states per prompt, then two levels closed loop for the best one. The lane's prompt is `prompt` in `packages/decisions/src/catalog.ts`, and every result below names it.
 

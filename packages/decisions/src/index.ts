@@ -1,7 +1,7 @@
 export * from "./types.ts";
 export { observe, type ObservationTier, type ObserveOptions } from "./observe.ts";
-export { OPTION_KEYS, optionKey, optionIndex, describeManoeuvre, shortManoeuvre, fitsText, tiltBand, tiltBandText, VERTICAL_FITS, TURN_RATE_DEG_S, argmax } from "./menu.ts";
-export { PROMPTS, DEFAULT_PROMPT, isPromptId, observePrompt, type PromptId, type PromptSpec, type SystemOneQuestions } from "./questions.ts";
+export { OPTION_KEYS, TILT_KEYS, optionKey, optionIndex, describeManoeuvre, shortManoeuvre, fitsText, tiltBand, tiltBandText, VERTICAL_FITS, TURN_RATE_DEG_S, argmax } from "./menu.ts";
+export { PROMPTS, DEFAULT_PROMPT, isPromptId, observePrompt, type PromptId, type PromptSpec, type SystemOneQuestions, type ChoiceQuestion, type ScoreQuestion } from "./questions.ts";
 export { classifyHttp, DEFAULT_TIMEOUT_MS, type Fetch } from "./http.ts";
 export { SystemOneClient, parseSystemOne, type SystemOneOptions } from "./systemone.ts";
 export { LlmJsonClient, parseLlmResponse, LLM_PROMPTS, LLM_MAX_TOKENS, chatRequest, isLlmPromptId, type LlmJsonOptions, type LlmPromptId, type LlmPromptSpec } from "./llm.ts";

@@ -1,5 +1,6 @@
 import { DEFAULT_TIMEOUT_MS, DecisionFailure, postJson, toFailure, upstreamMs, type Fetch } from "./http.ts";
-import { OPTION_KEYS, argmax } from "./menu.ts";
+import { MENU_TILTS, THROTTLE_LEVELS } from "@arena/engine";
+import { OPTION_KEYS, TILT_KEYS, argmax } from "./menu.ts";
 import { DEFAULT_PROMPT, PROMPTS, observePrompt, type PromptId } from "./questions.ts";
 import type { DecisionClient, DecisionRequest, DecisionResult, ModelInfo, Usage } from "./types.ts";
 
@@ -94,11 +95,36 @@ function num(v: unknown, what: string): number {
   return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : bad(`${what} is not a probability`);
 }
 
+/** One probability per key; a key the model left out gets 0, one not asked about is an error. */
+function probsFor(answer: Record<string, unknown> | undefined, keys: readonly string[], what: string): number[] {
+  const given = answer?.probabilities;
+  if (!given || typeof given !== "object") bad(`${what} answer has no probabilities`);
+  if (Array.isArray(given)) {
+    // Score answers can come back as an array in level order.
+    if (given.length !== keys.length) bad(`${what} answer has ${given.length} probabilities, expected ${keys.length}`);
+    return given.map((p, i) => num(p, `${what}.${i}`));
+  }
+  const byKey = given as Record<string, unknown>;
+  const unknown = Object.keys(byKey).filter((k) => !keys.includes(k));
+  if (unknown.length) bad(`${what} answer has options not on the menu: ${unknown.slice(0, 3).join(", ")}`);
+  const probs = keys.map((k) => num(byKey[k] ?? 0, `${what}.${k}`));
+  if (probs.every((p) => p === 0)) bad(`${what} probabilities are all zero`);
+  return probs;
+}
+
+const normalize = (ps: number[]): number[] => {
+  const sum = ps.reduce((a, b) => a + b, 0);
+  return ps.map((p) => p / sum);
+};
+
+const LEVEL_KEYS = Array.from({ length: THROTTLE_LEVELS }, (_, i) => String(i));
+
 /**
  * Reads a System One response into one probability per manoeuvre, in menu
  * order. Accepts Cloudflare's REST envelope (`{ result: {...} }`) as well as
- * the bare object the binding returns. An option the model left out gets 0;
- * a key that is not on the menu means the answer is for some other question.
+ * the bare object the binding returns. For split prompts (tilt and throttle
+ * asked apart) each manoeuvre gets P(tilt) × P(throttle), so the most likely
+ * manoeuvre is the most likely tilt with the most likely throttle.
  */
 export function parseSystemOne(raw: unknown): { probs: number[]; usage: Usage | null; servedModel?: string } {
   let body = raw as Record<string, unknown> | null;
@@ -106,13 +132,14 @@ export function parseSystemOne(raw: unknown): { probs: number[]; usage: Usage | 
     body = body.result as Record<string, unknown>;
   }
   const answers = (body?.answers ?? bad("response has no answers")) as Record<string, Record<string, unknown> | undefined>;
-  const given = answers.manoeuvre?.probabilities;
-  if (!given || typeof given !== "object" || Array.isArray(given)) bad("manoeuvre answer has no probabilities");
-  const byKey = given as Record<string, unknown>;
-  const unknown = Object.keys(byKey).filter((k) => !OPTION_KEYS.includes(k));
-  if (unknown.length) bad(`manoeuvre answer has options not on the menu: ${unknown.slice(0, 3).join(", ")}`);
-  const probs = OPTION_KEYS.map((k) => num(byKey[k] ?? 0, `manoeuvre.${k}`));
-  if (probs.every((p) => p === 0)) bad("probabilities are all zero");
+  let probs: number[];
+  if (answers.manoeuvre || !answers.tilt) {
+    probs = probsFor(answers.manoeuvre, OPTION_KEYS, "manoeuvre");
+  } else {
+    const tilt = normalize(probsFor(answers.tilt, TILT_KEYS, "tilt"));
+    const throttle = normalize(probsFor(answers.throttle, LEVEL_KEYS, "throttle"));
+    probs = MENU_TILTS.flatMap((_, t) => throttle.map((p) => tilt[t]! * p));
+  }
 
   const u = body?.usage as Record<string, unknown> | undefined;
   const usage = u ? { inputTokens: num(u.input_tokens ?? 0, "usage.input_tokens"), outputTokens: num(u.output_tokens ?? 0, "usage.output_tokens") } : null;
