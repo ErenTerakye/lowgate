@@ -1,0 +1,113 @@
+# Redesign: judgment, not reflexes (agreed 2026-10-30)
+
+## Why
+
+The real-time arena asked for a decision five times a second. A lane that
+answered in under 200 ms could keep up; the rest flew blind between answers.
+In the showcase, Clef-flash missed 69% of ticks and Qwen3 62%, so the run
+mostly measured network latency. The redesign keeps Descent and the decision
+models but takes the clock out of the score. Each decision matters more, and
+there are far fewer of them.
+
+## Rules
+
+| Topic | Decision |
+|---|---|
+| What the score measures | Judgment only. The game waits for every answer. Latency and cost are measured and shown next to the score but never change it. |
+| How a model flies | One choice per decision from a fixed menu of manoeuvres. Each manoeuvre is a target tilt and a throttle level, held for 1 second. Every lane, Qwen included, answers the same choice question. |
+| Decisions | About 35 per level (measured with the autopilot), against about 225 in the real-time version. |
+| Rehearsal | None. One answer per decision, with no way to test it first. |
+| Thinking | No extended thinking. Every model answers directly, with the same output cap. |
+| Run shape | A course is 8 fixed levels. Every lane flies all 8, even after a crash. |
+| Evidence | 20 courses (160 levels per lane), flown offline. The page replays one course and shows the results of all 20. |
+| Ranking | Landing rate across all levels, ties broken by an average landing-quality score made of distance from the pad centre, touchdown speed and fuel left. Both are shown with their spread. |
+| Explaining a decision | The probability bars across the menu, and a timeline of how confident the lane was. Qwen returns no probabilities, so it gets a single bar for the manoeuvre it picked. |
+| View | One shared course: every lander on the same terrain in its own colour, with a trail. A panel per lane shows its bars, score, latency and cost. |
+| Roster | Jev, Clef-flash, Qwen3 30B, Laya (retrained for the menu) and the autopilot (adapted to the menu). Kev joins when OpenRouter has credit. |
+| Old version | Tagged `v0-realtime`, then removed from the working tree, including `showcase.json`. Nothing is lost. |
+
+Replaced during the discussion: free-form plans with six segments, a
+one-sentence rationale, and altitude gates as the only times a model is asked.
+System One models (Jev, Clef, Laya, Kev) cannot write text. They can only pick
+an option or rate on a scale, so the plan became a menu choice and the
+rationale became the probability bars.
+
+## Design details
+
+**Engine (`descent-2`).**
+- Physics stays at 60 Hz. A decision holds for 60 steps (1 s).
+- The action is a target tilt and a throttle level. The lander turns toward
+  the target at the existing rate limit (30°/s).
+- The menu has 35 manoeuvres: 7 tilts (−30°, −15°, −5°, 0°, 5°, 15°, 30°) by 5
+  throttle levels (0–4), indexed tilt-major. Tuned in R1: without the ±5°
+  tilts the autopilot landed 77% of 100 courses' levels, with them 97%.
+- A course is levels 0–7 of one seed, with difficulty ramping to full on
+  level 7. Each level ends in an outcome. Each landing records its offset from
+  the pad centre, its touchdown speed, the fuel left, and a 0–100 quality
+  score: equal thirds for centring, gentleness and fuel.
+- No run timer. A level still times out at 45 s.
+
+**Lockstep.**
+- Each lane's simulation advances only once its answer arrives. Live, the
+  shared view moves on when every lane has answered and shows which lane it
+  is waiting for. A replay plays all lanes in sync, at the same simulated
+  time.
+
+**Failures.**
+- A timeout or transient error is retried with backoff, up to 3 times. If all
+  3 fail, the lane repeats its last manoeuvre, and that decision counts as
+  unanswered.
+- A fatal error (quota, auth, not configured) stops the lane. Its remaining
+  levels count as not flown, which is reported apart from crashes, and the
+  arena carries on.
+
+**Prompts.**
+- System One models get one `choice` question with 35 options, each described
+  in words: "tilt 15° right, throttle 3 of 4".
+- Qwen gets the same menu in a chat prompt and answers with a JSON object
+  naming the option.
+- Every lane receives the same observation, tuned per lane in a small sweep,
+  as now.
+
+**Autopilot.**
+- Rehearses one second of the real-time arena's continuous controller, which
+  landed 99% at 5 Hz, and picks the manoeuvre that ends nearest to it. The
+  rehearsal holds the current wind steady, so it doesn't see the wind ahead.
+- Measured over 100 courses: 97% landed, mean quality 42, 35 decisions per
+  level.
+- It is the no-model reference and the source of labels for Laya.
+
+**Recording v2.**
+- Per decision: the state hash, the option picked, the probabilities over the
+  menu (4 decimals), the latency, the token usage, any error, and the retry
+  count.
+- About 200 decisions per lane per course, so a recording is small.
+
+**Benchmark.**
+- `pnpm bench` flies the 20 courses for every lane from Node, with no
+  browser, and writes one recording per course plus a results file.
+- Lanes run in parallel within each lane's rate limit.
+- Measured figures are labelled as measured, and prices as vendor or
+  third-party, as now.
+
+**Budget estimate.**
+- About 5,600 decisions per lane for the 20 courses, at the autopilot's 35 per
+  level. Models that fly slower or longer use more, up to the 45 s limit.
+- Jev costs about $0.20, from the third-party price.
+- Each Workers AI lane uses roughly 2 days of the free 10,000-neuron daily
+  allowance.
+- Laya and the autopilot cost nothing.
+
+## Milestones
+
+| # | Milestone | Done when |
+|---|---|---|
+| R0 | Tag `v0-realtime`; remove the real-time loop and the showcase | Done 2026-10-30. Tag is local; pushed only when you say. |
+| R1 | Engine `descent-2`: manoeuvre menu, 1 s decisions, 8-level courses, landing-quality metrics | Done 2026-10-30: 98% landed on 20 courses, 97% on 100. `node packages/engine/scripts/balance.ts 100` |
+| R2 | Decision layer: menu prompts for System One and chat models, lockstep runner, failure rules | Adapter tests pass. Each lane flies one level in a probe. |
+| R3 | Small prompt sweep per lane on the menu | Results in `docs/lanes.md`. |
+| R4 | Laya v3 retrained on menu labels (Colab) | The bridge serves v3, and its probe score is measured. |
+| R5 | `pnpm bench`: 20 courses, recording v2, results with spread | Results table in the docs, with every figure labelled. |
+| R6 | New UI: shared course, trails, lane panels, confidence timeline, results table, replay player | A replay matches its recording on every lane. Works on desktop and mobile. |
+| R7 | Cloudflare Pages and a rate-limited Worker (was M6) | Public page serves replays without a key. |
+| R8 | README with results, a GIF and setup (was M7) | |

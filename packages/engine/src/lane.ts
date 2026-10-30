@@ -1,66 +1,50 @@
-import { DEFAULT_RUN_SECONDS, LANDING_POINTS, OUTCOME_PAUSE_S, PHYSICS_HZ, STEPS_PER_DECISION } from "./config.ts";
+import { COURSE_LEVELS, DT, STEPS_PER_DECISION } from "./config.ts";
 import { generateLevel } from "./level.ts";
+import { controlFor } from "./menu.ts";
 import { stepLander } from "./physics.ts";
-import type { Action, LaneState } from "./types.ts";
+import { levelResult } from "./score.ts";
+import type { LaneState, Manoeuvre } from "./types.ts";
 
-const PAUSE_STEPS = OUTCOME_PAUSE_S * PHYSICS_HZ;
-
-export function createLane(seed: number, runSeconds = DEFAULT_RUN_SECONDS): LaneState {
+export function createLane(seed: number): LaneState {
   const level = generateLevel(seed, 0);
-  return {
-    seed,
-    runSteps: runSeconds * PHYSICS_HZ,
-    level,
-    lander: level.start,
-    outcome: null,
-    resumeAt: 0,
-    step: 0,
-    stats: { score: 0, landings: 0, failures: 0 },
-    finished: false,
-  };
+  return { seed, level, lander: level.start, outcome: null, step: 0, results: [], finished: false };
 }
 
-/** True when the lane wants a fresh decision before its next step. */
+/** True when the lane is waiting for its next manoeuvre. */
 export function needsDecision(lane: LaneState): boolean {
-  return !lane.finished && lane.outcome === null && lane.step % STEPS_PER_DECISION === 0;
+  return !lane.finished && lane.outcome === null && lane.lander.t % STEPS_PER_DECISION === 0;
 }
 
-export function decisionTick(lane: LaneState): number {
-  return Math.floor(lane.step / STEPS_PER_DECISION);
+/** Decisions already taken in the current level. */
+export function decisionInLevel(lane: LaneState): number {
+  return Math.ceil(lane.lander.t / STEPS_PER_DECISION);
 }
 
-/**
- * Advance one physics step. While frozen on a level outcome the action is
- * ignored; the next level always begins on a decision boundary so every
- * lane's decision ticks line up with the run clock.
- */
-export function stepLane(lane: LaneState, action: Action): LaneState {
-  if (lane.finished) return lane;
+/** Advance one physics step flying `m`. Does nothing once the level has an outcome. */
+export function stepLane(lane: LaneState, m: Manoeuvre): LaneState {
+  if (lane.outcome !== null) return lane;
+  const { lander, outcome } = stepLander(lane.level, lane.lander, controlFor(lane.lander, m));
   const step = lane.step + 1;
-  const finished = step >= lane.runSteps;
-
-  if (lane.outcome !== null) {
-    if (step < lane.resumeAt) return { ...lane, step, finished };
-    const level = generateLevel(lane.seed, lane.level.index + 1);
-    return { ...lane, step, finished, level, lander: level.start, outcome: null };
-  }
-
-  const { lander, outcome } = stepLander(lane.level, lane.lander, action);
-  if (outcome === null) return { ...lane, step, finished, lander };
-
-  const landed = outcome === "landed";
-  const stats = {
-    score: lane.stats.score + (landed ? LANDING_POINTS + Math.floor(lander.fuel) : 0),
-    landings: lane.stats.landings + (landed ? 1 : 0),
-    failures: lane.stats.failures + (landed ? 0 : 1),
-  };
-  const resumeAt = Math.ceil((step + PAUSE_STEPS) / STEPS_PER_DECISION) * STEPS_PER_DECISION;
-  return { ...lane, step, finished, lander, outcome, resumeAt, stats };
+  if (outcome === null) return { ...lane, lander, step };
+  const results = [...lane.results, levelResult(lane.level, lander, outcome)];
+  return { ...lane, lander, step, outcome, results, finished: results.length === COURSE_LEVELS };
 }
 
-/** Advance a whole decision tick (or until the run ends) holding one action. */
-export function stepTick(lane: LaneState, action: Action): LaneState {
-  let next = stepLane(lane, action);
-  while (!next.finished && next.step % STEPS_PER_DECISION !== 0) next = stepLane(next, action);
+/** Fly one decision: hold `m` until the next decision boundary or the end of the level. */
+export function flyDecision(lane: LaneState, m: Manoeuvre): LaneState {
+  let next = stepLane(lane, m);
+  while (next.outcome === null && next.lander.t % STEPS_PER_DECISION !== 0) next = stepLane(next, m);
   return next;
+}
+
+/** Start the next level after an outcome. Does nothing while a level is in progress or once the course is done. */
+export function nextLevel(lane: LaneState): LaneState {
+  if (lane.outcome === null || lane.finished) return lane;
+  const level = generateLevel(lane.seed, lane.level.index + 1);
+  return { ...lane, level, lander: level.start, outcome: null };
+}
+
+/** Seconds flown in the current level. */
+export function levelSeconds(lane: LaneState): number {
+  return lane.lander.t * DT;
 }

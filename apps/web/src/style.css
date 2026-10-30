@@ -594,3 +594,19 @@ kbd {
   margin-right: 1px;
   color: var(--muted);
 }
+
+/* Course viewer (R1): one line per finished level. */
+.level-results {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.level-results li::marker {
+  color: var(--good);
+}
+
+.level-results li.is-bad::marker {
+  color: var(--bad);
+}

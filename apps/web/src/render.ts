@@ -14,7 +14,7 @@ import {
   type Rng,
 } from "@arena/engine";
 
-const OUTCOME_TEXT: Record<Outcome, string> = {
+export const OUTCOME_TEXT: Record<Outcome, string> = {
   landed: "Landed",
   crashed_speed: "Crashed: came down too fast",
   crashed_tilt: "Crashed: touched down tilted",
@@ -75,7 +75,7 @@ export class LaneRenderer {
     }));
   }
 
-  draw(lane: LaneState, lastScoreDelta: number): void {
+  draw(lane: LaneState): void {
     const now = performance.now();
     const frameDt = Math.min(0.1, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
@@ -114,7 +114,7 @@ export class LaneRenderer {
       ctx.fillRect(0, 0, w, h);
       this.flash = Math.max(0, this.flash - frameDt * 3);
     }
-    this.drawOverlay(lane, lastScoreDelta, w, h, dpr, color);
+    this.drawOverlay(lane, w, h, dpr, color);
   }
 
   private trackEvents(lane: LaneState, simDt: number): void {
@@ -384,7 +384,7 @@ export class LaneRenderer {
     ctx.restore();
   }
 
-  private drawOverlay(lane: LaneState, lastScoreDelta: number, w: number, h: number, dpr: number, color: (n: string) => string): void {
+  private drawOverlay(lane: LaneState, w: number, h: number, dpr: number, color: (n: string) => string): void {
     const { ctx } = this;
     const { lander, level } = lane;
     const seconds = lander.t * DT;
@@ -414,7 +414,8 @@ export class LaneRenderer {
 
     if (lane.outcome !== null) {
       const ok = lane.outcome === "landed";
-      const text = ok ? `${OUTCOME_TEXT.landed}, +${lastScoreDelta}` : OUTCOME_TEXT[lane.outcome];
+      const quality = lane.results.at(-1)?.landing?.quality;
+      const text = ok && quality !== undefined ? `${OUTCOME_TEXT.landed}, quality ${quality.toFixed(0)}` : OUTCOME_TEXT[lane.outcome];
       ctx.font = `600 ${Math.round(22 * dpr)}px ${FONT}`;
       const tw = ctx.measureText(text).width;
       const bx = (w - tw) / 2 - 14 * dpr;

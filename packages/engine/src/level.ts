@@ -1,4 +1,5 @@
 import {
+  COURSE_LEVELS,
   FUEL_CAPACITY,
   LEVEL_TIME_LIMIT_S,
   TERRAIN_POINTS,
@@ -18,7 +19,7 @@ import type { Level } from "./types.ts";
 export function generateLevel(runSeed: number, index: number): Level {
   const seed = deriveSeed(runSeed, index);
   const rng = createRng(seed);
-  const difficulty = Math.min(index, 8) / 8;
+  const difficulty = Math.min(index, COURSE_LEVELS - 1) / (COURSE_LEVELS - 1);
 
   const roughness = 10 + 14 * difficulty;
   const terrain: number[] = [];

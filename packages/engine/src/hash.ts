@@ -9,7 +9,7 @@ export function stateHash(lane: LaneState): string {
   const values = [
     lane.step,
     lane.level.index,
-    lane.stats.score,
+    lane.results.length,
     Math.round(l.x * 1000),
     Math.round(l.y * 1000),
     Math.round(l.vx * 1000),
