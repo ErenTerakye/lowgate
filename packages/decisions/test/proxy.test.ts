@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MODEL_LANES, PROMPTS, SYSTEM_ONE_QUESTIONS, chatRequest, handleDecide, type LlmPromptId } from "../src/index.ts";
+import { DEFAULT_PROMPT, MODEL_LANES, PROMPTS, chatRequest, handleDecide, type LlmPromptId } from "../src/index.ts";
 
 const env = { TYPESAFE_API_KEY: "secret-key" };
 const post = (body: unknown) => new Request("http://x/api/decide/jev", { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body) });
@@ -23,7 +23,7 @@ describe("handleDecide", () => {
     expect(calls[0]!.url).toBe("https://api.typesafe.ai/v1/systemone");
     expect((calls[0]!.init.headers as Record<string, string>).authorization).toBe("Bearer secret-key");
     const sent = JSON.parse(calls[0]!.init.body as string);
-    expect(sent).toEqual({ model: "jev-1.14.0", state: "Lunar lander.", questions: SYSTEM_ONE_QUESTIONS });
+    expect(sent).toEqual({ model: "jev-1.14.0", state: "Lunar lander.", questions: PROMPTS[DEFAULT_PROMPT].questions });
   });
 
   it("never echoes the key back", async () => {
@@ -64,8 +64,8 @@ describe("handleDecide", () => {
 describe("handleDecide prompts", () => {
   it("uses the questions of the requested prompt and rejects unknown ids", async () => {
     const { calls, fetchImpl } = upstream(() => new Response("{}"));
-    await handleDecide(post({ state: "s", prompt: "p2" }), "jev", env, fetchImpl);
-    expect(JSON.parse(calls[0]!.init.body as string).questions).toEqual(PROMPTS.p2.questions);
+    await handleDecide(post({ state: "s", prompt: "m1" }), "jev", env, fetchImpl);
+    expect(JSON.parse(calls[0]!.init.body as string).questions).toEqual(PROMPTS.m1.questions);
     expect((await handleDecide(post({ state: "s", prompt: "evil" }), "jev", env, fetchImpl)).status).toBe(400);
   });
 });
@@ -76,10 +76,10 @@ describe("handleDecide on Workers AI and local lanes", () => {
 
   it("sends Clef-flash the System One body at the account's URL", async () => {
     const { calls, fetchImpl } = upstream(() => new Response('{"result":{"answers":{}}}'));
-    await handleDecide(postTo("clef", { state: "s", prompt: "p5" }), "clef", cf, fetchImpl);
+    await handleDecide(postTo("clef", { state: "s", prompt: "m1" }), "clef", cf, fetchImpl);
     expect(calls[0]!.url).toBe("https://api.cloudflare.com/client/v4/accounts/acct123/ai/run/@cf/cloudflare/clef-flash");
     expect((calls[0]!.init.headers as Record<string, string>).authorization).toBe("Bearer cf-token");
-    expect(JSON.parse(calls[0]!.init.body as string)).toEqual({ model: "clef-flash", state: "s", questions: PROMPTS.p5.questions });
+    expect(JSON.parse(calls[0]!.init.body as string)).toEqual({ model: "clef-flash", state: "s", questions: PROMPTS.m1.questions });
   });
 
   it("builds the fixed chat request for the LLM lane", async () => {
@@ -99,8 +99,8 @@ describe("handleDecide on Workers AI and local lanes", () => {
     const { calls, fetchImpl } = upstream(() => new Response("{}"));
     await handleDecide(postTo("clef", { state: "s" }), "clef", cf, fetchImpl);
     expect(JSON.parse(calls[0]!.init.body as string).questions).toEqual(PROMPTS[MODEL_LANES.clef!.prompt as keyof typeof PROMPTS].questions);
-    expect((await handleDecide(postTo("llama", { state: "s", prompt: "p5" }), "llama", cf, fetchImpl)).status).toBe(400);
-    expect((await handleDecide(postTo("clef", { state: "s", prompt: "l1" }), "clef", cf, fetchImpl)).status).toBe(400);
+    expect((await handleDecide(postTo("llama", { state: "s", prompt: "m2" }), "llama", cf, fetchImpl)).status).toBe(400);
+    expect((await handleDecide(postTo("clef", { state: "s", prompt: "c1" }), "clef", cf, fetchImpl)).status).toBe(400);
   });
 
   it("answers 501 naming the missing account id", async () => {

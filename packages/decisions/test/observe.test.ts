@@ -21,9 +21,9 @@ describe("brief observation", () => {
     expect(() => observe(lane, 3, { brief: true })).toThrow(/tier 4/);
   });
 
-  it("is what prompt p8 sends, and other prompts are unchanged", () => {
-    expect(observePrompt(lane, PROMPTS.p8)).toBe(observe(lane, 4, { brief: true }));
-    expect(observePrompt(lane, PROMPTS.p5)).toBe(observe(lane, 4));
-    expect(observePrompt(lane, PROMPTS.p3)).toBe(observe(lane, 2, { compact: true }));
+  it("is what prompt m3 sends, and the other prompts send the full tier 4 text", () => {
+    expect(observePrompt(lane, PROMPTS.m3)).toBe(observe(lane, 4, { brief: true }));
+    expect(observePrompt(lane, PROMPTS.m1)).toBe(observe(lane, 4));
+    expect(observePrompt(lane, PROMPTS.m2)).toBe(observe(lane, 4));
   });
 });

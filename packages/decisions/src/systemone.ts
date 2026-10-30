@@ -1,7 +1,7 @@
-import { THROTTLE_LEVELS } from "@arena/engine";
-import { DecisionFailure, postJson, toFailure, upstreamMs, type Fetch } from "./http.ts";
-import { DEFAULT_PROMPT, PROMPTS, ROTATES, actionFromProbs, observePrompt, type PromptId } from "./questions.ts";
-import type { DecisionClient, DecisionRequest, DecisionResult, ModelInfo, Probabilities, Usage } from "./types.ts";
+import { DEFAULT_TIMEOUT_MS, DecisionFailure, postJson, toFailure, upstreamMs, type Fetch } from "./http.ts";
+import { OPTION_KEYS, argmax } from "./menu.ts";
+import { DEFAULT_PROMPT, PROMPTS, observePrompt, type PromptId } from "./questions.ts";
+import type { DecisionClient, DecisionRequest, DecisionResult, ModelInfo, Usage } from "./types.ts";
 
 export interface SystemOneOptions {
   readonly id: string;
@@ -27,11 +27,12 @@ export interface SystemOneOptions {
 /**
  * One adapter for every System One-compatible model (Jev, Clef, Kev, Laya).
  * They share the request shape, so the lanes differ only in endpoint and model.
+ * The lane flies the most likely manoeuvre; the probabilities become its bars.
  */
 export class SystemOneClient implements DecisionClient {
   readonly id: string;
   readonly label: string;
-  /** Shows the observation tier, since results depend on it. */
+  /** Shows the prompt, since results depend on it. */
   readonly kind: string;
   readonly note: string;
   readonly model: ModelInfo;
@@ -44,8 +45,8 @@ export class SystemOneClient implements DecisionClient {
     this.label = options.label;
     this.model = options.model;
     const spec = PROMPTS[options.prompt ?? DEFAULT_PROMPT];
-    this.kind = `model · tier ${spec.tier}`;
-    this.note = options.note ?? `${options.model.model} via ${options.model.provider}, prompt ${spec.id} (observation tier ${spec.tier}). Bars are the model's probabilities.`;
+    this.kind = `model · ${spec.id}`;
+    this.note = options.note ?? `${options.model.model} via ${options.model.provider}, prompt ${spec.id} (observation tier ${spec.tier}). Bars are the model's probabilities over the menu.`;
     this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
   }
 
@@ -64,14 +65,14 @@ export class SystemOneClient implements DecisionClient {
         },
         { ...this.options.headers, ...(this.options.apiKey ? { authorization: `Bearer ${this.options.apiKey}` } : {}) },
         signal,
-        this.options.timeoutMs ?? 2000,
+        this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
       );
       const { probs, usage, servedModel } = parseSystemOne(body);
       const up = upstreamMs(headers);
       return {
         ok: true,
         decision: {
-          action: actionFromProbs(probs),
+          pick: argmax(probs),
           probs,
           usage,
           latencyMs: performance.now() - started,
@@ -90,33 +91,31 @@ const bad = (message: string): never => {
 };
 
 function num(v: unknown, what: string): number {
-  return typeof v === "number" && Number.isFinite(v) ? v : bad(`${what} is not a number`);
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : bad(`${what} is not a probability`);
 }
 
 /**
- * Reads a System One response. Accepts Cloudflare's REST envelope
- * (`{ result: {...} }`) as well as the bare object the binding returns.
+ * Reads a System One response into one probability per manoeuvre, in menu
+ * order. Accepts Cloudflare's REST envelope (`{ result: {...} }`) as well as
+ * the bare object the binding returns. An option the model left out gets 0;
+ * a key that is not on the menu means the answer is for some other question.
  */
-export function parseSystemOne(raw: unknown): { probs: Probabilities; usage: Usage | null; servedModel?: string } {
+export function parseSystemOne(raw: unknown): { probs: number[]; usage: Usage | null; servedModel?: string } {
   let body = raw as Record<string, unknown> | null;
   if (body && typeof body === "object" && "result" in body && body.result && typeof body.result === "object") {
     body = body.result as Record<string, unknown>;
   }
   const answers = (body?.answers ?? bad("response has no answers")) as Record<string, Record<string, unknown> | undefined>;
-
-  const rot = answers.rotate?.probabilities as Record<string, unknown> | undefined;
-  if (!rot) bad("rotate answer has no probabilities");
-  const rotate = { left: 0, none: 0, right: 0 };
-  for (const r of ROTATES) rotate[r] = num(rot?.[r] ?? 0, `rotate.${r}`);
-
-  // Score probabilities come keyed by level index ("0".."4") or as an array.
-  const thr = answers.throttle?.probabilities as Record<string, unknown> | unknown[] | undefined;
-  if (!thr) bad("throttle answer has no probabilities");
-  const throttle = Array.from({ length: THROTTLE_LEVELS }, (_, i) => num((thr as Record<string, unknown>)[i] ?? 0, `throttle.${i}`));
-  if (throttle.every((p) => p === 0) || Object.values(rotate).every((p) => p === 0)) bad("probabilities are all zero");
+  const given = answers.manoeuvre?.probabilities;
+  if (!given || typeof given !== "object" || Array.isArray(given)) bad("manoeuvre answer has no probabilities");
+  const byKey = given as Record<string, unknown>;
+  const unknown = Object.keys(byKey).filter((k) => !OPTION_KEYS.includes(k));
+  if (unknown.length) bad(`manoeuvre answer has options not on the menu: ${unknown.slice(0, 3).join(", ")}`);
+  const probs = OPTION_KEYS.map((k) => num(byKey[k] ?? 0, `manoeuvre.${k}`));
+  if (probs.every((p) => p === 0)) bad("probabilities are all zero");
 
   const u = body?.usage as Record<string, unknown> | undefined;
   const usage = u ? { inputTokens: num(u.input_tokens ?? 0, "usage.input_tokens"), outputTokens: num(u.output_tokens ?? 0, "usage.output_tokens") } : null;
   const served = typeof body?.model === "string" ? { servedModel: body.model } : {};
-  return { probs: { rotate, throttle }, usage, ...served };
+  return { probs, usage, ...served };
 }

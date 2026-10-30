@@ -2,6 +2,9 @@ import type { DecisionError } from "./types.ts";
 
 export type Fetch = typeof fetch;
 
+/** The game waits for every answer, so this deadline only catches a hung provider. */
+export const DEFAULT_TIMEOUT_MS = 15_000;
+
 export interface PostResult {
   readonly body: unknown;
   readonly headers: Headers;

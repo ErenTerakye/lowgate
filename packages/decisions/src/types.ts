@@ -1,11 +1,4 @@
-import type { Action, LaneState, Rotate } from "@arena/engine";
-
-/** Per-option probabilities a model gave. Null for controllers that only pick. */
-export interface Probabilities {
-  readonly rotate: Readonly<Record<Rotate, number>>;
-  /** Index = throttle level 0–4. */
-  readonly throttle: readonly number[];
-}
+import type { LaneState } from "@arena/engine";
 
 /** Tokens as reported by the provider for one call. */
 export interface Usage {
@@ -22,7 +15,7 @@ export type DecisionErrorKind =
   | "auth"
   /** The proxy has no key for this lane (e.g. TYPESAFE_API_KEY unset). */
   | "not_configured"
-  /** Provider answered, but not with something we can turn into an action. */
+  /** Provider answered, but not with something we can turn into a manoeuvre. */
   | "bad_response"
   | "http"
   | "network"
@@ -34,12 +27,17 @@ export interface DecisionError {
   readonly status?: number;
 }
 
-/** Errors after which retrying cannot help: the lane stops asking. */
+/** Errors after which retrying cannot help: the lane stops, and its remaining levels are not flown. */
 export const FATAL_ERRORS: ReadonlySet<DecisionErrorKind> = new Set(["quota", "auth", "not_configured"]);
 
 export interface Decision {
-  readonly action: Action;
-  readonly probs: Probabilities | null;
+  /** Index into MANOEUVRES. */
+  readonly pick: number;
+  /**
+   * The model's probability for every manoeuvre, in menu order. Null for
+   * lanes that only pick (chat models, the autopilot): their bar is the pick.
+   */
+  readonly probs: readonly number[] | null;
   /** Wall time from sending the request to having a parsed answer, measured by us. */
   readonly latencyMs: number;
   /** Provider-side time when the transport reports it (e.g. the Worker's x-upstream-ms). */
@@ -70,21 +68,20 @@ export interface ModelInfo {
 }
 
 export interface DecisionRequest {
+  /** The state at a decision boundary; the answer is held for the next second. */
   readonly lane: LaneState;
-  /** Decision tick the state was observed at. */
-  readonly tick: number;
   readonly signal: AbortSignal;
 }
 
 /**
- * Anything that can fly a lane: a person at the keyboard, a script, or a
- * model behind HTTP. Synchronous clients answer within the tick they are
- * asked; asynchronous ones race the decision clock (see LaneRunner).
+ * Anything that can fly a lane: the autopilot or a model behind HTTP. The
+ * game waits for every answer (see runner.ts), so a slow client flies the
+ * same course as a fast one.
  */
 export interface DecisionClient {
   readonly id: string;
   readonly label: string;
-  /** Short tag shown on the lane, e.g. "keyboard", "scripted", "model". */
+  /** Short tag shown on the lane, e.g. "no model", "model · m2". */
   readonly kind: string;
   /** One line explaining how to read this lane. */
   readonly note: string;

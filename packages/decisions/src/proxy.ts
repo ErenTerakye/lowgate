@@ -5,9 +5,10 @@ import { PROMPTS, isPromptId } from "./questions.ts";
 /** Secrets the proxy may read. Values never leave the server. */
 export type ProxyEnv = Readonly<Record<string, string | undefined>>;
 
-/** Longest observation we forward; observe() is ~900 characters. */
+/** Longest observation we forward; observe() is ~1,100 characters. */
 const MAX_STATE_CHARS = 2000;
-const UPSTREAM_TIMEOUT_MS = 5000;
+/** The game waits for every answer; this only catches a hung provider. */
+const UPSTREAM_TIMEOUT_MS = 15_000;
 
 const reply = (status: number, body: unknown, headers: Record<string, string> = {}): Response =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store", ...headers } });

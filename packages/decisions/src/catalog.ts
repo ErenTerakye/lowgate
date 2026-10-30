@@ -13,7 +13,7 @@ export interface ModelLane {
   /** System One (probabilities per option) or an OpenAI-style chat model asked for JSON. */
   readonly protocol: "systemone" | "chat";
   readonly model: ModelInfo;
-  /** Prompt this lane flies unless overridden; each was picked by a sweep (docs/). */
+  /** Prompt this lane flies unless overridden; a starting point until the R3 sweep (docs/lanes.md). */
   readonly prompt: PromptId | LlmPromptId;
   /** May contain `{account}`, filled from `accountEnv`. */
   readonly upstream: string;
@@ -27,7 +27,7 @@ export interface ModelLane {
   readonly priceNote: string;
 }
 
-/** These models think before answering unless told not to; thinking costs 1 s or more, far past a 200 ms tick. */
+/** These models think before answering unless told not to. The arena rules out extended thinking for every lane. */
 const NO_THINKING = { chat_template_kwargs: { enable_thinking: false } };
 
 const WORKERS_AI = "https://api.cloudflare.com/client/v4/accounts/{account}/ai";
@@ -35,7 +35,7 @@ const WORKERS_AI = "https://api.cloudflare.com/client/v4/accounts/{account}/ai";
 export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
   jev: {
     id: "jev",
-    prompt: "p5",
+    prompt: "m2",
     label: "Jev",
     protocol: "systemone",
     model: {
@@ -51,7 +51,7 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
   },
   clef: {
     id: "clef",
-    prompt: "p7",
+    prompt: "m2",
     label: "Clef-flash",
     protocol: "systemone",
     model: {
@@ -69,7 +69,7 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
   },
   llama: {
     id: "llama",
-    prompt: "l3",
+    prompt: "c2",
     label: "Llama 3.1 8B",
     protocol: "chat",
     model: {
@@ -86,7 +86,7 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
   // Tested as replacements for Llama 3.1 8B, which left Cloudflare's model catalog. Qwen3 won and is a default lane (docs/lanes.md).
   gemma: {
     id: "gemma",
-    prompt: "l3",
+    prompt: "c2",
     label: "Gemma 4 26B",
     requestExtras: NO_THINKING,
     protocol: "chat",
@@ -103,7 +103,7 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
   },
   glm: {
     id: "glm",
-    prompt: "l3",
+    prompt: "c2",
     label: "GLM 4.7 Flash",
     requestExtras: NO_THINKING,
     protocol: "chat",
@@ -120,7 +120,7 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
   },
   qwen: {
     id: "qwen",
-    prompt: "l3",
+    prompt: "c2",
     label: "Qwen3 30B",
     requestExtras: NO_THINKING,
     protocol: "chat",
@@ -137,7 +137,7 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
   },
   laya: {
     id: "laya",
-    prompt: "p8",
+    prompt: "m3",
     label: "Laya",
     protocol: "systemone",
     model: {

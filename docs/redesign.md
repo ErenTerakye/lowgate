@@ -104,10 +104,38 @@ rationale became the probability bars.
 |---|---|---|
 | R0 | Tag `v0-realtime`; remove the real-time loop and the showcase | Done 2026-10-30. Tag is local; pushed only when you say. |
 | R1 | Engine `descent-2`: manoeuvre menu, 1 s decisions, 8-level courses, landing-quality metrics | Done 2026-10-30: 98% landed on 20 courses, 97% on 100. `node packages/engine/scripts/balance.ts 100` |
-| R2 | Decision layer: menu prompts for System One and chat models, lockstep runner, failure rules | Adapter tests pass. Each lane flies one level in a probe. |
+| R2 | Decision layer: menu prompts for System One and chat models, lockstep runner, failure rules | Done 2026-10-30: 106 tests pass, and each lane flew level 1 of course 42 in a probe (below). `pnpm probe --lane <id>` |
 | R3 | Small prompt sweep per lane on the menu | Results in `docs/lanes.md`. |
 | R4 | Laya v3 retrained on menu labels (Colab) | The bridge serves v3, and its probe score is measured. |
 | R5 | `pnpm bench`: 20 courses, recording v2, results with spread | Results table in the docs, with every figure labelled. |
 | R6 | New UI: shared course, trails, lane panels, confidence timeline, results table, replay player | A replay matches its recording on every lane. Works on desktop and mobile. |
 | R7 | Cloudflare Pages and a rate-limited Worker (was M6) | Public page serves replays without a key. |
 | R8 | README with results, a GIF and setup (was M7) | |
+
+## R2 probe: level 1 of course 42 (measured 2026-10-30)
+
+One level per lane, with each lane's starting prompt, through the same
+runner the benchmark will use. One level is a smoke test, not a result.
+Latency is measured from this Mac; tokens are provider-reported; costs use
+each lane's catalog price, scaled to the benchmark's ~5,600 decisions.
+
+| Lane | Prompt | Outcome | Decisions | Same pick as autopilot | Mean top probability | p50 latency | Tokens in per decision | Benchmark cost |
+|---|---|---|---|---|---|---|---|---|
+| Autopilot | – | Landed, quality 42.5 | 32 | 100% | – | 0 ms | – | $0 |
+| Jev | m2 | Landed, quality 40.7 | 33 | 18% | 59% | 209 ms | 2,805 | ~$0.66 (third-party price) |
+| Clef-flash | m2 | Timed out at 45 s | 45 | 16% | 9% | 1,110 ms | 2,754 | ~$0.59 (vendor price) |
+| Qwen3 30B | c2 | Landed, quality 63.4 | 43 | 33% | – (picks only) | 473 ms | 1,405 | ~$0.47 (vendor price) |
+| Laya v2 | m3 | Crashed into terrain at 10 s | 11 | 0% | 11% | 121 ms | 337 | $0 |
+
+What it shows, for R3 and R4:
+- Every lane answered every decision. Qwen once wrote a broken quote and
+  needed all three retries; the other lanes never retried.
+- The prompts are longer than the budget assumed: m2 lists 35 options with
+  their coaching ranges. Jev's benchmark estimate rises from ~$0.20 to
+  ~$0.66, and Workers AI lanes use more of the daily allowance than the
+  2 days estimated. R3 should try shorter wordings.
+- Clef-flash spreads its probability almost evenly over the menu (top
+  option 9% on average, against 1/35 = 3% for uniform).
+- Laya v2 was trained on the old rotate and throttle questions. On the menu
+  it always picked L15-T0. R4 retrains it.
+

@@ -1,6 +1,6 @@
 import type { ModelInfo, PriceSource } from "./types.ts";
 
-/** Tokens a lane has used so far, summed by LaneRunner from provider-reported usage. */
+/** Tokens a lane has used so far, summed by the runner from provider-reported usage. */
 export interface UsageTotals {
   readonly inputTokens: number;
   readonly outputTokens: number;
@@ -11,7 +11,7 @@ export interface UsageTotals {
 export interface CostSummary {
   /** Spent so far in this run, USD. */
   readonly spentUsd: number;
-  /** At the rate this lane actually decided in this run, not at the full 5 Hz. */
+  /** At the pace this lane actually decided in this run, waits for its answers included. */
   readonly perHourUsd: number;
   /** Per 1,000 answered calls. Null until a call has reported usage. */
   readonly per1kUsd: number | null;
