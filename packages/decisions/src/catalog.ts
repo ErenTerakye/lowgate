@@ -179,14 +179,14 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
   },
   laya: {
     id: "laya",
-    prompt: "m3",
+    prompt: "f3",
     label: "Laya",
     protocol: "systemone",
     model: {
       provider: "local (MLX)",
-      // Fine-tuned on autopilot labels (docs/lanes.md). The bridge reports the checkpoint it
-      // loaded, so the pin check flags a run on any other one, such as the base model.
-      model: "laya-descent-v2-mlx",
+      // Fine-tuned on the autopilot's menu picks plus one DAgger round (R4, docs/lanes.md). The bridge reports the
+      // checkpoint it loaded, so the pin check flags a run on any other one, such as v3.
+      model: "laya-descent-v4-mlx",
       pinned: true,
       price: { input: 0, output: 0, source: "none" },
     },

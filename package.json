@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "pnpm --filter @arena/web dev",
     "build": "pnpm --filter @arena/web build",
+    "laya-dataset": "node packages/decisions/scripts/laya-dataset.ts",
+    "laya-dagger": "node packages/decisions/scripts/laya-dagger.ts",
     "probe": "node --env-file-if-exists=.env packages/decisions/scripts/probe.ts",
     "test": "vitest run",
     "typecheck": "tsc -b"

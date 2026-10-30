@@ -114,6 +114,7 @@ export const PROMPTS = {
   m4: { id: "m4", tier: 4, compact: true, questions: COACHED_SHORT, summary: "Compact tier 4 observation, m2's coaching in a few words per option" },
   f1: { id: "f1", tier: 4, compact: true, questions: SPLIT_SCORE, summary: "Compact tier 4 observation, tilt choice and throttle score, multiplied into the menu" },
   f2: { id: "f2", tier: 4, compact: true, questions: SPLIT_CHOICE, summary: "f1 with throttle asked as a choice" },
+  f3: { id: "f3", tier: 4, compact: true, brief: true, questions: SPLIT_SCORE, summary: "Brief tier 4 observation with f1's questions: Laya v3's training prompt (512-token context)" },
 } as const satisfies Record<string, PromptSpec>;
 
 export type PromptId = keyof typeof PROMPTS;

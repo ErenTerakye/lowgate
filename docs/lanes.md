@@ -11,7 +11,7 @@ All numbers are **measured** with `pnpm probe` from a MacBook on home broadband.
 | Jev | `jev-1.14.0` (TypeSafe) | Yes | $0.042 / free, third-party | f1 |
 | Clef-flash | `clef-flash` (Workers AI) | **No**: Cloudflare has no version selector | $0.038 / free, vendor | f1 |
 | Gemma 4 12B (chat lane) | `google/gemma-4-12b-qat`, GGUF Q4_0 QAT (7.15 GB), via LM Studio on this Mac, thinking off | Yes: LM Studio key plus this build | none (local) | c3 |
-| Laya | `laya-descent-v2-mlx` via `bridge/laya` on this Mac | Yes: the bridge reports the checkpoint | none (local) | m3, until R4 retrains it |
+| Laya | `laya-descent-v4-mlx` (v3 plus one DAgger round) via `bridge/laya` on this Mac | Yes: the bridge reports the checkpoint | none (local) | f3 (trained on it) |
 | Autopilot | none: rehearses one second of a simple controller | – | none | – |
 
 ## Menu prompts
@@ -26,6 +26,7 @@ System One prompts (`PROMPTS` in `questions.ts`). Sizes are characters of observ
 | m4 | One choice, 35 options | m2's coaching in fewer words, compact observation | 3,786 |
 | f1 | Tilt choice (7) and throttle score (5) | Each tilt names its 'good tilt now' range; each throttle level quotes the vertical-speed phrase. Probabilities are multiplied back into the 35 | 1,649 |
 | f2 | Tilt choice and throttle choice | f1 with throttle as a choice | 1,655 |
+| f3 | Tilt choice (7) and throttle score (5) | f1's questions on the brief observation: Laya v3's training prompt | 1,393 (course 1001) |
 
 Split prompts still fly one manoeuvre from the same menu: P(manoeuvre) = P(tilt) × P(throttle), so the pick is the most likely tilt with the most likely throttle, and the bars still cover all 35.
 
@@ -83,6 +84,66 @@ Held-out courses 1001 and 1002, all 8 levels each, engine descent-3, thinking of
 | Qwen3.5 9B | 1001 | 0/8, all out of bounds | – | 17% (35% / 25%) | 116/116 | 4,957 ms | 608 / 28 |
 
 Gemma landed all 16 levels while agreeing with the autopilot's picks only 36–39% of the time: it flies its own way, not a copy. Its landing quality swings more than the autopilot's (54.5 then 38.6, against 41.4 and 43.3; 46.6 against 42.4 over both), so on quality the two courses do not separate them. Qwen3.5 picks a narrow set (13 of 35 manoeuvres) and flies off the course within 6–24 s. Gemma is the chat lane. At ~6 s a decision its ~5,600 benchmark decisions take about 10 hours on this Mac, which suits an offline overnight run. Qwen3 30B on Workers AI stays in the catalog but leaves the roster.
+
+## Laya v3 (R4, 2026-10-30)
+
+Laya v2 learned the real-time questions (rotate left / hold / right, five times a second). v3 learns the menu, asked as f3's two questions: the brief observation that fits Laya's 512-token context, a tilt choice and a throttle score. That is the shape v1 and v2 trained on, and the 35 bars come from multiplying the two.
+
+**Data** (`pnpm laya-dataset`, writes `bridge/laya/data/f3/`, not in git):
+- 13,636 training states from courses 3000–3119 and 1,364 held-out states from courses 9000–9011, engine descent-3. Course 42 and the probe courses 1001 and 1002 are in neither, so probes and the benchmark score Laya on courses it never saw. The benchmark must avoid 3000–3119 and 9000–9011 too.
+- Flights are the autopilot with noise: at 10% of decisions it starts a random manoeuvre held for 1–2 s. The noisy flights landed 630 of 960 levels, so crashes and recoveries are covered. Every third decision is kept.
+- Each state is labelled with the clean autopilot pick: 0.8 on its tilt and its throttle level, the rest on the neighbouring tilts or levels.
+- Label counts, tilt: L30 2,949, L15 1,575, L5 1,758, UP 1,364, R5 1,721, R15 1,700, R30 2,569. Throttle 0–4: 2,171, 3,391, 7,330, 456, 288.
+
+**Before training** (measured 2026-10-30, `measurements/laya-f3-menu-2026-10-30T09-17-21-524Z.jsonl`): Laya v2 on f3, courses 1001 and 1002, landed 0 of 16 levels, all out of bounds within 8–20 s. Its tilt agreed with the autopilot's 3% of the time and its throttle 68%; 11 distinct picks; p50 222 ms. v2 never learned to name a tilt, so this is the floor v3 has to clear.
+
+**Training** (Colab A100, laya 0.4.17, from the base model, settings as v1 and v2: 3 epochs, 2,520 optimizer updates, effective batch 32, full model). 26,872 training items (two questions per state), 400 held back for calibration; fitted temperatures 1.19 (tilt) and 1.17 (throttle). From laya.train's report on the 2,728 eval items (2 of which overlap training, so laya labels the run "overlapping_eval"):
+
+| | Accuracy | Tilt | Throttle | Loss | ECE | Mean confidence |
+|---|---|---|---|---|---|---|
+| Base Laya on f3 | 0.187 | – | – | 1.742 | 0.171 | – |
+| **v3 on f3** | **0.884** | 0.867 | 0.902 | 0.793 | 0.181 | 0.705 |
+| v2 on p8, for reference | 0.941 | – | – | 0.604 | 0.140 | – |
+
+v2's tilt question had 3 options (rotate left, hold, right); v3's has 7, and neighbouring tilts are often near-ties for the autopilot, so the accuracies do not compare directly. v3 is underconfident: 70% mean confidence against 88% accuracy.
+
+**Probe** (measured 2026-10-30, `measurements/laya-f3-menu-2026-10-30T10-28-23-941Z.jsonl`), courses 1001 and 1002, engine descent-3:
+
+| Lane | Course | Landed | Mean quality | Same pick as autopilot (tilt / throttle) | p50 latency |
+|---|---|---|---|---|---|
+| Laya v2 on f3 | 1001 + 1002 | 0/16, all out of bounds | – | 0% (3% / 68%) | 222 ms |
+| **Laya v3 on f3** | 1001 | 6/8 | 38.6 | – | – |
+| **Laya v3 on f3** | 1002 | 6/8 | 47.6 | – | – |
+| **Laya v3 on f3** | both | **12/16** | 43.1 | 75% (81% / 90%) | 213 ms |
+| Autopilot | both | 16/16 | 42.4 | 100% | 0 ms |
+| Gemma 4 12B on c3 | both | 16/16 | 46.6 | 36–39% | 6,153 ms |
+
+All 589 decisions answered, none retried; 27 distinct picks; mean top probability 49% over the 35 (the product of the two questions). All four misses are `crashed_speed`: Laya reaches the ground but touches down too fast, so the descent's last seconds are where it differs from the autopilot it copies. v3 was the Laya lane until v4 below; v2 and v3 stay on disk for comparison. A second round on states from Laya's own flights (DAgger) is the next lever.
+
+### DAgger round 1 → `laya-descent-v4` (2026-10-30)
+
+`pnpm laya-dagger` flies the lane's checkpoint (v3) through the bridge on training courses 3000–3029 and labels every state it reaches with the clean autopilot pick, so Laya learns what to do in the situations its own mistakes lead to. The courses lie inside the training range: probes (1001, 1002), eval (9000–9011) and the benchmark stay unseen. The checkpoint for the benchmark is picked on the probe courses and frozen before R5 runs, so benchmark scores never feed back into training.
+
+Collection (measured 2026-10-30, 28.7 min on this Mac): v3 landed 193 of 240 levels (80%) on those courses and picked the autopilot's manoeuvre at 76.7% of 8,712 decisions. 19.6% of the new states are in the final descent (under 20 m above the ground), against 18.6% in v3's data. `bridge/laya/data/f3-dagger1/train.jsonl` holds v3's 13,636 states plus the 8,712 new ones (22,348); `eval.jsonl` is v3's, unchanged, so v4's held-out numbers compare directly.
+
+**Training** (Colab A100, **36.9 min**, settings as v3, from the base model): 44,296 training items, 4,155 optimizer updates; fitted temperatures 1.12 (tilt) and 1.08 (throttle). Same 2,728 eval items as v3:
+
+| | Accuracy | Tilt | Throttle | Loss | ECE | Mean confidence |
+|---|---|---|---|---|---|---|
+| v3 | 0.884 | 0.867 | 0.902 | 0.793 | 0.181 | 0.705 |
+| **v4** | **0.891** | 0.879 | 0.904 | 0.774 | 0.166 | 0.726 |
+
+**Probe** (measured 2026-10-30, `measurements/laya-f3-menu-2026-10-30T11-50-34-167Z.jsonl`), courses 1001 and 1002:
+
+| Checkpoint | Landed | Misses | Mean quality | Same pick as autopilot (tilt / throttle) | p50 latency |
+|---|---|---|---|---|---|
+| v3 | 12/16 | 4 × crashed_speed | 43.1 | 75% (81% / 90%) | 213 ms |
+| **v4** | **14/16** | 1 × crashed_speed, 1 × timeout (1001/8) | 42.3 | 79% (85% / 91%) | 220 ms |
+| Autopilot | 16/16 | – | 42.4 | 100% | 0 ms |
+
+v4 is better on every measure, though two landings on 16 levels is within the noise of one probe. It is the Laya lane, chosen on the probe courses as planned and **frozen for the benchmark**: no further training on any result from R5.
+
+What Laya is: a small model trained to imitate the autopilot, so its ceiling is roughly the autopilot. The other model lanes get a prompt tuned on one held-out course and no training. Both facts go next to its results.
 
 ## Archive: real-time arena prompts (2026-10-29, tag v0-realtime)
 

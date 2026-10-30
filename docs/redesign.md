@@ -109,7 +109,7 @@ rationale became the probability bars.
 | R1 | Engine `descent-2`: manoeuvre menu, 1 s decisions, 8-level courses, landing-quality metrics | Done 2026-10-30: 98% landed on 20 courses, 97% on 100. `node packages/engine/scripts/balance.ts 100` |
 | R2 | Decision layer: menu prompts for System One and chat models, lockstep runner, failure rules | Done 2026-10-30: 106 tests pass, and each lane flew level 1 of course 42 in a probe (below). `pnpm probe --lane <id>` |
 | R3 | Small prompt sweep per lane on the menu | Done 2026-10-30 on held-out course 1001: Jev and Clef-flash fly f1, the chat lane c3 (now Gemma 4 12B, local). Clef-flash f2 and m2 not flown (daily quota). Results in `docs/lanes.md`. |
-| R4 | Laya v3 retrained on menu labels (Colab) | The bridge serves v3, and its probe score is measured. |
+| R4 | Laya retrained on menu labels (Colab) | Done 2026-10-30: the bridge serves `laya-descent-v4-mlx` on f3 (v3 plus one DAgger round), frozen for the benchmark. Held-out accuracy 0.187 → 0.891; probe on courses 1001 and 1002 landed 14/16 (v3: 12/16, v2: 0/16). `pnpm laya-dataset`, `pnpm laya-dagger`, results in docs/lanes.md. |
 | R5 | `pnpm bench`: 20 courses, recording v2, results with spread | Results table in the docs, with every figure labelled. |
 | R6 | New UI: shared course, trails, lane panels, confidence timeline, results table, replay player | A replay matches its recording on every lane. Works on desktop and mobile. |
 | R7 | Cloudflare Pages and a rate-limited Worker (was M6) | Public page serves replays without a key. |

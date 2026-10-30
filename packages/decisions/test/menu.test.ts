@@ -54,4 +54,16 @@ describe("menu wording", () => {
     // ~4 characters per English token; a generous bound.
     expect(text.length / 3).toBeLessThan(400);
   });
+
+  it("gives Laya v3's prompt f3 the brief observation with each split question inside the context", () => {
+    const lane = createLane(42);
+    const { questions } = PROMPTS.f3;
+    expect(observePrompt(lane, PROMPTS.f3)).toBe(observePrompt(lane, PROMPTS.m3));
+    expect(questions).toBe(PROMPTS.f1.questions);
+    // Laya encodes the state beside each question in its own pass.
+    for (const q of Object.values(questions)) {
+      const text = observePrompt(lane, PROMPTS.f3) + q.instructions + Object.values(q.criteria).join(" ");
+      expect(text.length / 3).toBeLessThan(400);
+    }
+  });
 });
