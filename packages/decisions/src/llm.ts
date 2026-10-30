@@ -1,4 +1,4 @@
-import { MANOEUVRES, MENU_TILTS, THROTTLE_LEVELS } from "@arena/engine";
+import { MANOEUVRES, MENU_TILTS, THROTTLE_LEVELS } from "@lowgate/engine";
 import { DEFAULT_TIMEOUT_MS, DecisionFailure, postJson, toFailure, upstreamMs, type Fetch } from "./http.ts";
 import { OPTION_KEYS, TILT_KEYS, TURN_RATE_DEG_S, VERTICAL_FITS, describeManoeuvre, optionIndex, tiltBandText } from "./menu.ts";
 import { observe, type ObservationTier } from "./observe.ts";

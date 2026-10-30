@@ -11,7 +11,7 @@ import {
   terrainHeightAt,
   windAt,
   type LaneState,
-} from "@arena/engine";
+} from "@lowgate/engine";
 
 /**
  * How much of the state is pre-digested for the model:

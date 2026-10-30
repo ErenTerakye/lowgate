@@ -1,0 +1,719 @@
+{
+  "engine": "descent-3",
+  "courses": [
+    5001,
+    5002,
+    5003,
+    5004,
+    5005,
+    5006,
+    5007,
+    5008,
+    5009,
+    5010,
+    5011,
+    5012,
+    5013,
+    5014,
+    5015,
+    5016,
+    5017,
+    5018,
+    5019,
+    5020
+  ],
+  "ranking": "landing rate, then mean landing quality",
+  "lanes": [
+    {
+      "lane": "autopilot",
+      "label": "Autopilot",
+      "model": null,
+      "prompts": [
+        "none"
+      ],
+      "servedModels": [],
+      "courses": 20,
+      "levels": 160,
+      "landed": 159,
+      "landingRate": 0.99375,
+      "landingRate95": {
+        "low": 0.9654510136686295,
+        "high": 0.9988958682428154
+      },
+      "perCourse": [
+        {
+          "seed": 5001,
+          "landed": 7
+        },
+        {
+          "seed": 5002,
+          "landed": 8
+        },
+        {
+          "seed": 5003,
+          "landed": 8
+        },
+        {
+          "seed": 5004,
+          "landed": 8
+        },
+        {
+          "seed": 5005,
+          "landed": 8
+        },
+        {
+          "seed": 5006,
+          "landed": 8
+        },
+        {
+          "seed": 5007,
+          "landed": 8
+        },
+        {
+          "seed": 5008,
+          "landed": 8
+        },
+        {
+          "seed": 5009,
+          "landed": 8
+        },
+        {
+          "seed": 5010,
+          "landed": 8
+        },
+        {
+          "seed": 5011,
+          "landed": 8
+        },
+        {
+          "seed": 5012,
+          "landed": 8
+        },
+        {
+          "seed": 5013,
+          "landed": 8
+        },
+        {
+          "seed": 5014,
+          "landed": 8
+        },
+        {
+          "seed": 5015,
+          "landed": 8
+        },
+        {
+          "seed": 5016,
+          "landed": 8
+        },
+        {
+          "seed": 5017,
+          "landed": 8
+        },
+        {
+          "seed": 5018,
+          "landed": 8
+        },
+        {
+          "seed": 5019,
+          "landed": 8
+        },
+        {
+          "seed": 5020,
+          "landed": 8
+        }
+      ],
+      "quality": {
+        "mean": 42.286792452830205,
+        "sd": 8.562577640468824,
+        "ci": {
+          "low": 40.95586600684773,
+          "high": 43.61771889881268
+        },
+        "n": 159
+      },
+      "outcomes": {
+        "landed": 159,
+        "crashed_speed": 1
+      },
+      "decisions": 5597,
+      "unanswered": 0,
+      "retried": 0,
+      "agreesWithAutopilot": {
+        "exact": 1,
+        "tilt": 1,
+        "throttle": 1
+      },
+      "meanTopProbability": null,
+      "latencyMs": {
+        "p50": 0,
+        "p95": 0,
+        "source": "measured, from this machine"
+      },
+      "tokensPerDecision": null,
+      "costUsd": null,
+      "hostedEquivalentUsd": null,
+      "answerSecondsPerCourse": 0
+    },
+    {
+      "lane": "jev",
+      "label": "Jev",
+      "model": {
+        "provider": "TypeSafe",
+        "model": "jev-1.14.0",
+        "pinned": true,
+        "price": {
+          "input": 0.042,
+          "output": 0,
+          "source": "third_party"
+        }
+      },
+      "prompts": [
+        "f1"
+      ],
+      "servedModels": [
+        "jev-1.14.0"
+      ],
+      "courses": 20,
+      "levels": 160,
+      "landed": 156,
+      "landingRate": 0.975,
+      "landingRate95": {
+        "low": 0.9374901067223826,
+        "high": 0.9902360075215391
+      },
+      "perCourse": [
+        {
+          "seed": 5001,
+          "landed": 7
+        },
+        {
+          "seed": 5002,
+          "landed": 8
+        },
+        {
+          "seed": 5003,
+          "landed": 8
+        },
+        {
+          "seed": 5004,
+          "landed": 7
+        },
+        {
+          "seed": 5005,
+          "landed": 8
+        },
+        {
+          "seed": 5006,
+          "landed": 8
+        },
+        {
+          "seed": 5007,
+          "landed": 8
+        },
+        {
+          "seed": 5008,
+          "landed": 8
+        },
+        {
+          "seed": 5009,
+          "landed": 8
+        },
+        {
+          "seed": 5010,
+          "landed": 7
+        },
+        {
+          "seed": 5011,
+          "landed": 8
+        },
+        {
+          "seed": 5012,
+          "landed": 8
+        },
+        {
+          "seed": 5013,
+          "landed": 8
+        },
+        {
+          "seed": 5014,
+          "landed": 8
+        },
+        {
+          "seed": 5015,
+          "landed": 8
+        },
+        {
+          "seed": 5016,
+          "landed": 8
+        },
+        {
+          "seed": 5017,
+          "landed": 8
+        },
+        {
+          "seed": 5018,
+          "landed": 8
+        },
+        {
+          "seed": 5019,
+          "landed": 8
+        },
+        {
+          "seed": 5020,
+          "landed": 7
+        }
+      ],
+      "quality": {
+        "mean": 46.720512820512816,
+        "sd": 10.267661215295947,
+        "ci": {
+          "low": 45.10928361344683,
+          "high": 48.331742027578805
+        },
+        "n": 156
+      },
+      "outcomes": {
+        "landed": 156,
+        "crashed_speed": 3,
+        "timeout": 1
+      },
+      "decisions": 6255,
+      "unanswered": 0,
+      "retried": 0,
+      "agreesWithAutopilot": {
+        "exact": 0.3944044764188649,
+        "tilt": 0.6612310151878498,
+        "throttle": 0.5721822541966427
+      },
+      "meanTopProbability": 0.792282318145473,
+      "latencyMs": {
+        "p50": 203,
+        "p95": 239,
+        "source": "measured, from this machine"
+      },
+      "tokensPerDecision": {
+        "input": 938.54068745004,
+        "output": 94.42509992006394,
+        "source": "provider-reported"
+      },
+      "costUsd": {
+        "total": 0.24656402399999966,
+        "priceSource": "third_party"
+      },
+      "hostedEquivalentUsd": null,
+      "answerSecondsPerCourse": 65.0593
+    },
+    {
+      "lane": "gemma-local",
+      "label": "Gemma 4 12B",
+      "model": {
+        "provider": "local (LM Studio)",
+        "model": "google/gemma-4-12b-qat",
+        "pinned": true,
+        "price": {
+          "input": 0,
+          "output": 0,
+          "source": "none"
+        }
+      },
+      "prompts": [
+        "c3"
+      ],
+      "servedModels": [
+        "google/gemma-4-12b-qat"
+      ],
+      "courses": 15,
+      "levels": 120,
+      "landed": 111,
+      "landingRate": 0.925,
+      "landingRate95": {
+        "low": 0.8635908233423942,
+        "high": 0.9600428847986623
+      },
+      "perCourse": [
+        {
+          "seed": 5001,
+          "landed": 8
+        },
+        {
+          "seed": 5002,
+          "landed": 8
+        },
+        {
+          "seed": 5003,
+          "landed": 6
+        },
+        {
+          "seed": 5004,
+          "landed": 8
+        },
+        {
+          "seed": 5005,
+          "landed": 7
+        },
+        {
+          "seed": 5006,
+          "landed": 7
+        },
+        {
+          "seed": 5007,
+          "landed": 8
+        },
+        {
+          "seed": 5008,
+          "landed": 7
+        },
+        {
+          "seed": 5009,
+          "landed": 8
+        },
+        {
+          "seed": 5010,
+          "landed": 7
+        },
+        {
+          "seed": 5011,
+          "landed": 8
+        },
+        {
+          "seed": 5012,
+          "landed": 7
+        },
+        {
+          "seed": 5013,
+          "landed": 7
+        },
+        {
+          "seed": 5014,
+          "landed": 8
+        },
+        {
+          "seed": 5015,
+          "landed": 7
+        }
+      ],
+      "quality": {
+        "mean": 46.380180180180176,
+        "sd": 11.231213160569476,
+        "ci": {
+          "low": 44.29082018530734,
+          "high": 48.46954017505301
+        },
+        "n": 111
+      },
+      "outcomes": {
+        "landed": 111,
+        "crashed_tilt": 1,
+        "timeout": 2,
+        "crashed_terrain": 1,
+        "crashed_speed": 5
+      },
+      "decisions": 4685,
+      "unanswered": 0,
+      "retried": 0,
+      "agreesWithAutopilot": {
+        "exact": 0.3812166488794024,
+        "tilt": 0.6508004268943437,
+        "throttle": 0.5780149413020278
+      },
+      "meanTopProbability": null,
+      "latencyMs": {
+        "p50": 5492,
+        "p95": 5911,
+        "source": "measured, from this machine"
+      },
+      "tokensPerDecision": {
+        "input": 602.2533617929563,
+        "output": 38.10736392742796,
+        "source": "provider-reported"
+      },
+      "costUsd": {
+        "total": 0,
+        "priceSource": "none"
+      },
+      "hostedEquivalentUsd": {
+        "total": 0.3357156000000004,
+        "price": {
+          "provider": "SiliconFlow",
+          "model": "google/gemma-4-12B-it",
+          "input": 0.1,
+          "output": 0.3,
+          "source": "vendor",
+          "checked": "2026-10-30",
+          "url": "https://www.siliconflow.com/models/gemma-4-12b-it"
+        }
+      },
+      "answerSecondsPerCourse": 1679.7434
+    },
+    {
+      "lane": "laya",
+      "label": "Laya",
+      "model": {
+        "provider": "local (MLX)",
+        "model": "laya-descent-v4-mlx",
+        "pinned": true,
+        "price": {
+          "input": 0,
+          "output": 0,
+          "source": "none"
+        }
+      },
+      "prompts": [
+        "f3"
+      ],
+      "servedModels": [
+        "laya-descent-v4-mlx"
+      ],
+      "courses": 20,
+      "levels": 160,
+      "landed": 142,
+      "landingRate": 0.8875,
+      "landingRate95": {
+        "low": 0.8291855367542046,
+        "high": 0.9276436617079419
+      },
+      "perCourse": [
+        {
+          "seed": 5001,
+          "landed": 8
+        },
+        {
+          "seed": 5002,
+          "landed": 8
+        },
+        {
+          "seed": 5003,
+          "landed": 8
+        },
+        {
+          "seed": 5004,
+          "landed": 7
+        },
+        {
+          "seed": 5005,
+          "landed": 6
+        },
+        {
+          "seed": 5006,
+          "landed": 6
+        },
+        {
+          "seed": 5007,
+          "landed": 8
+        },
+        {
+          "seed": 5008,
+          "landed": 5
+        },
+        {
+          "seed": 5009,
+          "landed": 8
+        },
+        {
+          "seed": 5010,
+          "landed": 6
+        },
+        {
+          "seed": 5011,
+          "landed": 7
+        },
+        {
+          "seed": 5012,
+          "landed": 8
+        },
+        {
+          "seed": 5013,
+          "landed": 8
+        },
+        {
+          "seed": 5014,
+          "landed": 8
+        },
+        {
+          "seed": 5015,
+          "landed": 8
+        },
+        {
+          "seed": 5016,
+          "landed": 5
+        },
+        {
+          "seed": 5017,
+          "landed": 8
+        },
+        {
+          "seed": 5018,
+          "landed": 7
+        },
+        {
+          "seed": 5019,
+          "landed": 7
+        },
+        {
+          "seed": 5020,
+          "landed": 6
+        }
+      ],
+      "quality": {
+        "mean": 41.13732394366197,
+        "sd": 9.632514450126969,
+        "ci": {
+          "low": 39.55300143822386,
+          "high": 42.72164644910008
+        },
+        "n": 142
+      },
+      "outcomes": {
+        "landed": 142,
+        "crashed_tilt": 7,
+        "crashed_speed": 11
+      },
+      "decisions": 5801,
+      "unanswered": 0,
+      "retried": 0,
+      "agreesWithAutopilot": {
+        "exact": 0.7860713670056887,
+        "tilt": 0.8503706257541803,
+        "throttle": 0.9138079641441131
+      },
+      "meanTopProbability": 0.5335211170487847,
+      "latencyMs": {
+        "p50": 199,
+        "p95": 447,
+        "source": "measured, from this machine"
+      },
+      "tokensPerDecision": {
+        "input": 555.0324082054818,
+        "output": 0,
+        "source": "provider-reported"
+      },
+      "costUsd": {
+        "total": 0,
+        "priceSource": "none"
+      },
+      "hostedEquivalentUsd": null,
+      "answerSecondsPerCourse": 73.58375
+    },
+    {
+      "lane": "clef",
+      "label": "Clef-flash",
+      "model": {
+        "provider": "Cloudflare Workers AI",
+        "model": "clef-flash",
+        "pinned": false,
+        "price": {
+          "input": 0.038,
+          "output": 0,
+          "source": "vendor"
+        }
+      },
+      "prompts": [
+        "f1"
+      ],
+      "servedModels": [
+        "clef-flash"
+      ],
+      "courses": 12,
+      "levels": 96,
+      "landed": 41,
+      "landingRate": 0.4270833333333333,
+      "landingRate95": {
+        "low": 0.3328208304458206,
+        "high": 0.5269568595352025
+      },
+      "perCourse": [
+        {
+          "seed": 5001,
+          "landed": 3
+        },
+        {
+          "seed": 5002,
+          "landed": 3
+        },
+        {
+          "seed": 5003,
+          "landed": 3
+        },
+        {
+          "seed": 5004,
+          "landed": 4
+        },
+        {
+          "seed": 5005,
+          "landed": 5
+        },
+        {
+          "seed": 5006,
+          "landed": 3
+        },
+        {
+          "seed": 5007,
+          "landed": 3
+        },
+        {
+          "seed": 5008,
+          "landed": 1
+        },
+        {
+          "seed": 5009,
+          "landed": 5
+        },
+        {
+          "seed": 5010,
+          "landed": 4
+        },
+        {
+          "seed": 5011,
+          "landed": 4
+        },
+        {
+          "seed": 5012,
+          "landed": 3
+        }
+      ],
+      "quality": {
+        "mean": 41.95853658536585,
+        "sd": 11.203369484439852,
+        "ci": {
+          "low": 38.52924175147329,
+          "high": 45.387831419258404
+        },
+        "n": 41
+      },
+      "outcomes": {
+        "timeout": 26,
+        "landed": 41,
+        "crashed_tilt": 13,
+        "crashed_speed": 7,
+        "out_of_bounds": 8,
+        "crashed_terrain": 1
+      },
+      "decisions": 4662,
+      "unanswered": 0,
+      "retried": 4,
+      "agreesWithAutopilot": {
+        "exact": 0.2335907335907336,
+        "tilt": 0.35456885456885456,
+        "throttle": 0.6293436293436293
+      },
+      "meanTopProbability": 0.28218899613899595,
+      "latencyMs": {
+        "p50": 496,
+        "p95": 1025,
+        "source": "measured, from this machine"
+      },
+      "tokensPerDecision": {
+        "input": 832.2277992277992,
+        "output": 0,
+        "source": "provider-reported"
+      },
+      "costUsd": {
+        "total": 0.14743414799999927,
+        "priceSource": "vendor"
+      },
+      "hostedEquivalentUsd": null,
+      "answerSecondsPerCourse": 225.52441666666667
+    }
+  ],
+  "at": "2026-10-30T20:48:03.628Z"
+}

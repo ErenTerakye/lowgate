@@ -1,5 +1,5 @@
 {
-  "name": "decision-arena",
+  "name": "lowgate",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.19.0",
@@ -7,8 +7,9 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "pnpm --filter @arena/web dev",
-    "build": "pnpm --filter @arena/web build",
+    "bench": "node --env-file-if-exists=.env packages/decisions/scripts/bench.ts",
+    "dev": "pnpm --filter @lowgate/web dev",
+    "build": "pnpm --filter @lowgate/web build",
     "laya-dataset": "node packages/decisions/scripts/laya-dataset.ts",
     "laya-dagger": "node packages/decisions/scripts/laya-dagger.ts",
     "probe": "node --env-file-if-exists=.env packages/decisions/scripts/probe.ts",

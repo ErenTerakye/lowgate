@@ -1,5 +1,5 @@
 """
-Serves a local Laya model over the System One HTTP shape, so the arena's
+Serves a local Laya model over the System One HTTP shape, so Low Gate's
 SystemOneClient talks to it like any hosted lane.
 
     python -m pip install -r bridge/laya/requirements.txt
@@ -132,7 +132,7 @@ def main() -> None:
     import laya_mlx  # imported here so the tests run without MLX installed
 
     model = args.model or next((str(p) for p in FINE_TUNED if p.is_dir()), BASE_MODEL)
-    # A local checkpoint is reported by its folder name, which is what the arena's catalog pins.
+    # A local checkpoint is reported by its folder name, which is what Low Gate's catalog pins.
     served = Path(model).name if Path(model).is_dir() else model
     agent = laya_mlx.load(model)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(agent, served))

@@ -18,7 +18,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { MANOEUVRES, createLane, createRng, decisionInLevel, flyDecision, needsDecision, nextLevel, type Rng } from "@arena/engine";
+import { MANOEUVRES, createLane, createRng, decisionInLevel, flyDecision, needsDecision, nextLevel, type Rng } from "@lowgate/engine";
 import { FINAL_DESCENT_M, heightAboveGround, labelledRow, layaPrompt, tally } from "./laya-labels.ts";
 
 const { values } = parseArgs({

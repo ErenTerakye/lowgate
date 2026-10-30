@@ -1,5 +1,5 @@
 /** Laya's training labels, shared by laya-dataset.ts and laya-dagger.ts so both label a state the same way. */
-import { MANOEUVRES, MENU_TILTS, THROTTLE_LEVELS, autopilot, terrainHeightAt, type LaneState } from "@arena/engine";
+import { MANOEUVRES, MENU_TILTS, THROTTLE_LEVELS, autopilot, terrainHeightAt, type LaneState } from "@lowgate/engine";
 import { PROMPTS, TILT_KEYS, observePrompt, type PromptId, type PromptSpec } from "../src/index.ts";
 
 /** Label smoothing: the autopilot's pick gets most weight, the rest goes to the neighbouring tilts or throttle levels. */

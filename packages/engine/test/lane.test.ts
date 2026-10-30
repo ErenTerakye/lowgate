@@ -19,7 +19,7 @@ import {
 
 const FREE_FALL: Manoeuvre = { tilt: 0, throttle: 0 };
 
-/** Fly a whole course with the autopilot, one manoeuvre per decision, as the arena will. */
+/** Fly a whole course with the autopilot, one manoeuvre per decision, as the benchmark does. */
 function runAutopilot(seed: number): { lane: LaneState; hashes: string[]; picks: number[] } {
   let lane = createLane(seed);
   const hashes: string[] = [];

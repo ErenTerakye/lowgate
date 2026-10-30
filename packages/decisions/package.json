@@ -1,10 +1,10 @@
 {
-  "name": "@arena/decisions",
+  "name": "@lowgate/decisions",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": { ".": "./src/index.ts" },
   "dependencies": {
-    "@arena/engine": "workspace:*"
+    "@lowgate/engine": "workspace:*"
   }
 }

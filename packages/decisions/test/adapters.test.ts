@@ -1,4 +1,4 @@
-import { createLane } from "@arena/engine";
+import { createLane } from "@lowgate/engine";
 import { describe, expect, it } from "vitest";
 import { LlmJsonClient, OPTION_KEYS, PROMPTS, SystemOneClient, observe, optionIndex, parseLlmResponse, parseSystemOne, type Fetch, type ModelInfo } from "../src/index.ts";
 

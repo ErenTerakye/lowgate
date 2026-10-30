@@ -9,3 +9,6 @@ export { MODEL_LANES, resolveUpstream, type ModelLane } from "./catalog.ts";
 export { costSummary, usdFor, formatUsd, PRICE_SOURCE_TEXT, type CostSummary, type UsageTotals } from "./cost.ts";
 export { handleDecide, type ProxyEnv } from "./proxy.ts";
 export { flyCourse, decideWithRetry, autopilotClient, MAX_RETRIES, RETRY_DELAYS_MS, FALLBACK_PICK, type CourseRun, type DecisionRecord, type RunOptions } from "./runner.ts";
+export { RECORDING_FORMAT, makeRecording, replayRecording, type Recording, type ReplayCheck } from "./recording.ts";
+export { wilson, meanSpread, percentile, type Interval, type MeanSpread } from "./stats.ts";
+export { summarizeLane, rankLanes, benchResults, type LaneResult, type BenchResults } from "./results.ts";

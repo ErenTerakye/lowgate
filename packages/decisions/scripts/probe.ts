@@ -15,25 +15,9 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { COURSE_LEVELS, MANOEUVRES, autopilot, createLane, summarize } from "@arena/engine";
-import {
-  LLM_PROMPTS,
-  LlmJsonClient,
-  MODEL_LANES,
-  OPTION_KEYS,
-  PROMPTS,
-  SystemOneClient,
-  autopilotClient,
-  flyCourse,
-  isLlmPromptId,
-  isPromptId,
-  observe,
-  observePrompt,
-  usdFor,
-  type CourseRun,
-  type DecisionClient,
-  type DecisionRecord,
-} from "../src/index.ts";
+import { COURSE_LEVELS, MANOEUVRES, autopilot, summarize } from "@lowgate/engine";
+import { OPTION_KEYS, flyCourse, percentile, usdFor, type CourseRun, type DecisionClient, type DecisionRecord } from "../src/index.ts";
+import { laneClient } from "./lane-client.ts";
 
 const { values } = parseArgs({
   options: {
@@ -51,34 +35,18 @@ const levels = Math.min(COURSE_LEVELS, Math.max(1, Number(values.levels)));
 /** Decisions per lane for the 20-course benchmark, at the autopilot's pace (docs/redesign.md). */
 const BENCH_DECISIONS = 5600;
 
-function makeClient(): { client: DecisionClient; promptId: string; promptChars: number | null } {
-  if (values.lane === "autopilot") return { client: autopilotClient, promptId: "none", promptChars: null };
-  const lane = MODEL_LANES[values.lane];
-  if (!lane) throw new Error(`Unknown lane "${values.lane}". Known: autopilot, ${Object.keys(MODEL_LANES).join(", ")}`);
-  const promptId = values.prompt ?? lane.prompt;
-  const key = lane.keyEnv ? process.env[lane.keyEnv] : undefined;
-  if (lane.keyEnv && !key) fail(`${lane.keyEnv} is not set. Add it to .env at the repo root (see .env.example).`);
-  const account = lane.accountEnv ? process.env[lane.accountEnv] : undefined;
-  if (lane.accountEnv && !account) fail(`${lane.accountEnv} is not set. Add it to .env at the repo root (see .env.example).`);
-  const endpoint = account ? lane.upstream.replace("{account}", encodeURIComponent(account)) : lane.upstream;
-  const common = { id: lane.id, label: lane.label, model: lane.model, endpoint, ...(key ? { apiKey: key } : {}) };
-  const start = createLane(seed);
-  if (lane.protocol === "systemone") {
-    if (!isPromptId(promptId)) fail(`Unknown prompt "${promptId}" for ${lane.label}. Known: ${Object.keys(PROMPTS).join(", ")}`);
-    const spec = PROMPTS[promptId as keyof typeof PROMPTS];
-    // The question text the model reads, without JSON punctuation.
-    const chars = observePrompt(start, spec).length + JSON.stringify(spec.questions).replace(/[{}"[\],:]/g, "").length;
-    return { client: new SystemOneClient({ ...common, prompt: spec.id }), promptId, promptChars: chars };
-  }
-  if (!isLlmPromptId(promptId)) fail(`Unknown prompt "${promptId}" for ${lane.label}. Known: ${Object.keys(LLM_PROMPTS).join(", ")}`);
-  const spec = LLM_PROMPTS[promptId as keyof typeof LLM_PROMPTS];
-  const client = new LlmJsonClient({ ...common, prompt: spec.id, ...(lane.requestExtras ? { requestExtras: lane.requestExtras } : {}) });
-  return { client, promptId, promptChars: spec.system.length + observe(start, spec.tier).length };
-}
-
 function fail(message: string): never {
   console.error(message);
   process.exit(1);
+}
+
+function makeClient(): { client: DecisionClient; promptId: string; promptChars: number | null } {
+  try {
+    const { client, promptId, promptChars } = laneClient(values.lane, values.prompt ? { prompt: values.prompt } : {});
+    return { client, promptId, promptChars: promptChars(seed) };
+  } catch (err) {
+    fail(err instanceof Error ? err.message : String(err));
+  }
 }
 
 const { client, promptId, promptChars } = makeClient();
@@ -104,11 +72,6 @@ const results = runs.flatMap((r) => r.results);
 const stoppedBy = runs.find((r) => r.stoppedBy)?.stoppedBy ?? null;
 
 const mean = (xs: number[]): number | null => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
-function percentile(xs: number[], p: number): number | null {
-  if (!xs.length) return null;
-  const sorted = [...xs].sort((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)]!;
-}
 const answered = records.filter((r) => r.answered);
 const share = (pred: (r: (typeof records)[number]) => boolean): number | null => (answered.length ? answered.filter(pred).length / answered.length : null);
 const latencies = answered.map((r) => r.latencyMs);

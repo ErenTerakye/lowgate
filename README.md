@@ -1,23 +1,35 @@
-# Decision Arena
+# Low Gate
 
-AI decision models fly the same seeded lander course side by side. Each lane shows live per-option probabilities, latency, decisions per second and cost.
+AI decision models fly the same seeded lunar-lander courses, and the benchmark measures their judgment. Each decision picks one manoeuvre from a fixed menu of 35 (a target tilt and a throttle level, held for one second). The game waits for every answer, so latency and cost are measured and shown, but never change the score.
 
-> Work in progress: milestone 1 of 7 (deterministic game, keyboard lane, scripted autopilot lane).
-> Research and design notes: [docs/phase1-research.md](docs/phase1-research.md).
+The name comes from Apollo: low gate is the point in the descent where the crew took over and chose where to touch down.
+
+> Work in progress. The plan, rules and milestones are in [docs/redesign.md](docs/redesign.md). Lane setup and measurements are in [docs/lanes.md](docs/lanes.md).
+
+## Lanes
+
+| Lane | Kind | Runs on |
+|---|---|---|
+| Jev | System One decision model | TypeSafe API |
+| Clef-flash | System One decision model | Cloudflare Workers AI |
+| Laya | Decision model, fine-tuned for the menu | This Mac (MLX), via `bridge/laya/server.py` |
+| Gemma 4 12B | Chat model, answers in JSON | This Mac (LM Studio) |
+| Autopilot | Scripted baseline | In process |
 
 ## Run locally
 
 ```bash
 pnpm install
-pnpm dev        # http://localhost:5173  (?seed=42&seconds=300)
-pnpm test       # engine unit + determinism tests
+cp .env.example .env   # add your own keys; .env is never committed
+pnpm dev               # course viewer at http://localhost:5173, results at /results.html
+pnpm test
 pnpm typecheck
-node packages/engine/scripts/balance.ts   # autopilot landing rate across seeds
+pnpm bench             # 20 courses per lane, resumable, recordings in bench/
+pnpm bench --summary   # rebuild bench/results.json from the recordings
 ```
 
-## How the game works
+## How it works
 
-- **Deterministic engine** (`packages/engine`): pure TypeScript with no DOM. It uses a seeded PRNG (mulberry32), fixed 60 Hz physics and a 5 Hz decision clock. Trigonometry comes from a table built with plain IEEE-754 arithmetic, so every JS engine re-simulates replays bit-for-bit. `stateHash()` fingerprints each decision tick.
-- **Same course for every lane:** level *n* of a run is a pure function of `(seed, n)`. Difficulty (terrain, wind, distance) ramps with *n*.
-- **Actions:** `rotate ∈ {left, none, right}` and `throttle ∈ 0–4`, held for one 200 ms decision tick. The keyboard is sampled at the same 5 Hz every model gets.
-- **Scoring:** 100 points per safe landing plus the fuel left; crashes and timeouts score 0.
+- **Deterministic engine** (`packages/engine`, version `descent-3`): pure TypeScript, seeded PRNG, fixed 60 Hz physics, one decision per second. Level *n* of a course is a pure function of `(seed, n)`, so every lane flies the same terrain and wind, and every recording replays bit-for-bit.
+- **Decision layer** (`packages/decisions`): one adapter for System One models and one for chat models, a lockstep runner, failure rules, recordings checked by replay, and summary statistics with intervals.
+- **Ranking:** landing rate over 160 levels (20 courses of 8), ties broken by a landing-quality score built from distance to the pad, touchdown speed and fuel left.

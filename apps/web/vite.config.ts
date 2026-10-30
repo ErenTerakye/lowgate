@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import type { IncomingMessage } from "node:http";
 import { defineConfig, loadEnv, type Plugin } from "vite";
-import type { handleDecide as HandleDecide } from "@arena/decisions";
+import type { handleDecide as HandleDecide } from "@lowgate/decisions";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 const proxyEntry = fileURLToPath(new URL("../../packages/decisions/src/proxy.ts", import.meta.url));
@@ -23,7 +23,7 @@ async function toRequest(req: IncomingMessage): Promise<Request> {
  */
 function decideProxy(): Plugin {
   return {
-    name: "arena-decide-proxy",
+    name: "lowgate-decide-proxy",
     configureServer(server) {
       server.middlewares.use("/api/decide/", (req, res) => {
         const laneId = (req.url ?? "").replace(/^\//, "").split(/[/?]/)[0] ?? "";
@@ -46,4 +46,11 @@ function decideProxy(): Plugin {
   };
 }
 
-export default defineConfig({ plugins: [decideProxy()] });
+export default defineConfig({
+  plugins: [decideProxy()],
+  build: {
+    rollupOptions: {
+      input: { main: fileURLToPath(new URL("index.html", import.meta.url)), results: fileURLToPath(new URL("results.html", import.meta.url)) },
+    },
+  },
+});

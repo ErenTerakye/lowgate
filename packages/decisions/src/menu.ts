@@ -1,4 +1,4 @@
-import { MANOEUVRES, MENU_TILTS, PHYSICS_HZ, ROTATE_DEG_PER_STEP, THROTTLE_LEVELS, type Manoeuvre } from "@arena/engine";
+import { MANOEUVRES, MENU_TILTS, PHYSICS_HZ, ROTATE_DEG_PER_STEP, THROTTLE_LEVELS, type Manoeuvre } from "@lowgate/engine";
 
 /** How fast the lander turns toward a manoeuvre's tilt, deg/s. */
 export const TURN_RATE_DEG_S = ROTATE_DEG_PER_STEP * PHYSICS_HZ;

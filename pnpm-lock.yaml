@@ -23,16 +23,16 @@ importers:
 
   apps/web:
     dependencies:
-      '@arena/decisions':
+      '@lowgate/decisions':
         specifier: workspace:*
         version: link:../../packages/decisions
-      '@arena/engine':
+      '@lowgate/engine':
         specifier: workspace:*
         version: link:../../packages/engine
 
   packages/decisions:
     dependencies:
-      '@arena/engine':
+      '@lowgate/engine':
         specifier: workspace:*
         version: link:../engine
 

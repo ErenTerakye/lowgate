@@ -1,4 +1,4 @@
-import { MANOEUVRES, MENU_TILTS, createLane } from "@arena/engine";
+import { MANOEUVRES, MENU_TILTS, createLane } from "@lowgate/engine";
 import { describe, expect, it } from "vitest";
 import { LLM_PROMPTS, OPTION_KEYS, PROMPTS, TILT_KEYS, describeManoeuvre, observePrompt, optionIndex, tiltBand, tiltBandText } from "../src/index.ts";
 

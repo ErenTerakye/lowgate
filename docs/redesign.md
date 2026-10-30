@@ -23,7 +23,8 @@ there are far fewer of them.
 | Ranking | Landing rate across all levels, ties broken by an average landing-quality score made of distance from the pad centre, touchdown speed and fuel left. Both are shown with their spread. |
 | Explaining a decision | The probability bars across the menu, and a timeline of how confident the lane was. The chat model (Gemma) returns no probabilities, so it gets a single bar for the manoeuvre it picked. |
 | View | One shared course: every lander on the same terrain in its own colour, with a trail. A panel per lane shows its bars, score, latency and cost. |
-| Roster | Jev, Clef-flash, Gemma 4 12B on this Mac (the chat lane; replaced Qwen3 30B on 2026-10-30 to leave the Workers AI allowance to Clef-flash, docs/lanes.md), Laya (retrained for the menu) and the autopilot (adapted to the menu). Kev joins when OpenRouter has credit. |
+| Roster | Jev, Clef-flash, Gemma 4 12B on this Mac (the chat lane; replaced Qwen3 30B on 2026-10-30 to leave the Workers AI allowance to Clef-flash, docs/lanes.md), Laya (retrained for the menu) and the autopilot (adapted to the menu). Kev joins next, self-hosted on Colab GPUs (0.8B, 4B and probably 9B), chosen over OpenRouter on 2026-10-30. |
+| Name | Low Gate (repo `lowgate`), renamed from Decision Arena on 2026-10-30 because that name is taken by a similar System One project. The Apollo low gate is where the crew took over and chose the touchdown spot. Recordings keep the format tag `decision-arena/recording-2`. |
 | Old version | Tagged `v0-realtime`, then removed from the working tree, including `showcase.json`. Nothing is lost. |
 
 Replaced during the discussion: free-form plans with six segments, a
@@ -86,7 +87,7 @@ rationale became the probability bars.
 **Benchmark.**
 - `pnpm bench` flies the 20 courses for every lane from Node, with no
   browser, and writes one recording per course plus a results file.
-- Lanes run in parallel within each lane's rate limit.
+- Lanes run side by side; each lane flies its courses one at a time (parallel requests to a local model were measured and do not pay, docs/lanes.md). A course is saved only when complete and replays to its recorded state hashes; an interrupted run resumes.
 - Measured figures are labelled as measured, and prices as vendor or
   third-party, as now.
 
@@ -110,7 +111,7 @@ rationale became the probability bars.
 | R2 | Decision layer: menu prompts for System One and chat models, lockstep runner, failure rules | Done 2026-10-30: 106 tests pass, and each lane flew level 1 of course 42 in a probe (below). `pnpm probe --lane <id>` |
 | R3 | Small prompt sweep per lane on the menu | Done 2026-10-30 on held-out course 1001: Jev and Clef-flash fly f1, the chat lane c3 (now Gemma 4 12B, local). Clef-flash f2 and m2 not flown (daily quota). Results in `docs/lanes.md`. |
 | R4 | Laya retrained on menu labels (Colab) | Done 2026-10-30: the bridge serves `laya-descent-v4-mlx` on f3 (v3 plus one DAgger round), frozen for the benchmark. Held-out accuracy 0.187 → 0.891; probe on courses 1001 and 1002 landed 14/16 (v3: 12/16, v2: 0/16). `pnpm laya-dataset`, `pnpm laya-dagger`, results in docs/lanes.md. |
-| R5 | `pnpm bench`: 20 courses, recording v2, results with spread | Results table in the docs, with every figure labelled. |
+| R5 | `pnpm bench`: 20 courses, recording v2, results with spread | Results table in the docs, with every figure labelled. Courses 5001–5020 (unseen by every lane). Built 2026-10-30; resumable, one recording per lane and course in `bench/`, each checked by replay. |
 | R6 | New UI: shared course, trails, lane panels, confidence timeline, results table, replay player | A replay matches its recording on every lane. Works on desktop and mobile. |
 | R7 | Cloudflare Pages and a rate-limited Worker (was M6) | Public page serves replays without a key. |
 | R8 | README with results, a GIF and setup (was M7) | |

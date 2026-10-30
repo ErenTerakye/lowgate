@@ -10,7 +10,7 @@ import {
   stateHash,
   type LaneState,
   type LevelResult,
-} from "@arena/engine";
+} from "@lowgate/engine";
 import { FATAL_ERRORS, type DecisionClient, type DecisionError, type DecisionResult, type Usage } from "./types.ts";
 
 /** A transient failure is retried this many times before the decision counts as unanswered. */
@@ -84,7 +84,7 @@ async function attempt(client: DecisionClient, lane: LaneState, signal: AbortSig
   try {
     return await client.decide({ lane, signal });
   } catch (err) {
-    // Clients report failures as results; a throw is a bug in one, not a reason to stop the arena.
+    // Clients report failures as results; a throw is a bug in one, not a reason to stop the course.
     return { ok: false, error: { kind: "bad_response", message: err instanceof Error ? err.message : String(err) }, latencyMs: performance.now() - started };
   }
 }

@@ -1,4 +1,4 @@
-import { MANOEUVRES, MENU_TILTS, THROTTLE_LEVELS, type LaneState } from "@arena/engine";
+import { MANOEUVRES, MENU_TILTS, THROTTLE_LEVELS, type LaneState } from "@lowgate/engine";
 import { OPTION_KEYS, TILT_KEYS, TURN_RATE_DEG_S, VERTICAL_FITS, describeManoeuvre, fitsText, shortManoeuvre, tiltBandText } from "./menu.ts";
 import { observe, type ObservationTier } from "./observe.ts";
 

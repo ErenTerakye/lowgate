@@ -22,7 +22,7 @@ export class DecisionFailure extends Error {
 
 const QUOTA_HINT = /quota|credit|insufficient|balance|billing|daily (free )?(limit|allocation)|neurons/i;
 
-/** Maps an HTTP failure to the error kinds the arena knows how to show. */
+/** Maps an HTTP failure to the error kinds Low Gate knows how to show. */
 export function classifyHttp(status: number, message: string): DecisionError {
   const base = { status, message: `HTTP ${status}: ${message}`.slice(0, 300) };
   if (status === 501) return { kind: "not_configured", ...base };

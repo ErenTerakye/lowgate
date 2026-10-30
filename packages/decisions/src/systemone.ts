@@ -1,5 +1,5 @@
 import { DEFAULT_TIMEOUT_MS, DecisionFailure, postJson, toFailure, upstreamMs, type Fetch } from "./http.ts";
-import { MENU_TILTS, THROTTLE_LEVELS } from "@arena/engine";
+import { MENU_TILTS, THROTTLE_LEVELS } from "@lowgate/engine";
 import { OPTION_KEYS, TILT_KEYS, argmax } from "./menu.ts";
 import { DEFAULT_PROMPT, PROMPTS, observePrompt, type PromptId } from "./questions.ts";
 import type { DecisionClient, DecisionRequest, DecisionResult, ModelInfo, Usage } from "./types.ts";

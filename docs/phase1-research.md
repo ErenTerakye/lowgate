@@ -1,4 +1,4 @@
-# Decision Arena — Phase 1 research
+# Low Gate (then Decision Arena) — Phase 1 research
 
 _Researched 2026-10-29. "Docs" = vendor's official documentation; "3rd-party" = news/aggregator, unverified. Every number here gets re-measured in Phase 2._
 

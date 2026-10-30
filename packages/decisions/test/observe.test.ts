@@ -1,4 +1,4 @@
-import { createLane } from "@arena/engine";
+import { createLane } from "@lowgate/engine";
 import { describe, expect, it } from "vitest";
 import { PROMPTS, observe, observePrompt } from "../src/index.ts";
 

@@ -1,5 +1,5 @@
 {
-  "name": "@arena/web",
+  "name": "@lowgate/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@arena/engine": "workspace:*",
-    "@arena/decisions": "workspace:*"
+    "@lowgate/engine": "workspace:*",
+    "@lowgate/decisions": "workspace:*"
   }
 }

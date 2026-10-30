@@ -1,9 +1,9 @@
 import type { LlmPromptId } from "./llm.ts";
 import type { PromptId } from "./questions.ts";
-import type { ModelInfo } from "./types.ts";
+import type { HostedPrice, ModelInfo } from "./types.ts";
 
 /**
- * Model lanes the arena knows how to call, keyed by lane id. The proxy (Vite
+ * Model lanes Low Gate knows how to call, keyed by lane id. The proxy (Vite
  * in dev, the Worker in production) uses this table to pick the upstream and
  * to force the pinned model, so a browser cannot ask for a different one.
  */
@@ -25,9 +25,11 @@ export interface ModelLane {
   readonly requestExtras?: Readonly<Record<string, unknown>>;
   /** Where the price was checked, so the README can cite it. */
   readonly priceNote: string;
+  /** For a local lane: the same model's price on a hosted API, shown as a labelled comparison. */
+  readonly hostedEquivalent?: HostedPrice;
 }
 
-/** These models think before answering unless told not to. The arena rules out extended thinking for every lane. */
+/** These models think before answering unless told not to. Low Gate rules out extended thinking for every lane. */
 const NO_THINKING = { chat_template_kwargs: { enable_thinking: false } };
 
 /** LM Studio's local server; it listens on this machine only. */
@@ -176,6 +178,17 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
     },
     upstream: `${LM_STUDIO}/v1/chat/completions`,
     priceNote: "Runs on this Mac through LM Studio, GGUF Q4_0 QAT build (7.15 GB): no per-token price.",
+    // The only paid host found (Artificial Analysis lists one provider); Google's Gemini API offers Gemma 4 on its
+    // free tier only. SiliconFlow does not state its precision, so this is the same model, not necessarily the same build.
+    hostedEquivalent: {
+      provider: "SiliconFlow",
+      model: "google/gemma-4-12B-it",
+      input: 0.1,
+      output: 0.3,
+      source: "vendor",
+      checked: "2026-10-30",
+      url: "https://www.siliconflow.com/models/gemma-4-12b-it",
+    },
   },
   laya: {
     id: "laya",

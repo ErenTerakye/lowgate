@@ -1,4 +1,4 @@
-import type { LaneState } from "@arena/engine";
+import type { LaneState } from "@lowgate/engine";
 
 /** Tokens as reported by the provider for one call. */
 export interface Usage {
@@ -55,6 +55,24 @@ export type DecisionResult = { readonly ok: true; readonly decision: Decision } 
  * our own billing, or free.
  */
 export type PriceSource = "vendor" | "third_party" | "measured" | "none";
+
+/**
+ * What the same model costs on a hosted API, for a lane that runs locally.
+ * Shown beside the lane's own cost, never in place of it: the benchmark did
+ * not pay it, and the hosted build may differ (precision, quantization).
+ */
+export interface HostedPrice {
+  readonly provider: string;
+  /** The hosted model id the price is for. */
+  readonly model: string;
+  /** USD per million tokens. */
+  readonly input: number;
+  readonly output: number;
+  readonly source: PriceSource;
+  /** Date the price page was read, YYYY-MM-DD. */
+  readonly checked: string;
+  readonly url: string;
+}
 
 export interface ModelInfo {
   /** e.g. "TypeSafe", "Cloudflare Workers AI", "local". */

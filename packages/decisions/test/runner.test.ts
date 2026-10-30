@@ -1,4 +1,4 @@
-import { COURSE_LEVELS, MANOEUVRES, autopilot, createLane, flyDecision, nextLevel, stateHash, summarize, type LaneState } from "@arena/engine";
+import { COURSE_LEVELS, MANOEUVRES, autopilot, createLane, flyDecision, nextLevel, stateHash, summarize, type LaneState } from "@lowgate/engine";
 import { describe, expect, it } from "vitest";
 import {
   FALLBACK_PICK,
