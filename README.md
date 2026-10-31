@@ -4,7 +4,29 @@ AI decision models fly the same seeded lunar-lander courses, and the benchmark m
 
 The name comes from Apollo: low gate is the point in the descent where the crew took over and chose where to touch down.
 
-> Work in progress. The plan, rules and milestones are in [docs/redesign.md](docs/redesign.md). Lane setup and measurements are in [docs/lanes.md](docs/lanes.md).
+[![Nine lanes flying level 1 of course 5001 at 4× speed, with each lane's choice and its probability beside the canvas](docs/media/replay.gif)](https://lowgate.erenterakye.com)
+
+Watch every course at [lowgate.erenterakye.com](https://lowgate.erenterakye.com), see the full results with 95% intervals on the [results page](https://lowgate.erenterakye.com/results), or read the [write-up](https://erenterakye.com/blog/flying-a-lander-with-system-one-models/). The rules and milestones are in [docs/redesign.md](docs/redesign.md); lane setup and measurements are in [docs/lanes.md](docs/lanes.md).
+
+## Results
+
+20 courses of 8 levels per lane, ranked by landing rate.
+
+| Lane | Type | Landed | Landing quality | Median answer |
+| --- | --- | --- | --- | --- |
+| Autopilot | Script | 159/160 (99%) | 42.3 | 0 ms |
+| Jev | System One | 156/160 (98%) | 46.7 | 203 ms |
+| Kev 27B | System One | 151/160 (94%) | 47.4 | 239 ms |
+| Gemma 4 12B | LLM | 147/160 (92%) | 46.8 | 5,490 ms |
+| Laya | System One | 142/160 (89%) | 41.1 | 199 ms |
+| Kev 9B | System One | 118/160 (74%) | 46.2 | 82 ms |
+| Clef-flash | System One | 75/160 (47%) | 40.7 | 508 ms |
+| Kev 4B | System One | 5/160 (3%) | 40.6 | 61 ms |
+| Kev 0.8B | System One | 0/160 (0%) | – | 28 ms |
+
+Landing quality is a 0–100 score for the levels a lane landed: equal parts how close to the pad centre, how gently, and how much fuel was left. The numbers come from `bench/results.json`, which `pnpm bench --summary` rebuilds from the recordings in `bench/`.
+
+The first, real-time version of the arena is kept under the tag [`v0-realtime`](https://github.com/ErenTerakye/lowgate/tree/v0-realtime).
 
 ## Lanes
 
@@ -43,3 +65,7 @@ pnpm deploy:web        # build, then upload apps/web/dist
 - **Deterministic engine** (`packages/engine`, version `descent-3`): pure TypeScript, seeded PRNG, fixed 60 Hz physics, one decision per second. Level *n* of a course is a pure function of `(seed, n)`, so every lane flies the same terrain and wind, and every recording replays bit-for-bit.
 - **Decision layer** (`packages/decisions`): one adapter for System One models and one for chat models, a lockstep runner, failure rules, recordings checked by replay, and summary statistics with intervals.
 - **Ranking:** landing rate over 160 levels (20 courses of 8), ties broken by a landing-quality score built from distance to the pad, touchdown speed and fuel left.
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
