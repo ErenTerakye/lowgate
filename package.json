@@ -8,6 +8,7 @@
   },
   "scripts": {
     "bench": "node --env-file-if-exists=.env packages/decisions/scripts/bench.ts",
+    "agree": "node packages/decisions/scripts/agree.ts",
     "dev": "pnpm --filter @lowgate/web dev",
     "build": "pnpm --filter @lowgate/web build",
     "laya-dataset": "node packages/decisions/scripts/laya-dataset.ts",

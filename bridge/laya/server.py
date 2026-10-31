@@ -5,6 +5,7 @@ SystemOneClient talks to it like any hosted lane.
     python -m pip install -r bridge/laya/requirements.txt
     python bridge/laya/server.py                            # fine-tuned model if present
     python bridge/laya/server.py --model aac6fef/laya-mlx   # base model from Hugging Face
+    python server.py --backend torch --model laya-descent-v4  # PyTorch weights on a CUDA GPU (Colab)
 
 POST /v1/systemone  {model, state, questions}  ->  {model, answers, usage}
 GET  /health        ->  {ok, model}
@@ -127,16 +128,26 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--model", help=f"Hugging Face id or local path of an MLX checkpoint (default: the newest of {', '.join(p.name for p in FINE_TUNED)} present, else {BASE_MODEL})")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--backend", choices=("mlx", "torch"), default="mlx", help="mlx on Apple Silicon (the benchmark lane); torch for the PyTorch checkpoint, used by the reproducibility check")
+    parser.add_argument("--device", default=None, help="torch only: cuda, mps or cpu (default: Laya picks)")
     args = parser.parse_args()
 
-    import laya_mlx  # imported here so the tests run without MLX installed
+    if args.backend == "torch":
+        if not args.model:
+            parser.error("--backend torch needs --model: the PyTorch checkpoint folder, such as laya-descent-v4")
+        import laya  # imported here so the tests run without PyTorch installed
 
-    model = args.model or next((str(p) for p in FINE_TUNED if p.is_dir()), BASE_MODEL)
+        model = args.model
+        agent = laya.load(model, **({"device": args.device} if args.device else {}))
+    else:
+        import laya_mlx  # imported here so the tests run without MLX installed
+
+        model = args.model or next((str(p) for p in FINE_TUNED if p.is_dir()), BASE_MODEL)
+        agent = laya_mlx.load(model)
     # A local checkpoint is reported by its folder name, which is what Low Gate's catalog pins.
     served = Path(model).name if Path(model).is_dir() else model
-    agent = laya_mlx.load(model)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(agent, served))
-    print(f"Laya bridge serving {served} on http://127.0.0.1:{args.port}/v1/systemone")
+    print(f"Laya bridge ({args.backend}) serving {served} on http://127.0.0.1:{args.port}/v1/systemone")
     server.serve_forever()
 
 

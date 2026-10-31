@@ -184,6 +184,17 @@ Kev is an open-weight, Jev-style family on Qwen3.5 bases (Apache-2.0, [github.co
 - The `v1.0` tag was read on the 4B model card only. The notebook prints the model name the server reports; the benchmark refuses to save a course served by anything other than the pin.
 - Answer times measure the Colab GPU, not a hosted service.
 
+## Laya reproducibility check (prepared 2026-10-31)
+
+The benchmark flew Laya v4 as an MLX build on this Mac. `pnpm agree` asks another build every question in Laya's recordings, at the same states, and reports how often it picks the same manoeuvre and the total variation distance between the two probability vectors. It runs open loop, so one different pick does not change the states that follow. Reports go to `repro/`.
+
+| Build | Where | Courses | Same pick | Distance (mean / max) | Answer p50 |
+|---|---|---|---|---|---|
+| MLX (the benchmark build) against its own recordings | This Mac (M3) | 5001–5005, 1,416 decisions | 1,416 (100%; 99.7–100%) | 0.0004 / 0.0005 | 206 ms |
+| PyTorch checkpoint `laya-descent-v4` | Colab L4 (`bridge/laya/repro_colab.ipynb`) | 5001–5020, 5,801 decisions | not run yet | | |
+
+The MLX row is the baseline: the remaining distance is the recordings rounding probabilities to 4 decimals. The PyTorch run also times Laya on the same GPU type as the Kev lanes. Measured, 2026-10-31.
+
 ## Archive: real-time arena prompts (2026-10-29, tag v0-realtime)
 
 These prompts asked rotate and throttle five times a second. They were removed in R2; the code is under the `v0-realtime` tag.

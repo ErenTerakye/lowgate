@@ -1,0 +1,34 @@
+{
+  "lane": "laya",
+  "label": "mlx-mac",
+  "servedModel": "laya-descent-v4-mlx",
+  "courses": [
+    5001,
+    5002,
+    5003,
+    5004,
+    5005
+  ],
+  "checkedAt": "2026-10-31T07:03:33.317Z",
+  "decisions": 1416,
+  "samePick": {
+    "count": 1416,
+    "rate": 1,
+    "interval": {
+      "low": 0.9972944451950834,
+      "high": 1
+    }
+  },
+  "distance": {
+    "mean": 0.0003589612322810189,
+    "p95": 0.00044663638775608536,
+    "max": 0.0005307169283071539
+  },
+  "recordedMarginWhenDifferent": {
+    "median": null
+  },
+  "latencyMs": {
+    "p50": 205.65887500002282,
+    "p95": 872.1120419999934
+  }
+}
