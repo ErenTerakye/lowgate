@@ -5,12 +5,12 @@
  */
 .viewer.replay {
   --side: 340px;
-  --canvas-max: calc((100svh - 330px) * 4 / 3);
+  --canvas-max: calc((100svh - 350px) * 4 / 3);
 }
 
 .verify {
-  margin: 0;
-  font-size: 14px;
+  margin: 8px 0 0;
+  font-size: 13px;
   color: var(--good);
 }
 
@@ -20,7 +20,7 @@
 
 #course {
   font: inherit;
-  font-size: 15px;
+  font-size: 20px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   height: 40px;
@@ -364,28 +364,5 @@
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
-  }
-}
-
-/* The deck holds more here than in the old viewer: on a narrow flight column, play controls, speed and course each get a row. */
-@container (max-width: 660px) {
-  .replay .deck {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .replay .deck-play {
-    display: flex;
-  }
-
-  .replay .segmented {
-    display: flex;
-  }
-
-  .replay .segmented button {
-    flex: 1;
-  }
-
-  .replay .deck-course {
-    grid-column: auto;
   }
 }

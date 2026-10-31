@@ -53,29 +53,31 @@ app.innerHTML = `
   <main class="viewer replay wrap">
     <section class="flight" aria-label="Flight">
       <div class="flight-head">
-        <div class="flight-title"><h2 id="course-name">Course</h2><span class="badge" id="level-name"></span></div>
-        <p class="verify" id="verify" role="status"></p>
+        <h2 class="course-pick"><label for="course">Course</label><select id="course">${results.courses.map((c) => `<option value="${c}">${c}</option>`).join("")}</select></h2>
+        <div class="level-step" role="group" aria-label="Level">
+          <button id="prev" type="button" class="icon-only" title="Previous level (←)" aria-label="Previous level">${icons.prev}</button>
+          <span id="level-name" aria-live="polite"></span>
+          <button id="next" type="button" class="icon-only" title="Next level (→)" aria-label="Next level">${icons.next}</button>
+        </div>
       </div>
       <div class="screen"><canvas class="lane-canvas" id="canvas" aria-label="All lanes flying the current level"></canvas></div>
       <div class="deck">
         <div class="deck-play">
           <button id="toggle" type="button" class="primary"></button>
-          <button id="prev" type="button" class="icon-only" title="Previous level (←)" aria-label="Previous level">${icons.prev}</button>
           <button id="restart" type="button" class="icon-only" title="Replay this level (R)" aria-label="Replay this level">${icons.restart}</button>
-          <button id="next" type="button" class="icon-only" title="Next level (→)" aria-label="Next level">${icons.next}</button>
         </div>
-        <div class="segmented" id="speed" role="group" aria-label="Playback speed">
-          ${SPEEDS.map((n) => `<button type="button" data-speed="${n}" aria-pressed="${n === 1}">${n}×</button>`).join("")}
-        </div>
-        <div class="deck-course">
-          <label for="course">Course</label>
-          <select id="course">${results.courses.map((c) => `<option value="${c}">${c}</option>`).join("")}</select>
+        <div class="deck-speed">
+          <span id="speed-label">Speed</span>
+          <div class="segmented" id="speed" role="group" aria-labelledby="speed-label">
+            ${SPEEDS.map((n) => `<button type="button" data-speed="${n}" aria-pressed="${n === 1}">${n}×</button>`).join("")}
+          </div>
         </div>
       </div>
       <div class="board-wrap">
         <p class="board-note" id="board-note">How each level ended, shown as the replay reaches it. A number is the landing quality (0–100).</p>
         <div class="board-scroll"><table class="board" id="board" aria-describedby="board-note"></table></div>
       </div>
+      <p class="verify" id="verify" role="status"></p>
     </section>
     <aside class="side lanes" id="lanes" aria-label="Lanes"></aside>
   </main>
@@ -224,7 +226,6 @@ async function loadCourse(next: number): Promise<void> {
   running = false;
   seed = next;
   courseSelect.value = String(seed);
-  $("course-name").textContent = `Course ${seed}`;
   $("verify").textContent = "Loading and checking the recordings…";
   const loaded = await Promise.all(
     results.lanes.map(async (result): Promise<PlayerLane> => {

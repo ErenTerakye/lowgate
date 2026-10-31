@@ -124,13 +124,14 @@ export class CourseRenderer {
       this.levelIndex = level.index;
       this.tracks = new Map();
       this.particles = [];
-      this.cam = { zoom: 1, x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
     }
-    // Effects advance with simulation time, so they freeze on pause and follow the speed setting.
+    // Effects and the camera advance with simulation time, so they hold still on pause (a redraw for a hover or a
+    // resize moves nothing) and follow the speed setting. A new level starts already framed.
+    const fresh = this.tracks.size === 0;
     let simDt = 0;
     for (const v of landers) simDt = Math.max(simDt, this.trackEvents(level, v));
     this.updateParticles(level, simDt);
-    this.updateCamera(level, landers, frameDt);
+    this.updateCamera(level, landers, fresh ? Infinity : simDt);
 
     const s = (w / WORLD_WIDTH) * this.cam.zoom;
     const X = (x: number): number => (x - this.cam.x) * s + w / 2;
@@ -233,7 +234,7 @@ export class CourseRenderer {
    * Frame the pad and every lander still flying: the camera holds them in view
    * and zooms in as they converge, so the target never leaves the screen.
    */
-  private updateCamera(level: Level, landers: readonly LanderView[], frameDt: number): void {
+  private updateCamera(level: Level, landers: readonly LanderView[], dt: number): void {
     const { pad } = level;
     const flying = landers.filter((v) => v.state.outcome === null);
     const shown = (flying.length ? flying : landers).map((v) => v.state.lander).filter((l) => l.x >= 0 && l.x <= WORLD_WIDTH);
@@ -244,7 +245,7 @@ export class CourseRenderer {
     const y0 = Math.min(pad.y, ...grounds) - FRAME_MARGIN * 0.6;
     const y1 = Math.max(pad.y, ...shown.map((l) => l.y)) + FRAME_MARGIN;
     const target = clamp(Math.min(WORLD_WIDTH / (x1 - x0), WORLD_HEIGHT / (y1 - y0)), 1, MAX_ZOOM);
-    const k = reducedMotion.matches ? 1 : 1 - Math.exp(-frameDt * 2.5);
+    const k = reducedMotion.matches ? 1 : 1 - Math.exp(-dt * 2.5);
     const zoom = this.cam.zoom + (target - this.cam.zoom) * k;
     const halfW = WORLD_WIDTH / zoom / 2;
     const halfH = WORLD_HEIGHT / zoom / 2;

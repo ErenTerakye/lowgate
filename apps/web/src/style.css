@@ -178,9 +178,9 @@ input,
 }
 
 /*
- * Playback deck under the canvas, like a video player: play and restart,
- * speed, then which course. One bar on wide screens; on a phone, play and
- * speed share the first row and the course gets the second.
+ * Playback deck under the canvas, like a video player: play and replay on the
+ * left, speed on the right. What is playing (course and level) is chosen above
+ * the canvas, where it is named.
  */
 .deck {
   display: flex;
@@ -194,17 +194,17 @@ input,
 }
 
 .deck-play,
-.deck-course {
+.deck-speed {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.deck-course {
+.deck-speed {
   margin-left: auto;
 }
 
-.deck-course label {
+.deck-speed > span {
   color: var(--ink-2);
   font-size: 14px;
   font-weight: 500;
@@ -325,26 +325,45 @@ button.primary:hover:not(:disabled) {
   container-type: inline-size;
 }
 
+/* Above the canvas: which course (the heading is its picker) and which level, with steps either side. */
 .flight-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 4px 16px;
-  margin-bottom: 8px;
+  gap: 8px 16px;
+  margin-bottom: 10px;
 }
 
-.flight-title {
+.course-pick {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.flight-title h2 {
+  align-items: center;
+  gap: 8px;
   margin: 0;
   font-size: 24px;
   font-weight: 600;
   line-height: 1.2;
+}
+
+.level-step {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.level-step span {
+  min-width: 96px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.level-step button {
+  width: 36px;
+  height: 36px;
+  border-color: var(--rule);
 }
 
 .badge {
@@ -706,11 +725,11 @@ kbd {
   }
 }
 
-/* The deck follows the flight column's width, not the window's: two rows once one no longer fits. */
-@container (max-width: 660px) {
+/* The deck follows the flight column's width, not the window's: play and speed each take a full row once one row no longer fits. */
+@container (max-width: 560px) {
   .deck {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    flex-direction: column;
+    align-items: stretch;
     gap: 8px;
   }
 
@@ -719,32 +738,19 @@ kbd {
     min-width: 0;
   }
 
-  .deck-course {
-    grid-column: 1 / -1;
+  .deck-speed {
     margin-left: 0;
     padding-top: 8px;
     border-top: 1px solid var(--rule);
   }
 
-  .deck-course input {
+  .deck-speed .segmented {
+    flex: 1;
+  }
+
+  .segmented button {
     flex: 1;
     min-width: 0;
-  }
-
-  .segmented button {
-    min-width: 40px;
-    padding: 0 8px;
-  }
-}
-
-/* The smallest phones: tighter speed buttons leave Start / Pause room for its label. */
-@container (max-width: 340px) {
-  .segmented button {
-    min-width: 34px;
     padding: 0 4px;
-  }
-
-  .deck-play button.primary {
-    padding: 0 8px;
   }
 }
