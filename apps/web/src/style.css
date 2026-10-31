@@ -156,24 +156,27 @@ input,
   border-bottom-color: var(--accent);
 }
 
-/* Page title and one paragraph on what the page shows. */
+/*
+ * Page title and one paragraph on what the page shows, the same on every page.
+ * Sized so the replay's deck still fits above the fold on a laptop screen.
+ */
 .page-intro {
-  padding-top: 28px;
-  padding-bottom: 20px;
+  padding-top: 20px;
+  padding-bottom: 16px;
 }
 
 .page-intro h1 {
   margin: 0;
   font-weight: 600;
-  font-size: 36px;
+  font-size: 28px;
   line-height: 1.1;
   letter-spacing: -0.02em;
 }
 
 .lede {
   max-width: 68ch;
-  margin: 10px 0 0;
-  font-size: 17px;
+  margin: 6px 0 0;
+  font-size: 16px;
   color: var(--ink-2);
 }
 
@@ -703,10 +706,6 @@ kbd {
 }
 
 @media (max-width: 560px) {
-  .page-intro h1 {
-    font-size: 28px;
-  }
-
   .levels li {
     height: 26px;
     font-size: 12px;

@@ -51,7 +51,7 @@ const params = new URLSearchParams(location.search);
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
   ${siteHeader("replays")}
-  <div class="page-intro wrap is-compact">
+  <div class="page-intro wrap">
     <h1>Course replays</h1>
     <p class="lede">${pilotsPhrase(results.lanes.map((l) => l.lane))} fly the same terrain and wind. The game waits for every answer, so only the choices differ.</p>
   </div>

@@ -5,23 +5,8 @@
  */
 .viewer.replay {
   --side: 340px;
-  /* Header, the one-row intro, course title, deck and shortcuts: the canvas takes the rest of the screen. */
-  --canvas-max: calc((100svh - 335px) * 4 / 3);
-}
-
-/* A smaller title with one line under it, so the flight starts near the top of the screen. */
-.page-intro.is-compact {
-  padding-top: 16px;
-  padding-bottom: 14px;
-}
-
-.page-intro.is-compact h1 {
-  font-size: 26px;
-}
-
-.page-intro.is-compact .lede {
-  margin-top: 4px;
-  font-size: 15px;
+  /* Header, the page intro, course title, deck and shortcuts: the canvas takes the rest of the screen. */
+  --canvas-max: calc((100svh - 395px) * 4 / 3);
 }
 
 .verify {
