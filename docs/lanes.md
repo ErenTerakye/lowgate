@@ -159,14 +159,14 @@ Every lane flew the same 20 courses (160 levels), unseen by every lane during tu
 | Jev `jev-1.14.0` | 20/20 | 156/160 (98%) | 94–99% | 46.7 ± 1.6 | 39% | 203 ms | 65 s | $0.25 (third-party price) |
 | Gemma 4 12B, local | 20/20 | 147/160 (92%) | 87–95% | 46.8 ± 1.8 | 38% | 5,490 ms | 1,691 s | $0 here; $0.45 hosted-equivalent (SiliconFlow's listed price, vendor) |
 | Laya v4, local | 20/20 | 142/160 (89%) | 83–93% | 41.1 ± 1.6 | 79% | 199 ms | 74 s | $0 |
-| Clef-flash | 12/20 so far | 41/96 (43%) | 33–53% | 42.0 ± 3.4 | 23% | 496 ms | 226 s | $0.15 for 12 courses (vendor price) |
+| Clef-flash | 20/20 | 75/160 (47%) | 39–55% | 40.7 ± 2.6 | 24% | 508 ms | 235 s | $0.24 (vendor price) |
 
 Intervals: Wilson for landing rate, normal-approximation 95% for the mean quality of landed levels.
 
 - **Jev lands nearly as often as the autopilot** and lands better (quality 46.7 vs 42.3), while agreeing with the autopilot's exact pick only 39% of the time. It flies its own way, not a copy of the script.
 - **Gemma matches Jev's landing quality** (46.8) but lands less often: 13 misses against Jev's 4. The intervals barely overlap, so the gap is probably real but not large. It is also 27× slower per answer and the only lane whose run took a night (about 9.4 hours of answers on this Mac).
 - **Laya v4 is close to the autopilot's picks** (79% the same, as trained) but lands less softly than any other lane (41.1). Imitation got it to 89% landed; it does not improve on its teacher.
-- **Clef-flash is far behind** at 43% on the 12 courses flown. The remaining 8 run after the daily Workers AI allowance resets; this row will change.
+- **Clef-flash is far behind** at 47%, and the roughest landings of the model lanes. Its last 8 courses ran a day later (2026-10-31), after Workers AI's free allowance came back: Cloudflare's dashboard showed the block lasting about 24 hours from the heavy use, not ending at 00:00 UTC. The 12 courses of 2026-10-30 used about 14k neurons by the dashboard's chart (read off, not exported), about 6% above the listed 3,455 neurons per million tokens, so the cost shown here may be slightly low.
 - Gemma's generation speed on this Mac, estimated from the latency of 3,444 decisions against their output tokens: about 10.5 output tokens/s, plus about 1.8 s to read each ~600-token prompt (7.1 output tokens/s end to end, measured).
 
 ## Kev on Colab (prepared 2026-10-31, not flown yet)

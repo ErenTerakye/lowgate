@@ -633,13 +633,13 @@
       "servedModels": [
         "clef-flash"
       ],
-      "courses": 12,
-      "levels": 96,
-      "landed": 41,
-      "landingRate": 0.4270833333333333,
+      "courses": 20,
+      "levels": 160,
+      "landed": 75,
+      "landingRate": 0.46875,
       "landingRate95": {
-        "low": 0.3328208304458206,
-        "high": 0.5269568595352025
+        "low": 0.3930681069938336,
+        "high": 0.545897280226961
       },
       "perCourse": [
         {
@@ -689,51 +689,83 @@
         {
           "seed": 5012,
           "landed": 3
+        },
+        {
+          "seed": 5013,
+          "landed": 5
+        },
+        {
+          "seed": 5014,
+          "landed": 5
+        },
+        {
+          "seed": 5015,
+          "landed": 4
+        },
+        {
+          "seed": 5016,
+          "landed": 5
+        },
+        {
+          "seed": 5017,
+          "landed": 4
+        },
+        {
+          "seed": 5018,
+          "landed": 5
+        },
+        {
+          "seed": 5019,
+          "landed": 3
+        },
+        {
+          "seed": 5020,
+          "landed": 3
         }
       ],
       "quality": {
-        "mean": 41.95853658536585,
-        "sd": 11.203369484439852,
+        "mean": 40.67199999999999,
+        "sd": 11.376986728788385,
         "ci": {
-          "low": 38.52924175147329,
-          "high": 45.387831419258404
+          "low": 38.09719280387607,
+          "high": 43.24680719612391
         },
-        "n": 41
+        "n": 75
       },
       "outcomes": {
-        "timeout": 26,
-        "landed": 41,
-        "crashed_tilt": 13,
-        "crashed_speed": 7,
-        "out_of_bounds": 8,
-        "crashed_terrain": 1
+        "timeout": 39,
+        "landed": 75,
+        "crashed_tilt": 22,
+        "crashed_speed": 8,
+        "out_of_bounds": 14,
+        "crashed_terrain": 2
       },
-      "decisions": 4662,
+      "decisions": 7722,
       "unanswered": 0,
       "retried": 4,
       "agreesWithAutopilot": {
-        "exact": 0.2335907335907336,
-        "tilt": 0.35456885456885456,
-        "throttle": 0.6293436293436293
+        "exact": 0.23905723905723905,
+        "tilt": 0.35262885262885263,
+        "throttle": 0.6386946386946387
       },
-      "meanTopProbability": 0.28218899613899595,
+      "meanTopProbability": 0.28174426314426376,
       "latencyMs": {
-        "p50": 496,
-        "p95": 1025,
+        "p50": 508,
+        "p95": 1228,
         "source": "measured, from this machine"
       },
       "tokensPerDecision": {
-        "input": 832.2277992277992,
+        "input": 832.2415177415178,
         "output": 0,
         "source": "provider-reported"
       },
       "costUsd": {
-        "total": 0.14743414799999927,
+        "total": 0.24420962199999785,
         "priceSource": "vendor"
       },
       "hostedEquivalentUsd": null,
-      "answerSecondsPerCourse": 225.52441666666667
+      "answerSecondsPerCourse": 235.23510000000002
     }
   ],
-  "at": "2026-10-30T22:47:03.686Z"
+  "at": "2026-10-31T06:51:51.861Z"
 }
