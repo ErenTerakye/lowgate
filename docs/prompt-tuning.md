@@ -1,6 +1,6 @@
 # Jev prompt tuning (2026-10-29)
 
-Model `jev-1.14.0` (TypeSafe, pinned; every response confirmed it served that version). All numbers are **measured** from a MacBook on home broadband with `pnpm probe`. Raw calls are in `measurements/`. The price is $0.042 per million input tokens, from **third-party reports**: TypeSafe's docs publish no price.
+Model `jev-1.14.0` (TypeSafe, pinned; every response confirmed it served that version). All numbers are **measured** from an M3 MacBook Pro with 16 GB RAM on a home broadband connection with `pnpm probe`. Raw calls are in `measurements/`. The price is $0.042 per million input tokens, from **third-party reports**: TypeSafe's docs publish no price.
 
 ## What was wrong
 

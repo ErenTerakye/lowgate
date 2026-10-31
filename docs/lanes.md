@@ -2,7 +2,7 @@
 
 Every lane picks one of the 35 manoeuvres on the menu each second (docs/redesign.md). Each model lane flies the prompt that worked best for it in the R3 sweep below. The lane's prompt is `prompt` in `packages/decisions/src/catalog.ts`.
 
-All numbers are **measured** with `pnpm probe` from a MacBook on home broadband. Raw decisions are in `measurements/*-menu-*.jsonl`. Tokens are **provider-reported**. Prices are the **vendor's** for Cloudflare and **third-party** for Jev.
+All numbers are **measured** with `pnpm probe` from an M3 MacBook Pro with 16 GB RAM ("the Mac" below) on a home broadband connection. Raw decisions are in `measurements/*-menu-*.jsonl`. Tokens are **provider-reported**. Prices are the **vendor's** for Cloudflare and **third-party** for Jev.
 
 ## Lanes
 
@@ -10,8 +10,8 @@ All numbers are **measured** with `pnpm probe` from a MacBook on home broadband.
 |---|---|---|---|---|
 | Jev | `jev-1.14.0` (TypeSafe) | Yes | $0.042 / free, third-party | f1 |
 | Clef-flash | `clef-flash` (Workers AI) | **No**: Cloudflare has no version selector | $0.038 / free, vendor | f1 |
-| Gemma 4 12B (chat lane) | `google/gemma-4-12b-qat`, GGUF Q4_0 QAT (7.15 GB), via LM Studio on this Mac, thinking off | Yes: LM Studio key plus this build | none (local) | c3 |
-| Laya | `laya-descent-v4-mlx` (v3 plus one DAgger round) via `bridge/laya` on this Mac | Yes: the bridge reports the checkpoint | none (local) | f3 (trained on it) |
+| Gemma 4 12B (chat lane) | `google/gemma-4-12b-qat`, GGUF Q4_0 QAT (7.15 GB), via LM Studio on the Mac, thinking off | Yes: LM Studio key plus this build | none (local) | c3 |
+| Laya | `laya-descent-v4-mlx` (v3 plus one DAgger round) via `bridge/laya` on the Mac | Yes: the bridge reports the checkpoint | none (local) | f3 (trained on it) |
 | Autopilot | none: rehearses one second of a simple controller | – | none | – |
 
 ## Menu prompts
@@ -69,7 +69,7 @@ Every number in this section was measured on engine descent-2. Engine descent-3 
 
 ## Local chat lane (2026-10-30, engine descent-3)
 
-The R3 sweep ran the Workers AI allowance out with two lanes on it, so the chat lane moved to this Mac, leaving the allowance to Clef-flash. Candidates were the chat models already installed in LM Studio that fit in 16 GB: Qwen3.5 9B (MLX 4-bit, 5.98 GB) and Gemma 4 12B (QAT Q4_0, 7.15 GB). Both fly c3 through LM Studio's OpenAI-compatible server (`lms server start`).
+The R3 sweep ran the Workers AI allowance out with two lanes on it, so the chat lane moved to the Mac, leaving the allowance to Clef-flash. Candidates were the chat models already installed in LM Studio that fit in 16 GB: Qwen3.5 9B (MLX 4-bit, 5.98 GB) and Gemma 4 12B (QAT Q4_0, 7.15 GB). Both fly c3 through LM Studio's OpenAI-compatible server (`lms server start`).
 
 **Thinking off.** LM Studio ignores `chat_template_kwargs.enable_thinking` for both models. Gemma then reasoned until the 64-token cap and never answered (0 of 54 decisions). Of the four switches tried, only `reasoning_effort: "none"` worked for both; it is the local lanes' `requestExtras`.
 
@@ -83,9 +83,9 @@ Held-out courses 1001 and 1002, all 8 levels each, engine descent-3, thinking of
 | **Gemma 4 12B** | 1002 | **8/8** | 38.6 | 39% (62% / 58%) | 299/299, no retries | 6,171 ms | 602 / 38 |
 | Qwen3.5 9B | 1001 | 0/8, all out of bounds | – | 17% (35% / 25%) | 116/116 | 4,957 ms | 608 / 28 |
 
-Gemma landed all 16 levels while agreeing with the autopilot's picks only 36–39% of the time: it flies its own way, not a copy. Its landing quality swings more than the autopilot's (54.5 then 38.6, against 41.4 and 43.3; 46.6 against 42.4 over both), so on quality the two courses do not separate them. Qwen3.5 picks a narrow set (13 of 35 manoeuvres) and flies off the course within 6–24 s. Gemma is the chat lane. At ~6 s a decision its ~5,600 benchmark decisions take about 10 hours on this Mac, which suits an offline overnight run. Qwen3 30B on Workers AI stays in the catalog but leaves the roster.
+Gemma landed all 16 levels while agreeing with the autopilot's picks only 36–39% of the time: it flies its own way, not a copy. Its landing quality swings more than the autopilot's (54.5 then 38.6, against 41.4 and 43.3; 46.6 against 42.4 over both), so on quality the two courses do not separate them. Qwen3.5 picks a narrow set (13 of 35 manoeuvres) and flies off the course within 6–24 s. Gemma is the chat lane. At ~6 s a decision its ~5,600 benchmark decisions take about 10 hours on the Mac, which suits an offline overnight run. Qwen3 30B on Workers AI stays in the catalog but leaves the roster.
 
-**Parallel requests do not pay on this Mac** (measured 2026-10-30, level 1 of courses 7–10, `measurements/gemma-local-c3-menu-2026-10-30T12-1*.jsonl`). LM Studio serves up to 4 predictions at once by default. One stream answered 32 decisions in 213 s (p50 6.3 s). Four streams at once answered 131 in 734 s, only 1.2 times the throughput, with each answer at p50 12 s: 60 attempts hit the 15 s timeout and 8 decisions went unanswered. Course 7 level 1 also scored 48.1 alone and 51.0 alongside the others at temperature 0, since batched requests change the arithmetic. So the benchmark flies each lane's courses one at a time, and gives local lanes a 60 s timeout (single-stream answers reach 10.5 s).
+**Parallel requests do not pay on the Mac** (measured 2026-10-30, level 1 of courses 7–10, `measurements/gemma-local-c3-menu-2026-10-30T12-1*.jsonl`). LM Studio serves up to 4 predictions at once by default. One stream answered 32 decisions in 213 s (p50 6.3 s). Four streams at once answered 131 in 734 s, only 1.2 times the throughput, with each answer at p50 12 s: 60 attempts hit the 15 s timeout and 8 decisions went unanswered. Course 7 level 1 also scored 48.1 alone and 51.0 alongside the others at temperature 0, since batched requests change the arithmetic. So the benchmark flies each lane's courses one at a time, and gives local lanes a 60 s timeout (single-stream answers reach 10.5 s).
 
 **Hosted-equivalent price** (checked 2026-10-30). Gemma runs here at no per-token cost, so the results page also prices its measured tokens at what the same model costs on a hosted API. SiliconFlow is the only paid host found ([model page](https://www.siliconflow.com/models/gemma-4-12b-it): $0.10/M input, $0.30/M output for `google/gemma-4-12B-it`; Artificial Analysis also lists it as the single provider). Google's Gemini API offers Gemma 4 on its free tier only. SiliconFlow does not state its precision, so this prices the same model, not necessarily the same Q4_0 build. It is shown as a second line under the lane's $0, never in place of it. Laya is not sold anywhere and has no such price.
 
@@ -128,7 +128,7 @@ All 589 decisions answered, none retried; 27 distinct picks; mean top probabilit
 
 `pnpm laya-dagger` flies the lane's checkpoint (v3) through the bridge on training courses 3000–3029 and labels every state it reaches with the clean autopilot pick, so Laya learns what to do in the situations its own mistakes lead to. The courses lie inside the training range: probes (1001, 1002), eval (9000–9011) and the benchmark stay unseen. The checkpoint for the benchmark is picked on the probe courses and frozen before R5 runs, so benchmark scores never feed back into training.
 
-Collection (measured 2026-10-30, 28.7 min on this Mac): v3 landed 193 of 240 levels (80%) on those courses and picked the autopilot's manoeuvre at 76.7% of 8,712 decisions. 19.6% of the new states are in the final descent (under 20 m above the ground), against 18.6% in v3's data. `bridge/laya/data/f3-dagger1/train.jsonl` holds v3's 13,636 states plus the 8,712 new ones (22,348); `eval.jsonl` is v3's, unchanged, so v4's held-out numbers compare directly.
+Collection (measured 2026-10-30, 28.7 min on the Mac): v3 landed 193 of 240 levels (80%) on those courses and picked the autopilot's manoeuvre at 76.7% of 8,712 decisions. 19.6% of the new states are in the final descent (under 20 m above the ground), against 18.6% in v3's data. `bridge/laya/data/f3-dagger1/train.jsonl` holds v3's 13,636 states plus the 8,712 new ones (22,348); `eval.jsonl` is v3's, unchanged, so v4's held-out numbers compare directly.
 
 **Training** (Colab A100, **36.9 min**, settings as v3, from the base model): 44,296 training items, 4,155 optimizer updates; fitted temperatures 1.12 (tilt) and 1.08 (throttle). Same 2,728 eval items as v3:
 
@@ -168,15 +168,15 @@ Every lane flew the same 20 courses (160 levels), unseen by every lane during tu
 Intervals: Wilson for landing rate, normal-approximation 95% for the mean quality of landed levels.
 
 - **Jev lands nearly as often as the autopilot** and lands better (quality 46.7 vs 42.3), while agreeing with the autopilot's exact pick only 39% of the time. It flies its own way, not a copy of the script.
-- **Gemma matches Jev's landing quality** (46.8) but lands less often: 13 misses against Jev's 4. The intervals barely overlap, so the gap is probably real but not large. It is also 27× slower per answer and the only lane whose run took a night (about 9.4 hours of answers on this Mac).
+- **Gemma matches Jev's landing quality** (46.8) but lands less often: 13 misses against Jev's 4. The intervals barely overlap, so the gap is probably real but not large. It is also 27× slower per answer and the only lane whose run took a night (about 9.4 hours of answers on the Mac).
 - **Laya v4 is close to the autopilot's picks** (79% the same, as trained) but lands less softly than any other lane (41.1). Imitation got it to 89% landed; it does not improve on its teacher.
 - **Kev scales from nothing to near Jev**: 0.8B and 4B land 0–3%, 9B 74%, 27B 94% with the best landing quality of any lane (47.4). Details and the tilt analysis are under Kev on Colab below.
 - **Clef-flash is far behind** at 47%, and the roughest landings of the model lanes. Its last 8 courses ran a day later (2026-10-31), after Workers AI's free allowance came back: Cloudflare's dashboard showed the block lasting about 24 hours from the heavy use, not ending at 00:00 UTC. The 12 courses of 2026-10-30 used about 14k neurons by the dashboard's chart (read off, not exported), about 6% above the listed 3,455 neurons per million tokens, so the cost shown here may be slightly low.
-- Gemma's generation speed on this Mac, estimated from the latency of 3,444 decisions against their output tokens: about 10.5 output tokens/s, plus about 1.8 s to read each ~600-token prompt (7.1 output tokens/s end to end, measured).
+- Gemma's generation speed on the Mac, estimated from the latency of 3,444 decisions against their output tokens: about 10.5 output tokens/s, plus about 1.8 s to read each ~600-token prompt (7.1 output tokens/s end to end, measured).
 
 ## Kev on Colab (flown 2026-10-31)
 
-Kev is an open-weight, Jev-style family on Qwen3.5 bases (Apache-2.0, [github.com/jaredpalmer/kev](https://github.com/jaredpalmer/kev)). Its `kev.serve` speaks the same `/v1/systemone` contract as Jev, so the Kev lanes reuse `SystemOneClient` with no adapter changes; a test pins the answer shape from Kev's README. This Mac (16 GB) cannot hold Kev-4B (it needs a 32 GB Mac), so the lanes run on a Colab Pro GPU, chosen over OpenRouter (Kev-4B only, paid) on 2026-10-30.
+Kev is an open-weight, Jev-style family on Qwen3.5 bases (Apache-2.0, [github.com/jaredpalmer/kev](https://github.com/jaredpalmer/kev)). Its `kev.serve` speaks the same `/v1/systemone` contract as Jev, so the Kev lanes reuse `SystemOneClient` with no adapter changes; a test pins the answer shape from Kev's README. The Mac (16 GB) cannot hold Kev-4B (it needs a 32 GB Mac), so the lanes run on a Colab Pro GPU, chosen over OpenRouter (Kev-4B only, paid) on 2026-10-30.
 
 | Lane | Pin (`--run`) | GPU | Hosted-equivalent price |
 |---|---|---|---|
@@ -218,18 +218,18 @@ Kev is an open-weight, Jev-style family on Qwen3.5 bases (Apache-2.0, [github.co
 
 ## Laya reproducibility check (2026-10-31)
 
-The benchmark flew Laya v4 as an MLX build on this Mac. `pnpm agree` asks another build every question in Laya's recordings, at the same states, and reports how often it picks the same manoeuvre and the total variation distance between the two probability vectors. It runs open loop, so one different pick does not change the states that follow. Reports go to `repro/`.
+The benchmark flew Laya v4 as an MLX build on the Mac. `pnpm agree` asks another build every question in Laya's recordings, at the same states, and reports how often it picks the same manoeuvre and the total variation distance between the two probability vectors. It runs open loop, so one different pick does not change the states that follow. Reports go to `repro/`.
 
 | Build | Where | Courses | Same pick | Distance (mean / max) | Answer p50 |
 |---|---|---|---|---|---|
-| MLX (the benchmark build) against its own recordings | This Mac (M3) | 5001–5005, 1,416 decisions | 1,416 (100%; 99.7–100%) | 0.0004 / 0.0005 | 206 ms |
+| MLX (the benchmark build) against its own recordings | The Mac (M3, 16 GB) | 5001–5005, 1,416 decisions | 1,416 (100%; 99.7–100%) | 0.0004 / 0.0005 | 206 ms |
 | PyTorch checkpoint `laya-descent-v4` | Colab G4, NVIDIA RTX PRO 6000 Blackwell (`bridge/laya/repro_colab.ipynb`) | 5001–5020, 5,801 decisions | 5,795 (99.9%; 99.8–99.95%) | 0.0029 / 0.0168 | 13 ms |
 
 The MLX row is the baseline: the remaining distance is the recordings rounding probabilities to 4 decimals. Measured, 2026-10-31.
 
 - **Laya's results belong to the model, not to the Mac.** The PyTorch build on a CUDA GPU picks the same manoeuvre as the MLX build at 5,795 of 5,801 recorded states. Its probabilities move by 0.003 on average (total variation distance), at most 0.017.
 - **The 6 different picks are near ties.** At those states the MLX build's top two options were a median 0.0031 apart, so a rounding-sized change flips them. The check is open loop: in a flown course one flipped pick could change the states that follow, so this bounds how often the builds disagree, not how a PyTorch course would end.
-- **Laya is about 16× faster on the G4**: 13 ms per answer against 206 ms on this Mac (both measured the same way, by `pnpm agree` on the same machine as the model). Its benchmark answer time of 199 ms reflects the Mac, not the model; on the GPU the Kev lanes used it is the fastest model lane.
+- **Laya is about 16× faster on the G4**: 13 ms per answer against 206 ms on the Mac (both measured the same way, by `pnpm agree` on the same machine as the model). Its benchmark answer time of 199 ms reflects the Mac, not the model; on the GPU the Kev lanes used it is the fastest model lane.
 
 ## Archive: real-time arena prompts (2026-10-29, tag v0-realtime)
 
@@ -237,7 +237,7 @@ These prompts asked rotate and throttle five times a second. They were removed i
 
 Every model lane reads the same observation (tier 4, `observe()` in `packages/decisions/src/observe.ts`). Each lane then flies the prompt that worked best for it in a sweep of the same kind: about 30 autopilot states per prompt, then two levels closed loop for the best one. The lane's prompt is `prompt` in `packages/decisions/src/catalog.ts`, and every result below names it.
 
-All numbers are **measured** with `pnpm probe` from a MacBook on home broadband. Raw calls are in `measurements/`. Prices are the **vendor's** for Cloudflare and **third-party** for Jev.
+All numbers are **measured** with `pnpm probe` from the Mac (an M3 MacBook Pro, 16 GB) on a home broadband connection. Raw calls are in `measurements/`. Prices are the **vendor's** for Cloudflare and **third-party** for Jev.
 
 ## Lanes
 
@@ -246,7 +246,7 @@ All numbers are **measured** with `pnpm probe` from a MacBook on home broadband.
 | Jev | `jev-1.14.0` (TypeSafe) | Yes | $0.042 / free, third-party | p5 |
 | Clef-flash | `clef-flash` (Workers AI) | **No**: Cloudflare has no version selector; responses report `clef-flash` | $0.038 / free, vendor | p7 |
 | Llama 3.1 8B | `@cf/meta/llama-3.1-8b-instruct-fp8-fast` (Workers AI) | Yes, by id | $0.045 / $0.384, vendor | l3 |
-| Laya | `laya-descent-v2-mlx`, fine-tuned from `aac6fef/laya-mlx`, via `bridge/laya` on this Mac | Yes: the bridge reports the checkpoint it loaded | none (local) | p8 (trained on it) |
+| Laya | `laya-descent-v2-mlx`, fine-tuned from `aac6fef/laya-mlx`, via `bridge/laya` on the Mac | Yes: the bridge reports the checkpoint it loaded | none (local) | p8 (trained on it) |
 
 ## Prompts
 
@@ -334,7 +334,7 @@ bridge/laya/.venv/bin/pip install -r bridge/laya/requirements.txt
 bridge/laya/.venv/bin/python bridge/laya/server.py
 ```
 
-**Base Laya (`aac6fef/laya-mlx`, laya-mlx 0.6.0), p5, 30 autopilot states, measured on an M3 with 16 GB:** rotation agrees 40 %, throttle 53 % with r = 0.04, top probability 37 % (rotate) and 28 % (throttle): close to guessing, as the model card says. p50 259 ms, p95 314 ms. Laya scores each question in its own encoder pass (state plus question, ~800 tokens in all), and the package caches only the tokenized questions, so this M3 cannot answer inside a 200 ms tick; the card's 13 ms was an M3 Max. Inputs are not truncated: the state is ~300 tokens and each question is encoded beside it.
+**Base Laya (`aac6fef/laya-mlx`, laya-mlx 0.6.0), p5, 30 autopilot states, measured on the Mac (M3, 16 GB):** rotation agrees 40 %, throttle 53 % with r = 0.04, top probability 37 % (rotate) and 28 % (throttle): close to guessing, as the model card says. p50 259 ms, p95 314 ms. Laya scores each question in its own encoder pass (state plus question, ~800 tokens in all), and the package caches only the tokenized questions, so the Mac cannot answer inside a 200 ms tick; the card's 13 ms was an M3 Max. Inputs are not truncated: the state is ~300 tokens and each question is encoded beside it.
 
 ### Fine-tuning
 
@@ -368,7 +368,7 @@ Measured in the arena's own tests, course 42 (which it never saw), same as every
 | Closed loop, no deadline | — | **Landed both**: 30.7 s (vy −1.5, angle 0°) and 36.4 s (vy −1.8, angle 0°), fastest of any lane |
 | Live, 90 s with Jev and Autopilot | — | 1 landed / 1 failed, 141 points, 51 % missed, p50 289 ms |
 
-In the same live run Jev landed 2 / 0 (283 points) and Autopilot 289. Laya now makes the best decisions of any model lane, but at ~280 ms per answer on this M3 it misses half its ticks and acts on stale states, as the Cloudflare lanes do. Ways to close the gap, not yet tried: a shorter state (it is ~300 tokens and both questions re-encode it), the `parallel` option layout that scores both questions in one pass (needs retraining with `TrainConfig(option_layout="parallel")`), or recording on a faster Mac. A second round on states from Laya's own flights (DAgger) would harden it further.
+In the same live run Jev landed 2 / 0 (283 points) and Autopilot 289. Laya now makes the best decisions of any model lane, but at ~280 ms per answer on the Mac it misses half its ticks and acts on stale states, as the Cloudflare lanes do. Ways to close the gap, not yet tried: a shorter state (it is ~300 tokens and both questions re-encode it), the `parallel` option layout that scores both questions in one pass (needs retraining with `TrainConfig(option_layout="parallel")`), or recording on a faster Mac. A second round on states from Laya's own flights (DAgger) would harden it further.
 
 
 ## Replacing Llama 3.1 8B? Candidates tested 2026-10-29
@@ -409,7 +409,7 @@ The arena's default lanes are now `jev,clef,qwen,autopilot`. Llama, Gemma and GL
 
 ### Speed: why v2 trains on p8
 
-Time per answer on this M3, fine-tuned model, 40 states each (the model's own time, without the bridge):
+Time per answer on the Mac, fine-tuned model, 40 states each (the model's own time, without the bridge):
 
 | Input | Tokens | p50 |
 |---|---|---|

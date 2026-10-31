@@ -13,8 +13,8 @@ The name comes from Apollo: low gate is the point in the descent where the crew 
 | Jev | System One decision model | TypeSafe API |
 | Clef-flash | System One decision model | Cloudflare Workers AI |
 | Kev 0.8B, 4B, 9B, 27B | Open-weight System One decision models | Colab G4 GPU, via `bridge/kev/kev_colab.ipynb` |
-| Laya | Decision model, fine-tuned for the menu | This Mac (MLX), via `bridge/laya/server.py` |
-| Gemma 4 12B | Chat model, answers in JSON | This Mac (LM Studio) |
+| Laya | Decision model, fine-tuned for the menu | M3 MacBook Pro, 16 GB (MLX), via `bridge/laya/server.py` |
+| Gemma 4 12B | Chat model, answers in JSON | M3 MacBook Pro, 16 GB (LM Studio) |
 | Autopilot | Scripted baseline | In process |
 
 ## Run locally

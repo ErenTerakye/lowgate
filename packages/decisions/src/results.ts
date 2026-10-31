@@ -25,7 +25,7 @@ export interface LaneResult {
   readonly retried: number;
   readonly agreesWithAutopilot: { readonly exact: number; readonly tilt: number; readonly throttle: number };
   readonly meanTopProbability: number | null;
-  readonly latencyMs: { readonly p50: number | null; readonly p95: number | null; readonly source: "measured, from this machine" };
+  readonly latencyMs: { readonly p50: number | null; readonly p95: number | null; readonly source: "measured, on the machine that flew the lane" };
   /** `output` is null when no call reported an output count. */
   readonly tokensPerDecision: { readonly input: number; readonly output: number | null; readonly source: "provider-reported" } | null;
   readonly costUsd: { readonly total: number; readonly priceSource: PriceSource } | null;
@@ -106,7 +106,7 @@ export function summarizeLane(recordings: readonly Recording[], options: { reado
     retried: decisions.filter((d) => d.retries > 0).length,
     agreesWithAutopilot: { exact: share(exact), tilt: share(tilt), throttle: share(throttle) },
     meanTopProbability: withProbs.length ? withProbs.reduce((a, p) => a + Math.max(...p), 0) / withProbs.length : null,
-    latencyMs: { p50: percentile(answered.map((d) => d.latencyMs), 50), p95: percentile(answered.map((d) => d.latencyMs), 95), source: "measured, from this machine" },
+    latencyMs: { p50: percentile(answered.map((d) => d.latencyMs), 50), p95: percentile(answered.map((d) => d.latencyMs), 95), source: "measured, on the machine that flew the lane" },
     tokensPerDecision: withUsage.length
       ? {
           input: withUsage.reduce((a, u) => a + u.inputTokens, 0) / withUsage.length,

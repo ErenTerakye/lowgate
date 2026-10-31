@@ -240,7 +240,7 @@ copy.append(copyChart);
 // 6. Speed and cost.
 const cost = section(
   "Answer time and cost",
-  `Answer times are measured where each lane was flown: this Mac, or for the Kev lanes a Colab G4 GPU with the model on the same machine, so no network time. Tokens are as the provider reports them. Cost is for the courses flown at each lane's listed price, and scaled to all ${COURSES} courses. Local and self-hosted lanes cost nothing per token here; where the same model is sold on a hosted API, its price for the same tokens is shown underneath.`,
+  `Answer times are measured where each lane was flown: an M3 MacBook Pro with 16 GB RAM, or for the Kev lanes a Colab G4 GPU. Local and self-hosted models answered on that same machine, so their times include no network time. Tokens are as the provider reports them. Cost is for the courses flown at each lane's listed price, and scaled to all ${COURSES} courses. Local and self-hosted lanes cost nothing per token here; where the same model is sold on a hosted API, its price for the same tokens is shown underneath.`,
 );
 {
   const wrap = el("div", "table-wrap");

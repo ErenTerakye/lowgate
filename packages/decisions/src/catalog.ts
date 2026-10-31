@@ -162,7 +162,7 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
       price: { input: 0, output: 0, source: "none" },
     },
     upstream: `${LM_STUDIO}/v1/chat/completions`,
-    priceNote: "Runs on this Mac through LM Studio, MLX 4-bit build (5.98 GB): no per-token price.",
+    priceNote: "Runs locally on an M3 MacBook Pro (16 GB) through LM Studio, MLX 4-bit build (5.98 GB): no per-token price.",
   },
   "gemma-local": {
     id: "gemma-local",
@@ -177,7 +177,7 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
       price: { input: 0, output: 0, source: "none" },
     },
     upstream: `${LM_STUDIO}/v1/chat/completions`,
-    priceNote: "Runs on this Mac through LM Studio, GGUF Q4_0 QAT build (7.15 GB): no per-token price.",
+    priceNote: "Runs locally on an M3 MacBook Pro (16 GB) through LM Studio, GGUF Q4_0 QAT build (7.15 GB): no per-token price.",
     // The only paid host found (Artificial Analysis lists one provider); Google's Gemini API offers Gemma 4 on its
     // free tier only. SiliconFlow does not state its precision, so this is the same model, not necessarily the same build.
     hostedEquivalent: {
@@ -204,7 +204,7 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
       price: { input: 0, output: 0, source: "none" },
     },
     upstream: "http://127.0.0.1:8765/v1/systemone",
-    priceNote: "Runs on this Mac through bridge/laya: no per-token price. Fine-tuned on a Colab A100: v2 on p8 in 14.9 min.",
+    priceNote: "Runs locally on an M3 MacBook Pro (16 GB) through bridge/laya: no per-token price. Fine-tuned on a Colab A100: v2 on p8 in 14.9 min.",
   },
   // Kev, the open-weight Jev-style family, served by its own `kev.serve` on a Colab GPU next to the benchmark
   // (bridge/kev/kev_colab.ipynb), so the upstream is local to the Colab machine. Flies Jev's prompt, untuned.

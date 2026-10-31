@@ -147,7 +147,7 @@
       "latencyMs": {
         "p50": 0,
         "p95": 0,
-        "source": "measured, from this machine"
+        "source": "measured, on the machine that flew the lane"
       },
       "tokensPerDecision": null,
       "costUsd": null,
@@ -289,7 +289,7 @@
       "latencyMs": {
         "p50": 203,
         "p95": 239,
-        "source": "measured, from this machine"
+        "source": "measured, on the machine that flew the lane"
       },
       "tokensPerDecision": {
         "input": 938.54068745004,
@@ -438,7 +438,7 @@
       "latencyMs": {
         "p50": 239,
         "p95": 239,
-        "source": "measured, from this machine"
+        "source": "measured, on the machine that flew the lane"
       },
       "tokensPerDecision": {
         "input": 591.468696861957,
@@ -589,7 +589,7 @@
       "latencyMs": {
         "p50": 5490,
         "p95": 5825,
-        "source": "measured, from this machine"
+        "source": "measured, on the machine that flew the lane"
       },
       "tokensPerDecision": {
         "input": 602.2767205835712,
@@ -749,7 +749,7 @@
       "latencyMs": {
         "p50": 199,
         "p95": 447,
-        "source": "measured, from this machine"
+        "source": "measured, on the machine that flew the lane"
       },
       "tokensPerDecision": {
         "input": 555.0324082054818,
@@ -900,7 +900,7 @@
       "latencyMs": {
         "p50": 82,
         "p95": 82,
-        "source": "measured, from this machine"
+        "source": "measured, on the machine that flew the lane"
       },
       "tokensPerDecision": {
         "input": 593.3019530701138,
@@ -1052,7 +1052,7 @@
       "latencyMs": {
         "p50": 508,
         "p95": 1228,
-        "source": "measured, from this machine"
+        "source": "measured, on the machine that flew the lane"
       },
       "tokensPerDecision": {
         "input": 832.2415177415178,
@@ -1203,7 +1203,7 @@
       "latencyMs": {
         "p50": 61,
         "p95": 63,
-        "source": "measured, from this machine"
+        "source": "measured, on the machine that flew the lane"
       },
       "tokensPerDecision": {
         "input": 598.5864852398524,
@@ -1355,7 +1355,7 @@
       "latencyMs": {
         "p50": 28,
         "p95": 30,
-        "source": "measured, from this machine"
+        "source": "measured, on the machine that flew the lane"
       },
       "tokensPerDecision": {
         "input": 598.1527822974292,
@@ -1370,5 +1370,5 @@
       "answerSecondsPerCourse": 8.6846
     }
   ],
-  "at": "2026-10-31T08:26:13.216Z"
+  "at": "2026-10-31T10:36:58.493Z"
 }

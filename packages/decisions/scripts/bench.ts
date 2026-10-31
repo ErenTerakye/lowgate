@@ -5,7 +5,7 @@
  * recording on disk, with a 95% interval on each rate and mean.
  *
  *   pnpm bench                               the fast lanes: autopilot, laya, jev, clef
- *   caffeinate -i pnpm bench --lanes gemma-local    the chat lane, ~10 h on this Mac
+ *   caffeinate -i pnpm bench --lanes gemma-local    the chat lane, ~10 h on an M3 MacBook Pro
  *   pnpm bench --summary                     rebuild results.json from the recordings only
  *
  * Resumable: a course with a recording is skipped, so an interrupted run (a
@@ -17,7 +17,7 @@
  * local model never answers two requests at once (measured: four streams of
  * Gemma at once gave 1.2x the throughput and pushed answers past the timeout,
  * docs/lanes.md). Local lanes get a 60 s timeout: answer time is measured but
- * never scored, so a busy Mac must not turn into unanswered decisions.
+ * never scored, so a busy laptop must not turn into unanswered decisions.
  *
  * Courses 5001-5020 are unseen by every lane: prompts were tuned on 1001,
  * Laya trained on 3000-3119 and was evaluated on 9000-9011.

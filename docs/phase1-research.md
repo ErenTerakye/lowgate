@@ -13,19 +13,19 @@ _Researched 2026-10-29. "Docs" = vendor's official documentation; "3rd-party" = 
 | **LLM baseline** | Workers AI `@cf/meta/llama-3.1-8b-instruct-fp8-fast`, JSON output | same | $0.045 in / $0.384 out per 1M (4,119 / 34,868 neurons) | Same 10k neurons/day | 300 RPM | Docs |
 | OpenAI Decisions | `POST /v1/decisions`, `gpt-6-luna` | — | Reported $0.10 / 1M; not confirmed on OpenAI pages | **No API free tier** | — | 3rd-party only → **skip** |
 
-### Where your notes differ
+### Claims checked against the docs
 
-| Your note | Finding |
+| Claim | Finding |
 |---|---|
 | Jev 1.13 | Current stable is **1.14.0** (14 Oct). Pricing and limits are unchanged. 1.14 adds opt-in images and 262K-context headers. |
 | Up to 64 questions | Docs for **Clef** say 1–64. TypeSafe's schema states only a minimum of 1. |
-| choice 2–255 / score 2–10 | The schema says **1**–255 and **1**–10. In practice we use ≥2. |
+| choice 2–255 / score 2–10 | The schema says **1**–255 and **1**–10. In practice the game uses ≥2. |
 | New accounts get $5 | **Disputed.** Several Oct 2026 reports say there is no credit. Assume Jev costs real (tiny) money. |
 | Free Jev on OpenCode Zen | **Not found.** The official Zen free list has Big Pickle, DeepSeek V4 Flash Free and others, no Jev. Treat as false. The only other free route reported is Vercel AI Gateway's monthly credit (one source). |
 | Jev on OpenRouter | Not verified. Clef-flash and Kev-4B are on OpenRouter. AIML API serves `typesafe/jev` at $0.0578/M. |
 | Flash changed 9 Oct | **Confirmed.** $0.09 → $0.038 / 1M, hosted context 64K → 24,576. Clef-omni launched the same day ($0.15/M, multimodal). |
 | REST wrapped under `result` | This is the standard Cloudflare REST envelope. The Worker **binding** returns the bare object. Confirm in milestone 2. |
-| Laya: tens of ms | P50 13.4 ms (EN) / 7.4 ms (multilingual), measured on an **M3 Max**. Expect slower on a base M3; we'll measure. |
+| Laya: tens of ms | P50 13.4 ms (EN) / 7.4 ms (multilingual), measured on an **M3 Max**. Expect slower on a base M3; measured in Phase 2. |
 | — (new) | **Laya base is near-random zero-shot** (~0.36 vs 0.318 random, 3rd-party). The model card calls it "a fast base to specialise". Raw probabilities are poorly calibrated. This drives question 3 below. |
 | — (new) | **Groq / Gemini free tiers are too slow for real time** (Groq ~30 RPM, Gemini Flash-Lite ~15 RPM). That's 0.25–0.5 decisions/s at best. Workers AI (300 RPM) is the only free LLM that keeps up. |
 
@@ -81,7 +81,7 @@ decision-arena/            pnpm monorepo, TypeScript strict
 - **Serialization.** One canonical `observe(state, tier)` produces compact `key: value` lines, with units, in fixed order. Tier 1 = raw, Tier 2 = with derived hints. The same text goes to every model. The LLM additionally gets a fixed JSON-schema instruction. We assert the token count stays under 512 (Laya EN limit).
 - **Secrets.** The browser never holds keys. The Worker uses `wrangler secret put TYPESAFE_API_KEY`, and Clef and Llama go through the `AI` binding (no key). Local dev uses `.dev.vars` / `.env`, gitignored, with a committed `.env.example`.
 - **Live-mode protection.** A Workers Rate Limiting binding (per IP) plus a daily budget counter in one Durable Object (neurons and Jev $). Turnstile gates "start live run". When the budget is spent or a 429 comes back, the UI auto-switches to replays. The Worker returns `x-upstream-ms`, so we can separate network time from model time.
-- **Laya bridge.** Only used while recording on your Mac; the public site plays Laya from replays. It's a localhost server, so the same `SystemOneClient` adapter talks to it.
+- **Laya bridge.** Only used while recording on the Mac that runs Laya; the public site plays Laya from replays. It's a localhost server, so the same `SystemOneClient` adapter talks to it.
 - **Replay format.** JSONL. Line 1 is a header: `{v, seed, engineVersion, tier, lanes:[{id, provider, model, pinned, pricePerMTok, priceSource}]}`. Then one line per lane decision: `{t, lane, stateHash, probs, action, latencyMs, missed, usage:{in,out}, costUsd, error?}`. Replays **re-simulate** from seed + actions and check `stateHash`, so the files stay small and are tamper-evident.
 - **Hosting.** Cloudflare Pages (static site + replays) and one Worker. Both are on the free plan: Workers allows 100k requests/day.
 

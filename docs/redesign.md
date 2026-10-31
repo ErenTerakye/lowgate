@@ -23,7 +23,7 @@ there are far fewer of them.
 | Ranking | Landing rate across all levels, ties broken by an average landing-quality score made of distance from the pad centre, touchdown speed and fuel left. Both are shown with their spread. |
 | Explaining a decision | The probability bars across the menu, and a timeline of how confident the lane was. The chat model (Gemma) returns no probabilities, so it gets a single bar for the manoeuvre it picked. |
 | View | One shared course: every lander on the same terrain in its own colour, with a trail. A panel per lane shows its bars, score, latency and cost. |
-| Roster | Jev, Clef-flash, Gemma 4 12B on this Mac (the chat lane; replaced Qwen3 30B on 2026-10-30 to leave the Workers AI allowance to Clef-flash, docs/lanes.md), Laya (retrained for the menu) and the autopilot (adapted to the menu). Kev, self-hosted on a Colab G4 (chosen over OpenRouter on 2026-10-30): 0.8B, 4B, 9B and 27B flown 2026-10-31. |
+| Roster | Jev, Clef-flash, Gemma 4 12B on an M3 MacBook Pro with 16 GB RAM (the chat lane; replaced Qwen3 30B on 2026-10-30 to leave the Workers AI allowance to Clef-flash, docs/lanes.md), Laya (retrained for the menu) and the autopilot (adapted to the menu). Kev, self-hosted on a Colab G4 (chosen over OpenRouter on 2026-10-30): 0.8B, 4B, 9B and 27B flown 2026-10-31. |
 | Name | Low Gate (repo `lowgate`), renamed from Decision Arena on 2026-10-30 because that name is taken by a similar System One project. The Apollo low gate is where the crew took over and chose the touchdown spot. Recordings keep the format tag `decision-arena/recording-2`. |
 | Old version | Tagged `v0-realtime`, then removed from the working tree, including `showcase.json`. Nothing is lost. |
 
@@ -106,7 +106,7 @@ rationale became the probability bars.
 
 | # | Milestone | Done when |
 |---|---|---|
-| R0 | Tag `v0-realtime`; remove the real-time loop and the showcase | Done 2026-10-30. Tag is local; pushed only when you say. |
+| R0 | Tag `v0-realtime`; remove the real-time loop and the showcase | Done 2026-10-30. |
 | R1 | Engine `descent-2`: manoeuvre menu, 1 s decisions, 8-level courses, landing-quality metrics | Done 2026-10-30: 98% landed on 20 courses, 97% on 100. `node packages/engine/scripts/balance.ts 100` |
 | R2 | Decision layer: menu prompts for System One and chat models, lockstep runner, failure rules | Done 2026-10-30: 106 tests pass, and each lane flew level 1 of course 42 in a probe (below). `pnpm probe --lane <id>` |
 | R3 | Small prompt sweep per lane on the menu | Done 2026-10-30 on held-out course 1001: Jev and Clef-flash fly f1, the chat lane c3 (now Gemma 4 12B, local). Clef-flash f2 and m2 not flown (daily quota). Results in `docs/lanes.md`. |
@@ -120,7 +120,7 @@ rationale became the probability bars.
 
 One level per lane, with each lane's starting prompt, through the same
 runner the benchmark will use. One level is a smoke test, not a result.
-Latency is measured from this Mac; tokens are provider-reported; costs use
+Latency is measured on the machine that flew each lane (the M3 MacBook Pro, or the Colab G4 for Kev); tokens are provider-reported; costs use
 each lane's catalog price, scaled to the benchmark's ~5,600 decisions.
 
 | Lane | Prompt | Outcome | Decisions | Same pick as autopilot | Mean top probability | p50 latency | Tokens in per decision | Benchmark cost |
