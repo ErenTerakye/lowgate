@@ -216,16 +216,20 @@ Kev is an open-weight, Jev-style family on Qwen3.5 bases (Apache-2.0, [github.co
 
 **The first Kev 9B run was discarded.** It ran in the same Colab runtime as 0.8B, three minutes later. 9B's server loaded but could not bind port 8009 (`[Errno 98] address already in use`), and the 0.8B server, still running, answered every question; those recordings matched 0.8B's probabilities exactly. The pin check did not catch it, because Kev's response echoes the model name the request asks for. The notebook now stops any earlier Kev before starting one and checks the `run` reported at `/v1/models`; 9B was flown again in a new runtime, and its log shows the 9B checkpoint loading.
 
-## Laya reproducibility check (prepared 2026-10-31)
+## Laya reproducibility check (2026-10-31)
 
 The benchmark flew Laya v4 as an MLX build on this Mac. `pnpm agree` asks another build every question in Laya's recordings, at the same states, and reports how often it picks the same manoeuvre and the total variation distance between the two probability vectors. It runs open loop, so one different pick does not change the states that follow. Reports go to `repro/`.
 
 | Build | Where | Courses | Same pick | Distance (mean / max) | Answer p50 |
 |---|---|---|---|---|---|
 | MLX (the benchmark build) against its own recordings | This Mac (M3) | 5001–5005, 1,416 decisions | 1,416 (100%; 99.7–100%) | 0.0004 / 0.0005 | 206 ms |
-| PyTorch checkpoint `laya-descent-v4` | Colab G4 (`bridge/laya/repro_colab.ipynb`) | 5001–5020, 5,801 decisions | not run yet | | |
+| PyTorch checkpoint `laya-descent-v4` | Colab G4, NVIDIA RTX PRO 6000 Blackwell (`bridge/laya/repro_colab.ipynb`) | 5001–5020, 5,801 decisions | 5,795 (99.9%; 99.8–99.95%) | 0.0029 / 0.0168 | 13 ms |
 
-The MLX row is the baseline: the remaining distance is the recordings rounding probabilities to 4 decimals. The PyTorch run also times Laya on the same GPU type as the Kev lanes. Measured, 2026-10-31.
+The MLX row is the baseline: the remaining distance is the recordings rounding probabilities to 4 decimals. Measured, 2026-10-31.
+
+- **Laya's results belong to the model, not to the Mac.** The PyTorch build on a CUDA GPU picks the same manoeuvre as the MLX build at 5,795 of 5,801 recorded states. Its probabilities move by 0.003 on average (total variation distance), at most 0.017.
+- **The 6 different picks are near ties.** At those states the MLX build's top two options were a median 0.0031 apart, so a rounding-sized change flips them. The check is open loop: in a flown course one flipped pick could change the states that follow, so this bounds how often the builds disagree, not how a PyTorch course would end.
+- **Laya is about 16× faster on the G4**: 13 ms per answer against 206 ms on this Mac (both measured the same way, by `pnpm agree` on the same machine as the model). Its benchmark answer time of 199 ms reflects the Mac, not the model; on the GPU the Kev lanes used it is the fastest model lane.
 
 ## Archive: real-time arena prompts (2026-10-29, tag v0-realtime)
 
