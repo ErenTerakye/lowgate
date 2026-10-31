@@ -6,10 +6,10 @@ export const SCENES = {
   hook: { from: 0, len: 210 },
   how: { from: 210, len: 450 },
   race: { from: 660, len: 420 },
-  score: { from: 1080, len: 360 },
-  traces: { from: 1440, len: 560 },
-  speed: { from: 2000, len: 330 },
-  end: { from: 2330, len: 270 },
+  score: { from: 1080, len: 400 },
+  traces: { from: 1480, len: 560 },
+  speed: { from: 2040, len: 330 },
+  end: { from: 2370, len: 270 },
 } as const;
 
 export const TOTAL_FRAMES = SCENES.end.from + SCENES.end.len;
@@ -47,6 +47,16 @@ export function raceStep(f: number, longest: number): number {
   const frames = SCENES.race.len - RACE_LEAD - RACE_HOLD;
   return Math.max(0, Math.min(longest, ((f - RACE_LEAD) / frames) * longest));
 }
+
+/** Scoreboard: when the other lanes dim and the caption turns to the Kev family. */
+export const SCORE_FOCUS = 196;
+/** The Kev rows light one by one, smallest first, at these frames of the scoreboard. */
+export const KEV_LIGHTS: readonly [string, number][] = [
+  ["kev-0.8b", 222],
+  ["kev-4b", 240],
+  ["kev-9b", 258],
+  ["kev-27b", 276],
+];
 
 /** Traces: the small model's flights draw, hold, then the large model's. */
 export const TRACE = {

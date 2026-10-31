@@ -49,7 +49,7 @@ export const KIND: Record<string, string> = {
   autopilot: "Scripted autopilot",
   jev: "System One",
   laya: "System One, trained by me",
-  "gemma-local": "Chat model",
+  "gemma-local": "LLM",
   clef: "System One",
   "kev-4b": "System One",
   "kev-0.8b": "System One",

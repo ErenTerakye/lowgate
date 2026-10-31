@@ -20,7 +20,7 @@ export function Race() {
   return (
     <Scene len={SCENES.race.len}>
       <AbsoluteFill>
-        <Caption title="Nine pilots, one level." sub="Same start, same terrain, same wind. Seven System One models, one chat model and a scripted autopilot." />
+        <Caption title="Nine pilots, one level." sub="Same start, same terrain, same wind. Seven System One models, one LLM and a scripted autopilot." />
         <svg width={WIDTH} height={1350} style={{ position: "absolute" }}>
           <defs>
             <clipPath id="raceview">

@@ -26,13 +26,13 @@ export function Speed() {
   const tGemma = interpolate(f, [jevAt, jevAt + jevDur, jevAt + gemmaDur], [0, jev.answerSeconds, max], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: (t) => t * t * 0.4 + t * 0.6 });
   const rows = [
     { l: jev, t: tJev, kind: "System One model", per: `${(jev.p50Ms / 1000).toFixed(1)} s per answer` },
-    { l: gemma, t: tGemma, kind: "Chat model, like ChatGPT", per: `${(gemma.p50Ms / 1000).toFixed(1)} s per answer` },
+    { l: gemma, t: tGemma, kind: "LLM", per: `${(gemma.p50Ms / 1000).toFixed(1)} s per answer` },
   ];
   const outro = interpolate(f, [jevAt + gemmaDur + 6, jevAt + gemmaDur + 30], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
   return (
     <Scene len={SCENES.speed.len}>
       <AbsoluteFill>
-        <Caption title="Nearly as good. Far slower." sub="Gemma 4 12B is a chat model, like ChatGPT. This is the total time each model spent answering, over 160 levels." />
+        <Caption title="Nearly as good. Far slower." sub="Jev is a System One model; Gemma 4 12B is an LLM. This is the total time each spent answering, over 160 levels." />
         {rows.map(({ l, t, kind, per }, i) => (
           <Rise key={l.lane} delay={18 + i * 8} style={{ position: "absolute", left: 72, right: 72, top: 430 + i * 260 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>

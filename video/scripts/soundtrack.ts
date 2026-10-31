@@ -11,7 +11,7 @@
  * Writes video/public/soundtrack.wav (generated, not committed). Needs video/src/data/flights.json (`pnpm data`).
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { HOW_SLOW_FRAMES, LOOP_FADE, RACE_LEAD, RACE_HOLD, SCENES, TOTAL_FRAMES, TRACE, howStep } from "../src/timeline.ts";
+import { HOW_SLOW_FRAMES, KEV_LIGHTS, LOOP_FADE, RACE_LEAD, RACE_HOLD, SCENES, SCORE_FOCUS, TOTAL_FRAMES, TRACE, howStep } from "../src/timeline.ts";
 
 const RATE = 48000;
 const FPS = 60;
@@ -219,11 +219,23 @@ sweep(sec(TOTAL_FRAMES - LOOP_FADE / 2) - 0.4, 0.8, 0.09, 300, 5000, "whoosh");
   }
 }
 
-// Scoreboard: a plucked note as each bar starts to grow, climbing as the rows go down.
+// Scoreboard: a plucked note as each bar starts to grow, climbing as the rows go down. Then the other lanes dim with a
+// falling sweep, and each Kev size lights on a rising note, smallest first, with a brighter chord on the largest.
 {
   const notes = [62, 64, 65, 67, 69, 72, 74, 76, 77];
   notes.forEach((m, i) => bell(m, S("score") + sec(26 + i * 5), 0.045, i % 2 ? 0.3 : -0.3, 0.6));
-  boom(S("score") + sec(230), 0.12, 70, 36, 0.6);
+  sweep(S("score") + sec(SCORE_FOCUS) - 0.3, 0.9, 0.08, 4000, 250, "whoosh");
+  boom(S("score") + sec(SCORE_FOCUS), 0.16, 80, 36, 0.6);
+  const rising = [62, 65, 69, 74];
+  KEV_LIGHTS.forEach(([, at], i) => {
+    const t = S("score") + sec(at);
+    bell(rising[i]!, t, 0.11, (i % 2) * 0.5 - 0.25, 1.2);
+    boom(t, 0.1 + i * 0.02, 150, 55, 0.16);
+    tick(t, 3200, 0.05, 0, 0.03);
+  });
+  const top = S("score") + sec(KEV_LIGHTS[KEV_LIGHTS.length - 1]![1]);
+  bell(78, top + 0.04, 0.07, -0.3, 1.8);
+  bell(81, top + 0.08, 0.06, 0.3, 1.8);
 }
 
 // Traces: a tense drone while the small model scatters, a riser into the large model, and a lift to D major on the line.
