@@ -51,8 +51,11 @@ const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 export interface LanderView {
   readonly id: string;
   readonly label: string;
-  /** Lane colour, stepped for the black canvas. */
+  /** A few characters naming the lane, as in its panel. */
+  readonly tag: string;
+  /** Lane colour, stepped for the black canvas, and the text colour that reads on it. */
   readonly color: string;
+  readonly ink: string;
   readonly state: LaneState;
 }
 
@@ -144,7 +147,7 @@ export class CourseRenderer {
     if (focus) this.drawGuides(level, focus.state, dpr, s, X, Y, color);
     this.drawParticles(s, X, Y, color);
     for (const v of order) this.drawLander(v, X(v.state.lander.x), Y(v.state.lander.y), s, dpr, color, selected === null || v.id === selected);
-    if (focus) this.drawName(focus, X(focus.state.lander.x), Y(focus.state.lander.y), s, dpr, w, color);
+    this.drawTags(landers, focus ? focus.id : null, X, Y, s, dpr, w, color);
 
     if (this.flash > 0) {
       ctx.fillStyle = `rgba(255, 236, 200, ${this.flash * 0.35})`;
@@ -501,42 +504,69 @@ export class CourseRenderer {
     ctx.closePath();
     ctx.fill();
     ctx.restore();
-
-    // A marker above every lander in its lane's colour, readable when the landers are drawn small.
-    const r = Math.max(4 * dpr, u * 0.9);
-    const my = cy - u * 7 - r;
-    ctx.globalAlpha = strong ? 1 : 0.6;
-    ctx.fillStyle = view.color;
-    ctx.strokeStyle = color("--outline");
-    ctx.lineWidth = Math.max(1, dpr);
-    ctx.beginPath();
-    ctx.moveTo(cx, my + r);
-    ctx.lineTo(cx - r, my - r * 0.4);
-    ctx.lineTo(cx + r, my - r * 0.4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.globalAlpha = 1;
   }
 
-  /** The selected lane's name beside its lander. */
-  private drawName(view: LanderView, cx: number, cy: number, s: number, dpr: number, w: number, color: (n: string) => string): void {
-    if (view.state.outcome !== null && view.state.outcome !== "landed" && view.state.outcome !== "timeout") return;
+  /**
+   * A tag above every lander still on the course: its lane's short name on the lane colour, the same tag the panels
+   * show. Tags that would overlap stack upward, with a thin line back to their lander. The selected lane is placed
+   * first, keeps the spot right above its lander and shows its full name.
+   */
+  private drawTags(landers: readonly LanderView[], selected: string | null, X: (x: number) => number, Y: (y: number) => number, s: number, dpr: number, w: number, color: (n: string) => string): void {
     const { ctx } = this;
     const u = Math.max(1.1 * s, MIN_UNIT_PX * dpr);
-    ctx.font = `600 ${Math.round(13 * dpr)}px ${FONT}`;
-    const tw = ctx.measureText(view.label).width;
-    const pad = 6 * dpr;
-    const right = cx + u * 4 + tw + pad * 2 < w;
-    const bx = right ? cx + u * 4 : cx - u * 4 - tw - pad * 2;
-    const by = cy - u * 7 - 12 * dpr;
-    ctx.fillStyle = color("--banner-bg");
-    ctx.fillRect(bx, by, tw + pad * 2, 22 * dpr);
-    ctx.fillStyle = view.color;
-    ctx.fillRect(bx, by, 3 * dpr, 22 * dpr);
-    ctx.fillStyle = color("--overlay");
-    ctx.textBaseline = "middle";
-    ctx.fillText(view.label, bx + pad, by + 11 * dpr);
+    const h = 18 * dpr;
+    const gap = 2 * dpr;
+    const shown = landers.filter((v) => v.state.outcome === null || v.state.outcome === "landed" || v.state.outcome === "timeout");
+    const order = [...shown].sort((a, b) => Number(b.id === selected) - Number(a.id === selected) || X(a.state.lander.x) - X(b.state.lander.x));
+    const placed: { x: number; y: number; w: number }[] = [];
+    const tags = order.map((v) => {
+      const strong = v.id === selected;
+      const text = strong ? v.label : v.tag;
+      ctx.font = `600 ${Math.round((strong ? 12 : 11) * dpr)}px ${FONT}`;
+      const tw = ctx.measureText(text).width + 10 * dpr;
+      const ax = X(v.state.lander.x);
+      const ay = Y(v.state.lander.y) - u * 5.6;
+      const x = clamp(ax - tw / 2, 2 * dpr, w - tw - 2 * dpr);
+      const hits = (y: number) => placed.find((q) => x < q.x + q.w + gap && q.x < x + tw + gap && y < q.y + h + gap && q.y < y + h + gap);
+      // Stack upward from above the lander; if that runs off the top of the canvas, stack downward from below it.
+      let y = ay - 6 * dpr - h;
+      for (let q = hits(y); q; q = hits(y)) y = q.y - h - gap;
+      if (y < 2 * dpr) {
+        y = Y(v.state.lander.y) + 6 * dpr;
+        for (let q = hits(y); q; q = hits(y)) y = q.y + h + gap;
+      }
+      placed.push({ x, y, w: tw });
+      return { v, text, strong, x, y, tw, ax, ay };
+    });
+    // Drawn with the selected tag last, on top.
+    for (const t of tags.reverse()) {
+      ctx.globalAlpha = selected === null || t.strong ? 1 : 0.6;
+      const below = t.y > t.ay;
+      const edge = below ? t.y : t.y + h;
+      const anchor = below ? Y(t.v.state.lander.y) : t.ay;
+      if (Math.abs(anchor - edge) > 8 * dpr || t.ax < t.x || t.ax > t.x + t.tw) {
+        ctx.strokeStyle = t.v.color;
+        ctx.lineWidth = Math.max(1, dpr);
+        ctx.beginPath();
+        ctx.moveTo(clamp(t.ax, t.x + 4 * dpr, t.x + t.tw - 4 * dpr), edge);
+        ctx.lineTo(t.ax, anchor);
+        ctx.stroke();
+      }
+      ctx.fillStyle = t.v.color;
+      ctx.beginPath();
+      ctx.roundRect(t.x, t.y, t.tw, h, 4 * dpr);
+      ctx.fill();
+      if (t.strong) {
+        ctx.strokeStyle = color("--overlay");
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.stroke();
+      }
+      ctx.font = `600 ${Math.round((t.strong ? 12 : 11) * dpr)}px ${FONT}`;
+      ctx.fillStyle = t.v.ink;
+      ctx.textBaseline = "middle";
+      ctx.fillText(t.text, t.x + 5 * dpr, t.y + h / 2 + 0.5 * dpr);
+    }
+    ctx.globalAlpha = 1;
   }
 
   /** A line over the scene once the level is over for every lane. */

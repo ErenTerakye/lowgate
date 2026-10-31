@@ -5,7 +5,7 @@
  */
 .viewer.replay {
   --side: 340px;
-  --canvas-max: calc((100svh - 230px) * 4 / 3);
+  --canvas-max: calc((100svh - 330px) * 4 / 3);
 }
 
 .verify {
@@ -87,9 +87,27 @@
   white-space: nowrap;
 }
 
-.lane-head .swatch {
+/* A lane's tag: its short name on its colour, the same tag that labels its lander on the course. */
+.lane-tag {
   flex: none;
-  margin: 0;
+  display: inline-block;
+  min-width: 34px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.board th[scope="row"] .lane-tag {
+  margin-right: 8px;
+}
+
+.lane-panel.is-hovered {
+  border-color: var(--rule-strong);
+  background: var(--surface-2);
 }
 
 .lane-status {
@@ -334,8 +352,18 @@
     font-size: 12px;
   }
 
-  .board .swatch {
-    margin-right: 5px;
+  .board th[scope="row"] .lane-tag {
+    margin-right: 0;
+  }
+
+  /* On a phone the tag names the lane in the table; the full name stays for screen readers. */
+  .board .lane-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 

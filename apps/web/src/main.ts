@@ -1,8 +1,9 @@
 import { COURSE_LEVELS, DT, MANOEUVRES, type LaneState, type Manoeuvre, type Outcome } from "@lowgate/engine";
 import { LaneReplay, argmax, usdFor, type BenchResults, type LaneResult, type Recording } from "@lowgate/decisions";
 import raw from "../../../bench/results.json?raw";
+import { siteHeader } from "./chrome.ts";
 import { icons } from "./icons.ts";
-import { HOLLOW, colorOf, darkColorOf } from "./lanes.ts";
+import { colorOf, darkColorOf, inkOn, tagOf } from "./lanes.ts";
 import { CourseRenderer, type LanderView } from "./render.ts";
 import "./style.css";
 import "./replay.css";
@@ -44,14 +45,12 @@ const usd = (v: number): string => (v === 0 ? "$0" : v < 0.001 ? "<$0.001" : `$$
 const params = new URLSearchParams(location.search);
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
-  <header class="topbar">
-    <div class="brand">
-      <h1>Low Gate</h1>
-      <p>${results.lanes.length} lanes fly the same course, each replayed from its benchmark recording. Every lane sees the same terrain and wind; the game waits for each answer, so only the choices differ.</p>
-    </div>
-    <nav><a href="./results.html">Benchmark results</a></nav>
-  </header>
-  <main class="viewer replay">
+  ${siteHeader("replays")}
+  <div class="page-intro wrap">
+    <h1>Course replays</h1>
+    <p class="lede">${results.lanes.length} lanes fly the same course, each replayed from its benchmark recording. Every lane sees the same terrain and wind; the game waits for each answer, so only the choices differ.</p>
+  </div>
+  <main class="viewer replay wrap">
     <section class="flight" aria-label="Flight">
       <div class="flight-head">
         <div class="flight-title"><h2 id="course-name">Course</h2><span class="badge" id="level-name"></span></div>
@@ -80,7 +79,7 @@ app.innerHTML = `
     </section>
     <aside class="side lanes" id="lanes" aria-label="Lanes"></aside>
   </main>
-  <footer class="help">
+  <footer class="help wrap">
     <span><kbd>Space</kbd> play / pause</span>
     <span><kbd>←</kbd> <kbd>→</kbd> level</span>
     <span><kbd>R</kbd> replay level</span>
@@ -89,6 +88,17 @@ app.innerHTML = `
 `;
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
+
+/**
+ * Writes markup only when it changes. Rewriting a button's contents on every frame replaces the element under the
+ * pointer between mousedown and mouseup, and the browser then drops the click.
+ */
+const shown = new WeakMap<Element, string>();
+function setHtml(el: Element, html: string): void {
+  if (shown.get(el) === html) return;
+  shown.set(el, html);
+  el.innerHTML = html;
+}
 const canvas = $<HTMLCanvasElement>("canvas");
 const toggleBtn = $<HTMLButtonElement>("toggle");
 const courseSelect = $<HTMLSelectElement>("course");
@@ -121,6 +131,8 @@ let seed = results.courses.includes(Number(params.get("course"))) ? Number(param
 let level = 0;
 let lanes: PlayerLane[] = [];
 let selected: string | null = params.get("lane");
+/** The lane under the pointer in the panel list: highlighted on the course while hovered. */
+let hovered: string | null = null;
 const hidden = new Set<string>();
 let running = false;
 let speed = 1;
@@ -140,7 +152,7 @@ function makePanel(result: LaneResult): Panel {
   root.setAttribute("aria-pressed", "false");
   root.innerHTML = `
     <div class="lane-head">
-      <span class="swatch${HOLLOW.has(result.lane) ? " is-hollow" : ""}"></span>
+      <span class="lane-tag" aria-hidden="true"></span>
       <h3></h3>
       <span class="lane-status"></span>
       <button type="button" class="lane-show" aria-pressed="true"></button>
@@ -154,9 +166,10 @@ function makePanel(result: LaneResult): Panel {
       <polygon class="confidence-area"/><polyline class="confidence-line"/>
     </svg>`;
   root.querySelector("h3")!.textContent = result.label;
-  const swatch = root.querySelector<HTMLSpanElement>(".swatch")!;
-  swatch.style.background = colorOf(result.lane);
-  swatch.style.setProperty("--hollow", colorOf(result.lane));
+  const tag = root.querySelector<HTMLSpanElement>(".lane-tag")!;
+  tag.textContent = tagOf(result.lane);
+  tag.style.background = colorOf(result.lane);
+  tag.style.color = inkOn(colorOf(result.lane));
   const show = root.querySelector<HTMLButtonElement>(".lane-show")!;
   show.setAttribute("aria-label", `Show ${result.label} on the course`);
   const grid = [...root.querySelectorAll<HTMLSpanElement>(".menu-grid span")];
@@ -182,17 +195,24 @@ for (const [id, p] of panels) {
     updateUrl();
     render();
   };
-  p.root.addEventListener("click", (e) => {
-    if ((e.target as HTMLElement).closest(".lane-show")) return;
-    choose();
+  p.root.addEventListener("mouseenter", () => {
+    hovered = id;
+    if (!running) render();
   });
+  p.root.addEventListener("mouseleave", () => {
+    if (hovered === id) hovered = null;
+    if (!running) render();
+  });
+  p.root.addEventListener("click", choose);
   p.root.addEventListener("keydown", (e) => {
     if (e.target !== p.root || (e.key !== "Enter" && e.key !== " ")) return;
     e.preventDefault();
     e.stopPropagation();
     choose();
   });
-  p.show.addEventListener("click", () => {
+  p.show.addEventListener("click", (e) => {
+    // The icon is replaced as this runs, so the panel could not tell the click came from here: stop it now.
+    e.stopPropagation();
     if (hidden.has(id)) hidden.delete(id);
     else hidden.add(id);
     render();
@@ -303,7 +323,8 @@ function renderPanel(l: PlayerLane): void {
   const visible = !hidden.has(l.result.lane);
   p.root.setAttribute("aria-pressed", String(selected === l.result.lane));
   p.root.classList.toggle("is-hidden", !visible);
-  p.show.innerHTML = visible ? icons.eye : icons.eyeOff;
+  p.root.classList.toggle("is-hovered", hovered === l.result.lane);
+  setHtml(p.show, visible ? icons.eye : icons.eyeOff);
   p.show.setAttribute("aria-pressed", String(visible));
   p.show.title = visible ? "Hide on the course" : "Show on the course";
   const status = statusOf(l);
@@ -356,8 +377,12 @@ function buildBoard(): void {
   for (const l of lanes) {
     const row = body.insertRow();
     row.dataset.lane = l.result.lane;
-    row.innerHTML = `<th scope="row"><span class="swatch${HOLLOW.has(l.result.lane) ? " is-hollow" : ""}" style="background:${colorOf(l.result.lane)};--hollow:${colorOf(l.result.lane)}"></span></th>${"<td></td>".repeat(COURSE_LEVELS)}<td class="num total"></td>`;
-    row.querySelector("th")!.append(l.result.label);
+    const c = colorOf(l.result.lane);
+    row.innerHTML = `<th scope="row"><span class="lane-tag" aria-hidden="true" style="background:${c};color:${inkOn(c)}">${tagOf(l.result.lane)}</span></th>${"<td></td>".repeat(COURSE_LEVELS)}<td class="num total"></td>`;
+    const name = document.createElement("span");
+    name.className = "lane-name";
+    name.textContent = l.result.label;
+    row.querySelector("th")!.append(name);
   }
 }
 
@@ -408,18 +433,22 @@ function render(): void {
   if (first) {
     const views: LanderView[] = here
       .filter((l) => !hidden.has(l.result.lane))
-      .map((l) => ({ id: l.result.lane, label: l.result.label, color: darkColorOf(l.result.lane), state: l.replay!.lane }));
+      .map((l) => {
+        const color = darkColorOf(l.result.lane);
+        return { id: l.result.lane, label: l.result.label, tag: tagOf(l.result.lane), color, ink: inkOn(color), state: l.replay!.lane };
+      });
     let banner: { text: string; good: boolean } | null = null;
     if (pauseLeft !== null) {
       const landed = here.filter((l) => l.replay!.lane.outcome === "landed").length;
       banner = { text: `Level ${level + 1}: ${landed} of ${here.length} landed`, good: landed * 2 >= here.length };
     }
-    renderer.draw(first.lane.level, views, selected && !hidden.has(selected) ? selected : null, banner);
+    const focus = hovered ?? selected;
+    renderer.draw(first.lane.level, views, focus && !hidden.has(focus) ? focus : null, banner);
   }
   for (const l of lanes) renderPanel(l);
   renderBoard();
   const over = courseOver();
-  toggleBtn.innerHTML = over ? `${icons.restart}<span>Again</span>` : running ? `${icons.pause}<span>Pause</span>` : `${icons.play}<span>Play</span>`;
+  setHtml(toggleBtn, over ? `${icons.restart}<span>Again</span>` : running ? `${icons.pause}<span>Pause</span>` : `${icons.play}<span>Play</span>`);
   $<HTMLButtonElement>("prev").disabled = level === 0;
   $<HTMLButtonElement>("next").disabled = level === COURSE_LEVELS - 1;
 }

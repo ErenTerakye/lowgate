@@ -1,34 +1,5 @@
 /* Benchmark results page. Tokens come from style.css; lane colours are set inline per mark. White panels on the grey page. */
 
-.results-head,
-.panel,
-.results-foot {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding-left: 24px;
-  padding-right: 24px;
-}
-
-.results-head {
-  padding-top: 32px;
-  padding-bottom: 8px;
-}
-
-.results-head h1 {
-  margin: 0;
-  font-weight: 600;
-  font-size: 40px;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-}
-
-.lede {
-  max-width: 68ch;
-  margin: 12px 0 0;
-  font-size: 18px;
-  color: var(--ink);
-}
-
 .status {
   max-width: 68ch;
   margin: 12px 0 0;
@@ -37,16 +8,12 @@
   color: var(--ink-2);
 }
 
-.page-nav {
-  margin-top: 16px;
-}
-
-.page-nav a {
-  font-weight: 500;
-}
-
 .panel {
-  margin-top: 40px;
+  margin-top: 32px;
+}
+
+.page-intro + .panel {
+  margin-top: 8px;
 }
 
 .panel h2 {
@@ -405,16 +372,6 @@ table {
 }
 
 @media (max-width: 560px) {
-  .results-head,
-  .panel,
-  .results-foot {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-
-  .results-head h1 {
-    font-size: 36px;
-  }
 
   .data th,
   .data td {

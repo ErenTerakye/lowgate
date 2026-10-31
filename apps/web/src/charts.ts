@@ -171,7 +171,8 @@ export function scatter(host: HTMLElement, spec: ScatterSpec, tooltip: Tooltip):
     return spec.points.some((q) => q !== p && x(q.x) > x(p.x) && x(q.x) - 8 < end && Math.abs(y(q.y) - y(p.y)) < 14);
   };
   for (const p of order) {
-    const right = x(p.x) < width - MARGIN.right - 110 && !blocksRight(p);
+    const fitsLeft = span(p, false)[0] >= 4;
+    const right = !fitsLeft || (x(p.x) < width - MARGIN.right - 110 && !blocksRight(p));
     const [x0, x1] = span(p, right);
     let ly = y(p.y) + 4;
     for (const q of placed) if (x0 < q.x1 && q.x0 < x1 && Math.abs(q.y - ly) < 18) ly = q.y + 18;

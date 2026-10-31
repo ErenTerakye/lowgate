@@ -34,3 +34,28 @@ export const HOLLOW = new Set(["clef"]);
 
 export const colorOf = (lane: string): string => LIGHT[lane] ?? LIGHT.autopilot!;
 export const darkColorOf = (lane: string): string => DARK[lane] ?? DARK.autopilot!;
+
+/** A few characters per lane, for the tags on the course and in the panels. */
+const TAG: Record<string, string> = {
+  autopilot: "AP",
+  jev: "Jev",
+  laya: "Laya",
+  "gemma-local": "Gem",
+  clef: "Clef",
+  "kev-4b": "K4",
+  "kev-0.8b": "K0.8",
+  "kev-9b": "K9",
+  "kev-27b": "K27",
+};
+
+export const tagOf = (lane: string): string => TAG[lane] ?? lane.slice(0, 4);
+
+/** Black or white, whichever reads better on a lane colour (WCAG relative luminance). */
+export function inkOn(hex: string): string {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? "#000000" : "#ffffff";
+}

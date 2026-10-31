@@ -91,34 +91,90 @@ input,
   font-variant-numeric: tabular-nums;
 }
 
-/* Header: name and one line on the left, the other page on the right. */
-.topbar {
+/*
+ * One frame for every page: content up to --content wide, centred, with the
+ * same gutter on both sides. Every block (header, intro, viewer, panels,
+ * footer) uses .wrap, so all of them share the same left and right edge.
+ */
+:root {
+  --content: 1240px;
+  --gutter: clamp(16px, 4vw, 40px);
+}
+
+.wrap {
+  width: 100%;
+  max-width: calc(var(--content) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* Site header: the project's name on the left, the pages on the right. The rule under it runs the full width. */
+.site-head {
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+
+.site-head .wrap {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 32px;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 24px 24px 12px;
+  gap: 8px 24px;
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
-.brand h1 {
+.wordmark {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.site-head nav {
+  display: flex;
+  gap: 4px 20px;
+  flex-wrap: wrap;
+}
+
+.site-head nav a {
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--ink-2);
+  text-decoration: none;
+  padding: 4px 0;
+  border-bottom: 2px solid transparent;
+}
+
+.site-head nav a:hover {
+  color: var(--ink);
+}
+
+.site-head nav a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+/* Page title and one paragraph on what the page shows. */
+.page-intro {
+  padding-top: 28px;
+  padding-bottom: 20px;
+}
+
+.page-intro h1 {
   margin: 0;
   font-weight: 600;
-  font-size: 32px;
+  font-size: 36px;
   line-height: 1.1;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
 }
 
-.brand p {
-  margin: 4px 0 0;
-  max-width: 64ch;
+.lede {
+  max-width: 68ch;
+  margin: 10px 0 0;
+  font-size: 17px;
   color: var(--ink-2);
-}
-
-.topbar nav a {
-  font-weight: 500;
 }
 
 /*
@@ -257,13 +313,11 @@ button.primary:hover:not(:disabled) {
   --side: 320px;
   --canvas-max: calc((100svh - 250px) * 4 / 3);
   display: grid;
-  grid-template-columns: minmax(0, var(--canvas-max)) var(--side);
-  gap: 20px;
-  justify-content: center;
+  /* The canvas is capped by the window height; the side column takes the rest, so both edges stay on the frame. */
+  grid-template-columns: minmax(0, var(--canvas-max)) minmax(var(--side), 1fr);
+  gap: 24px;
   align-items: start;
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 0 24px 20px;
+  padding-bottom: 24px;
 }
 
 .flight {
@@ -288,7 +342,7 @@ button.primary:hover:not(:disabled) {
 
 .flight-title h2 {
   margin: 0;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 600;
   line-height: 1.2;
 }
@@ -612,9 +666,7 @@ button.primary:hover:not(:disabled) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 24px;
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 0 24px 32px;
+  padding-bottom: 32px;
   font-size: 14px;
   color: var(--ink-2);
 }
@@ -636,7 +688,6 @@ kbd {
 @media (max-width: 900px) {
   .viewer {
     grid-template-columns: minmax(0, 1fr);
-    max-width: 720px;
   }
 
   .side {
@@ -645,14 +696,7 @@ kbd {
 }
 
 @media (max-width: 560px) {
-  .topbar,
-  .viewer,
-  .help {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-
-  .brand h1 {
+  .page-intro h1 {
     font-size: 28px;
   }
 

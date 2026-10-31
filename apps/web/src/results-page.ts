@@ -2,6 +2,7 @@ import type { Outcome } from "@lowgate/engine";
 import type { BenchResults, LaneResult } from "@lowgate/decisions";
 import raw from "../../../bench/results.json?raw";
 import { Tooltip, linear, log, scatter, type TooltipRow } from "./charts.ts";
+import { siteHeader } from "./chrome.ts";
 import { HOLLOW, colorOf } from "./lanes.ts";
 import "./style.css";
 import "./results.css";
@@ -96,7 +97,8 @@ function intervalBar(value: number, low: number, high: number, [d0, d1]: readonl
 const tooltip = new Tooltip();
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
-const header = el("header", "results-head");
+app.insertAdjacentHTML("beforeend", siteHeader("results"));
+const header = el("div", "page-intro wrap");
 header.append(el("h1", undefined, "Benchmark results"));
 header.append(
   el(
@@ -108,15 +110,10 @@ header.append(
 if (incomplete.length) {
   header.append(el("p", "status", `Still flying: ${incomplete.map((l) => `${l.label} ${l.courses} of ${COURSES} courses`).join(", ")}. Figures for those lanes cover the courses flown so far.`));
 }
-const nav = el("nav", "page-nav");
-const back = el("a", undefined, "Watch the lanes fly a course");
-back.href = "./";
-nav.append(back);
-header.append(nav);
 app.append(header);
 
 function section(title: string, note: string): HTMLElement {
-  const s = el("section", "panel");
+  const s = el("section", "panel wrap");
   s.append(el("h2", undefined, title), el("p", "note", note));
   app.append(s);
   return s;
@@ -282,7 +279,7 @@ const cost = section(
   cost.append(wrap);
 }
 
-const foot = el("footer", "results-foot");
+const foot = el("footer", "results-foot wrap");
 foot.append(
   el(
     "p",
