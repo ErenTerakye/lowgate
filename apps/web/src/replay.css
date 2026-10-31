@@ -329,7 +329,10 @@
   .lanes {
     grid-template-columns: minmax(0, 1fr);
   }
+}
 
+/* The table follows the flight column's width: tighter cells, and tags alone name the lanes. */
+@container (max-width: 560px) {
   .board {
     font-size: 12px;
   }
@@ -363,7 +366,7 @@
     margin-right: 0;
   }
 
-  /* On a phone the tag names the lane in the table; the full name stays for screen readers. */
+  /* The tag names the lane; the full name stays for screen readers. */
   .board .lane-name {
     position: absolute;
     width: 1px;
@@ -374,25 +377,43 @@
   }
 }
 
-/* The deck holds more here than in the old viewer: on a narrow flight column, play controls, speed and course each get a row. */
+/* The deck holds more here than in the old viewer: on a narrow flight column, play controls take the first row and speed shares the second with the course. */
 @container (max-width: 660px) {
   .replay .deck {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .replay .deck-play {
     display: flex;
+    grid-column: 1 / -1;
   }
 
   .replay .segmented {
     display: flex;
+    min-width: 0;
   }
 
   .replay .segmented button {
     flex: 1;
+    min-width: 0;
+    padding: 0 4px;
   }
 
   .replay .deck-course {
     grid-column: auto;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+
+/* The narrowest columns: the select names itself, so its visible label goes. */
+@container (max-width: 360px) {
+  .replay .deck-course label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
