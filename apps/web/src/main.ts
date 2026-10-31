@@ -61,7 +61,7 @@ app.innerHTML = `
         <div class="flight-title"><h2 id="course-name">Course</h2><span class="badge" id="level-name"></span></div>
         <p class="verify" id="verify" role="status"></p>
       </div>
-      <div class="screen"><canvas class="lane-canvas" id="canvas" aria-label="All pilots flying the current level"></canvas></div>
+      <div class="screen"><canvas class="lane-canvas" id="canvas" aria-label="All pilots flying the current level"></canvas><button id="screen-toggle" type="button" class="screen-toggle icon-only"></button></div>
       <div class="deck">
         <div class="deck-play">
           <button id="toggle" type="button" class="primary"></button>
@@ -101,6 +101,8 @@ function setHtml(el: Element, html: string): void {
 }
 const canvas = $<HTMLCanvasElement>("canvas");
 const toggleBtn = $<HTMLButtonElement>("toggle");
+/** The same toggle on the canvas, for phones, where the canvas stays on screen above the pilot cards and the deck does not. */
+const screenToggle = $<HTMLButtonElement>("screen-toggle");
 const courseSelect = $<HTMLSelectElement>("course");
 const speedGroup = $<HTMLDivElement>("speed");
 
@@ -447,6 +449,8 @@ function render(): void {
   renderBoard();
   const over = courseOver();
   setHtml(toggleBtn, over ? `${icons.restart}<span>Again</span>` : running ? `${icons.pause}<span>Pause</span>` : `${icons.play}<span>Play</span>`);
+  setHtml(screenToggle, over ? icons.restart : running ? icons.pause : icons.play);
+  screenToggle.setAttribute("aria-label", over ? "Play again" : running ? "Pause" : "Play");
   $<HTMLButtonElement>("prev").disabled = level === 0;
   $<HTMLButtonElement>("next").disabled = level === COURSE_LEVELS - 1;
 }
@@ -486,6 +490,7 @@ function updateUrl(): void {
 }
 
 toggleBtn.addEventListener("click", toggle);
+screenToggle.addEventListener("click", toggle);
 $("restart").addEventListener("click", () => seekLevel(level));
 $("prev").addEventListener("click", () => level > 0 && seekLevel(level - 1));
 $("next").addEventListener("click", () => level < COURSE_LEVELS - 1 && seekLevel(level + 1));

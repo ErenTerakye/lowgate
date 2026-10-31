@@ -427,6 +427,45 @@ table {
   .data td {
     padding: 8px 10px;
   }
+
+  /* The model's id makes every row taller; the ranking shows it, and the later tables repeat only name and kind. */
+  .data:not(.ranked) .model-id {
+    display: none;
+  }
+}
+
+/*
+ * Wide tables scroll sideways inside their panel; the pilot column (and the rank before it) stays put, so every
+ * number still has its pilot beside it. The shadow on its edge marks where the rows slide under.
+ */
+.data tr > :first-child,
+.data.ranked tr > :nth-child(2),
+.heat tr > :first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+
+.data.ranked tr > :first-child {
+  width: 34px;
+  min-width: 34px;
+  max-width: 34px;
+}
+
+.data.ranked tr > :nth-child(2) {
+  left: 34px;
+}
+
+.data:not(.ranked) tr > :first-child,
+.data.ranked tr > :nth-child(2),
+.heat tr > :first-child {
+  box-shadow: inset -1px 0 0 var(--rule), 6px 0 6px -6px rgba(22, 25, 29, 0.25);
+}
+
+/* The heat grid's 2px spacing would show the rows sliding by: the pilot cell covers it. */
+.heat tr > :first-child {
+  left: -2px;
 }
 
 /* Deep cells carry light numbers so both ends of the ramp stay readable. */

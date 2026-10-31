@@ -30,6 +30,10 @@ const MAX_ZOOM = 3.6;
 const FRAME_MARGIN = 28;
 /** The lander is never drawn smaller than this many CSS pixels per lander unit (about 38 px tall). */
 const MIN_UNIT_PX = 6;
+/** CSS pixels a row of lander tags takes above a lander, with its gaps. */
+const TAG_ROW_PX = 28;
+/** Farthest a tag moves sideways from its lander, in CSS pixels, before it takes a new row instead. */
+const MAX_TAG_SHIFT_PX = 160;
 /** The velocity arrow shows where the lander will be this many seconds from now. */
 const LOOKAHEAD_S = 2;
 const FONT = '"IBM Plex Sans", system-ui, sans-serif';
@@ -140,7 +144,7 @@ export class CourseRenderer {
     let simDt = 0;
     for (const v of landers) simDt = Math.max(simDt, this.trackEvents(level, v));
     this.updateParticles(level, simDt);
-    this.updateCamera(level, landers, fresh ? Infinity : simDt);
+    this.updateCamera(level, landers, fresh ? Infinity : simDt, canvas.clientWidth);
 
     const s = (w / WORLD_WIDTH) * this.cam.zoom;
     const X = (x: number): number => (x - this.cam.x) * s + w / 2;
@@ -243,7 +247,7 @@ export class CourseRenderer {
    * Frame the pad and every lander still flying: the camera holds them in view
    * and zooms in as they converge, so the target never leaves the screen.
    */
-  private updateCamera(level: Level, landers: readonly LanderView[], dt: number): void {
+  private updateCamera(level: Level, landers: readonly LanderView[], dt: number, cssWidth: number): void {
     const { pad } = level;
     const flying = landers.filter((v) => v.state.outcome === null);
     const shown = (flying.length ? flying : landers).map((v) => v.state.lander).filter((l) => l.x >= 0 && l.x <= WORLD_WIDTH);
@@ -252,8 +256,16 @@ export class CourseRenderer {
     const x0 = Math.min(...xs) - FRAME_MARGIN;
     const x1 = Math.max(...xs) + FRAME_MARGIN;
     const y0 = Math.min(pad.y, ...grounds) - FRAME_MARGIN * 0.6;
-    const y1 = Math.max(pad.y, ...shown.map((l) => l.y)) + FRAME_MARGIN;
-    const target = clamp(Math.min(WORLD_WIDTH / (x1 - x0), WORLD_HEIGHT / (y1 - y0)), 1, MAX_ZOOM);
+    const top = Math.max(pad.y, ...shown.map((l) => l.y));
+    // On a small canvas the lander is drawn larger than true scale, so the room above it is set in pixels too:
+    // enough for the drawn lander and a row of tags.
+    const fit = (above: number) => clamp(Math.min(WORLD_WIDTH / (x1 - x0), WORLD_HEIGHT / (top + above - y0)), 1, MAX_ZOOM);
+    const headroom = (zoom: number) => {
+      const s = (Math.max(1, cssWidth) / WORLD_WIDTH) * zoom;
+      return Math.max(FRAME_MARGIN, (Math.max(1.1 * s, MIN_UNIT_PX) * 5.6 + TAG_ROW_PX) / s);
+    };
+    const target = fit(headroom(fit(headroom(fit(FRAME_MARGIN)))));
+    const y1 = top + headroom(target);
     const k = reducedMotion.matches ? 1 : 1 - Math.exp(-dt * 2.5);
     const zoom = this.cam.zoom + (target - this.cam.zoom) * k;
     const halfW = WORLD_WIDTH / zoom / 2;
@@ -518,7 +530,7 @@ export class CourseRenderer {
 
   /**
    * A tag above every lander still on the course: its lane's short name on the lane colour, the same tag the panels
-   * show. Tags that would overlap stack upward, with a thin line back to their lander. The selected lane is placed
+   * show. Tags that would overlap move aside, then up a row, with a thin line back to their lander. The selected lane is placed
    * first, keeps the spot right above its lander and shows its full name.
    */
   private drawTags(landers: readonly LanderView[], selected: string | null, X: (x: number) => number, Y: (y: number) => number, s: number, dpr: number, w: number, color: (n: string) => string): void {
@@ -536,14 +548,27 @@ export class CourseRenderer {
       const tw = ctx.measureText(text).width + 10 * dpr;
       const ax = X(v.state.lander.x);
       const ay = Y(v.state.lander.y) - u * 5.6;
-      const x = clamp(ax - tw / 2, 2 * dpr, w - tw - 2 * dpr);
-      const hits = (y: number) => placed.find((q) => x < q.x + q.w + gap && q.x < x + tw + gap && y < q.y + h + gap && q.y < y + h + gap);
-      // Stack upward from above the lander; if that runs off the top of the canvas, stack downward from below it.
+      const centred = clamp(ax - tw / 2, 2 * dpr, w - tw - 2 * dpr);
+      const hits = (x: number, y: number) => placed.find((q) => x < q.x + q.w + gap && q.x < x + tw + gap && y < q.y + h + gap && q.y < y + h + gap);
+      // In a row, a taken spot moves the tag beside the tags already there, nearest its lander first, so landers
+      // flying together get one row of tags rather than a tall stack.
+      const spotIn = (y: number): number | null => {
+        const xs = [centred, ...placed.flatMap((q) => [q.x + q.w + gap, q.x - tw - gap])];
+        const free = xs.filter((x) => x >= 2 * dpr && x + tw <= w - 2 * dpr && Math.abs(x + tw / 2 - ax) <= MAX_TAG_SHIFT_PX * dpr && !hits(x, y));
+        return free.length ? free.reduce((a, b) => (Math.abs(b + tw / 2 - ax) < Math.abs(a + tw / 2 - ax) ? b : a)) : null;
+      };
+      // Rows go upward from above the lander; if that runs off the top of the canvas, downward from below it.
       let y = ay - 6 * dpr - h;
-      for (let q = hits(y); q; q = hits(y)) y = q.y - h - gap;
-      if (y < 2 * dpr) {
+      let x = spotIn(y);
+      while (x === null && y >= 2 * dpr) {
+        y -= h + gap;
+        x = spotIn(y);
+      }
+      if (x === null || y < 2 * dpr) {
         y = Y(v.state.lander.y) + 6 * dpr;
-        for (let q = hits(y); q; q = hits(y)) y = q.y + h + gap;
+        for (x = spotIn(y); x === null && y < this.canvas.height; x = spotIn(y)) y += h + gap;
+        // A lander far off the side of the view has no spot near it: its tag sits at the nearest edge.
+        x ??= centred;
       }
       placed.push({ x, y, w: tw });
       return { v, text, strong, x, y, tw, ax, ay };

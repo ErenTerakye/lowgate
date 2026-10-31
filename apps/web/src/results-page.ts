@@ -143,7 +143,7 @@ hero.append(heroChart);
 const rank = section("Ranking", "Ranked by landing rate, ties broken by mean landing quality (0–100: thirds for landing on the centre, touching down gently and fuel left). Bars show the 95% interval.");
 {
   const wrap = el("div", "table-wrap");
-  const table = el("table", "data");
+  const table = el("table", "data ranked");
   headRow(table, ["#", "Pilot", "Landed", "Landing rate", "Quality", "Same pick as autopilot", "Unanswered"]);
   const body = table.createTBody();
   lanes.forEach((l, i) => {
@@ -353,6 +353,8 @@ function drawCharts(): void {
 }
 
 drawCharts();
+// Labels are placed by their measured width, so they are placed again once the web font is in.
+void document.fonts.ready.then(drawCharts);
 let resizeTimer = 0;
 new ResizeObserver(() => {
   clearTimeout(resizeTimer);

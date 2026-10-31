@@ -130,6 +130,17 @@ export interface ScatterSpec {
 
 const MARGIN = { top: 34, right: 20, bottom: 44, left: 48 };
 
+/** The direct and reference label fonts, as results.css sets them, for measuring labels before they are drawn. */
+const LABEL_FONT = '500 14px "IBM Plex Sans", system-ui, sans-serif';
+const LABEL_FONT_SMALL = '400 13px "IBM Plex Sans", system-ui, sans-serif';
+const measure = document.createElement("canvas").getContext("2d");
+
+function textWidth(text: string, font: string): number {
+  if (!measure) return text.length * 7;
+  measure.font = font;
+  return measure.measureText(text).width;
+}
+
 /** A scatter with y whiskers and a direct label beside every dot (there are only a handful). */
 export function scatter(host: HTMLElement, spec: ScatterSpec, tooltip: Tooltip): void {
   const width = Math.max(300, host.clientWidth);
@@ -157,35 +168,44 @@ export function scatter(host: HTMLElement, spec: ScatterSpec, tooltip: Tooltip):
     svgText(svg, width - MARGIN.right, ry - 6, spec.reference.label, { "text-anchor": "end", class: "reference-label" });
   }
 
-  // Direct labels sit right of the dot, or left near the right edge or when another dot sits where the label would
-  // go, nudged apart vertically: down first, up when down would run into the x-axis ticks. Label width is estimated
-  // at 7 px a character.
+  // Direct labels sit beside their dot, right first (left near the right edge). A label may not cover another label,
+  // another dot or the reference label; when its own row is taken it moves a row down or up, nearest first, and a
+  // leader line joins it to its dot. Labels are measured in the label font.
   const placed: { x0: number; x1: number; y: number }[] = [];
+  if (spec.reference) {
+    const w = textWidth(spec.reference.label, LABEL_FONT_SMALL);
+    placed.push({ x0: width - MARGIN.right - w, x1: width - MARGIN.right, y: y(spec.reference.y) - 6 });
+  }
   const order = [...spec.points].sort((a, b) => y(a.y) - y(b.y));
   const labels = new Map<string, { y: number; right: boolean }>();
   const span = (p: ScatterPoint, right: boolean): [number, number] => {
     const px = x(p.x);
-    const w = 12 + p.label.length * 7;
+    const w = 14 + textWidth(p.label, LABEL_FONT);
     return right ? [px, px + w] : [px - w, px];
   };
-  const blocksRight = (p: ScatterPoint) => {
-    const [, end] = span(p, true);
-    return spec.points.some((q) => q !== p && x(q.x) > x(p.x) && x(q.x) - 8 < end && Math.abs(y(q.y) - y(p.y)) < 14);
-  };
+  const lowest = height - MARGIN.bottom + 4;
+  // A label's box runs from 12 px above its baseline to 4 px below.
+  const free = (p: ScatterPoint, [x0, x1]: [number, number], ly: number) =>
+    x0 >= 2 &&
+    x1 <= width - 2 &&
+    ly - 12 >= 0 &&
+    ly <= lowest &&
+    !placed.some((q) => x0 < q.x1 && q.x0 < x1 && Math.abs(q.y - ly) < 17) &&
+    !spec.points.some((q) => q !== p && x(q.x) + 7 > x0 && x(q.x) - 7 < x1 && y(q.y) + 7 > ly - 12 && y(q.y) - 7 < ly + 4);
   for (const p of order) {
-    const fitsLeft = span(p, false)[0] >= 4;
-    const right = !fitsLeft || (x(p.x) < width - MARGIN.right - 110 && !blocksRight(p));
-    const [x0, x1] = span(p, right);
-    const lowest = height - MARGIN.bottom + 4;
-    const clashes = (ly: number) => placed.some((q) => x0 < q.x1 && q.x0 < x1 && Math.abs(q.y - ly) < 18);
-    let ly = y(p.y) + 4;
-    for (const q of placed) if (x0 < q.x1 && q.x0 < x1 && Math.abs(q.y - ly) < 18) ly = q.y + 18;
-    if (ly > lowest) {
-      ly = Math.min(y(p.y) + 4, lowest);
-      while (clashes(ly) && ly - 18 >= MARGIN.top) ly -= 18;
+    const sides = span(p, true)[1] > width - MARGIN.right ? [false, true] : [true, false];
+    let spot: { y: number; right: boolean } | null = null;
+    for (const dy of [0, 18, -18, 36, -36, 54, -54, 72, -72]) {
+      const right = sides.find((r) => free(p, span(p, r), y(p.y) + 4 + dy));
+      if (right !== undefined) {
+        spot = { y: y(p.y) + 4 + dy, right };
+        break;
+      }
     }
-    placed.push({ x0, x1, y: ly });
-    labels.set(p.id, { y: ly, right });
+    spot ??= { y: Math.min(y(p.y) + 4, lowest), right: sides[0]! };
+    const [x0, x1] = span(p, spot.right);
+    placed.push({ x0, x1, y: spot.y });
+    labels.set(p.id, spot);
   }
 
   for (const p of spec.points) {
