@@ -219,11 +219,14 @@ export const MODEL_LANES: Readonly<Record<string, ModelLane>> = {
     url: "https://openrouter.ai/jaredpalmer/kev-4b/providers",
   }),
   "kev-9b": kevLane("kev-9b", "Kev 9B", "jaredpalmer/kev-9b@v1.0"),
+  // On Qwen3.8-27B, post-trained; its README lists an 80 GB GPU. Flown on a Colab G4 (96 GB).
+  "kev-27b": kevLane("kev-27b", "Kev 27B", "jaredpalmer/kev-27b@v1.0"),
 };
 
 /**
  * A Kev lane on `kev.serve --port 8009`. The pin is the Hub repo and release tag passed to `--run`; the `v1.0` tag was
- * read on the 4B model card (2026-10-31), and the notebook's probe shows what the server reports for the others.
+ * read on the 4B model card (2026-10-31). Kev echoes the requested model name in its answers, so the notebook checks
+ * the `run` the server reports at `/v1/models` before flying.
  */
 function kevLane(id: string, label: string, model: string, hostedEquivalent?: HostedPrice): ModelLane {
   return {

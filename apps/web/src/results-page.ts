@@ -20,7 +20,7 @@ const LEVELS_PER_COURSE = 8;
  * the white panel. Four slots cannot all be told apart pairwise (Clef's yellow
  * sits near Laya's orange), so Clef's marks are hollow and every mark carries
  * its lane's name. The autopilot is the grey reference. The Kev lanes take
- * slots 5–7 (validated with the first four on white: magenta and aqua are
+ * slots 5–8 (validated with the first four on white: magenta and aqua are
  * under 3:1, so the names on the marks and the table carry them).
  */
 const LANE_COLOR: Record<string, string> = {
@@ -32,6 +32,7 @@ const LANE_COLOR: Record<string, string> = {
   "kev-4b": "#e87ba4",
   "kev-0.8b": "#008300",
   "kev-9b": "#6250d6",
+  "kev-27b": "#e34948",
 };
 const HOLLOW = new Set(["clef"]);
 const colorOf = (lane: string) => LANE_COLOR[lane] ?? "#6b7380";

@@ -17,7 +17,7 @@ describe("cost", () => {
   });
 
   it("gives the Kev lanes a pinned local model, Jev's prompt, and a hosted price only where one is listed", () => {
-    for (const id of ["kev-0.8b", "kev-4b", "kev-9b"]) {
+    for (const id of ["kev-0.8b", "kev-4b", "kev-9b", "kev-27b"]) {
       const lane = MODEL_LANES[id]!;
       expect(lane.protocol).toBe("systemone");
       expect(lane.prompt).toBe(MODEL_LANES.jev!.prompt);

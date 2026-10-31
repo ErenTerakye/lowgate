@@ -171,7 +171,7 @@ Intervals: Wilson for landing rate, normal-approximation 95% for the mean qualit
 - **Clef-flash is far behind** at 47%, and the roughest landings of the model lanes. Its last 8 courses ran a day later (2026-10-31), after Workers AI's free allowance came back: Cloudflare's dashboard showed the block lasting about 24 hours from the heavy use, not ending at 00:00 UTC. The 12 courses of 2026-10-30 used about 14k neurons by the dashboard's chart (read off, not exported), about 6% above the listed 3,455 neurons per million tokens, so the cost shown here may be slightly low.
 - Gemma's generation speed on this Mac, estimated from the latency of 3,444 decisions against their output tokens: about 10.5 output tokens/s, plus about 1.8 s to read each ~600-token prompt (7.1 output tokens/s end to end, measured).
 
-## Kev on Colab (flown 2026-10-31; 9B to fly again)
+## Kev on Colab (flown 2026-10-31; 9B and 27B to fly)
 
 Kev is an open-weight, Jev-style family on Qwen3.5 bases (Apache-2.0, [github.com/jaredpalmer/kev](https://github.com/jaredpalmer/kev)). Its `kev.serve` speaks the same `/v1/systemone` contract as Jev, so the Kev lanes reuse `SystemOneClient` with no adapter changes; a test pins the answer shape from Kev's README. This Mac (16 GB) cannot hold Kev-4B (it needs a 32 GB Mac), so the lanes run on a Colab Pro GPU, chosen over OpenRouter (Kev-4B only, paid) on 2026-10-30.
 
@@ -180,6 +180,7 @@ Kev is an open-weight, Jev-style family on Qwen3.5 bases (Apache-2.0, [github.co
 | `kev-0.8b` | `jaredpalmer/kev-0.8b@v1.0` | G4 (README: L4 or any 4 GB GPU) | none listed |
 | `kev-4b` | `jaredpalmer/kev-4b@v1.0` | G4 (README: L40S or H100) | $0.042/M input, output free (OpenRouter, vendor, checked 2026-10-30) |
 | `kev-9b` | `jaredpalmer/kev-9b@v1.0` | G4 (README: L40S or H100) | none listed |
+| `kev-27b` | `jaredpalmer/kev-27b@v1.0` (tag not yet confirmed; the notebook's run check shows it) | G4, 96 GB (README: 80 GB GPU; about 54 GB of bf16 weights) | not checked |
 
 - `bridge/kev/kev_colab.ipynb` clones this repo (read-only token from Colab Secrets), starts Kev on `127.0.0.1:8009` next to the benchmark, probes course 42, flies courses 5001–5020 and downloads `bench/<lane>/`.
 - Every Kev lane flies Jev's prompt f1, untuned, so the comparison with Jev is like for like.
