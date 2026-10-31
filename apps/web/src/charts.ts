@@ -158,7 +158,8 @@ export function scatter(host: HTMLElement, spec: ScatterSpec, tooltip: Tooltip):
   }
 
   // Direct labels sit right of the dot, or left near the right edge or when another dot sits where the label would
-  // go, nudged apart vertically. Label width is estimated at 7 px a character.
+  // go, nudged apart vertically: down first, up when down would run into the x-axis ticks. Label width is estimated
+  // at 7 px a character.
   const placed: { x0: number; x1: number; y: number }[] = [];
   const order = [...spec.points].sort((a, b) => y(a.y) - y(b.y));
   const labels = new Map<string, { y: number; right: boolean }>();
@@ -175,8 +176,14 @@ export function scatter(host: HTMLElement, spec: ScatterSpec, tooltip: Tooltip):
     const fitsLeft = span(p, false)[0] >= 4;
     const right = !fitsLeft || (x(p.x) < width - MARGIN.right - 110 && !blocksRight(p));
     const [x0, x1] = span(p, right);
+    const lowest = height - MARGIN.bottom + 4;
+    const clashes = (ly: number) => placed.some((q) => x0 < q.x1 && q.x0 < x1 && Math.abs(q.y - ly) < 18);
     let ly = y(p.y) + 4;
     for (const q of placed) if (x0 < q.x1 && q.x0 < x1 && Math.abs(q.y - ly) < 18) ly = q.y + 18;
+    if (ly > lowest) {
+      ly = Math.min(y(p.y) + 4, lowest);
+      while (clashes(ly) && ly - 18 >= MARGIN.top) ly -= 18;
+    }
     placed.push({ x0, x1, y: ly });
     labels.set(p.id, { y: ly, right });
   }
@@ -192,6 +199,11 @@ export function scatter(host: HTMLElement, spec: ScatterSpec, tooltip: Tooltip):
     const dot = el("circle", { cx: px, cy: py, r: 6, fill: p.color, class: p.hollow ? "dot is-hollow" : "dot" }, g);
     if (p.hollow) dot.style.stroke = p.color;
     const spot = labels.get(p.id)!;
+    // A label pushed well away from its dot gets a leader line back to it.
+    if (Math.abs(spot.y - 4 - py) > 12) {
+      const lx = spot.right ? px + 10 : px - 10;
+      el("line", { x1: px, x2: lx, y1: py + (spot.y < py ? -7 : 7), y2: spot.y + (spot.y < py ? 2 : -12), class: "leader" }, g);
+    }
     svgText(g, spot.right ? px + 12 : px - 12, spot.y, p.label, { "text-anchor": spot.right ? "start" : "end", class: "direct-label" });
     el("circle", { cx: px, cy: py, r: 16, class: "hit" }, g);
     tooltip.attach(g, p.label, p.color, p.tooltip);

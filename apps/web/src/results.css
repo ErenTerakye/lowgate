@@ -114,6 +114,11 @@
   font-weight: 500;
 }
 
+.leader {
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+}
+
 .hit {
   fill: transparent;
 }
