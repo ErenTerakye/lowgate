@@ -1,7 +1,7 @@
 import { COURSE_LEVELS, DT, MANOEUVRES, THROTTLE_LEVELS, type LaneState, type Manoeuvre, type Outcome } from "@lowgate/engine";
 import { LaneReplay, argmax, usdFor, type BenchResults, type LaneResult, type Recording } from "@lowgate/decisions";
 import raw from "../../../bench/results.json?raw";
-import { siteHeader } from "./chrome.ts";
+import { siteHeader, trackHeaderHeight } from "./chrome.ts";
 import { icons } from "./icons.ts";
 import { KIND_LABEL, colorOf, darkColorOf, inkOn, kindOf, pilotsPhrase, tagOf } from "./lanes.ts";
 import { CourseRenderer, type Banner, type LanderView } from "./render.ts";
@@ -86,6 +86,7 @@ app.innerHTML = `
     <aside class="side lanes" id="lanes" aria-label="Pilots"><p class="lanes-hint">Each grid holds all ${MANOEUVRES.length} moves. <b>System One models</b> shade every move by probability; the <b>LLM</b> writes its pick as text, so only that move lights. Select a pilot to follow it; the eye hides it.</p></aside>
   </main>
 `;
+trackHeaderHeight();
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 

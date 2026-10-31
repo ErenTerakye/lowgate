@@ -10,3 +10,10 @@ export function siteHeader(current: "replays" | "results"): string {
       </div>
     </header>`;
 }
+
+/** Keeps --head-h on the root equal to the header's height, for anything that sticks just below a pinned header. */
+export function trackHeaderHeight(): void {
+  const head = document.querySelector<HTMLElement>(".site-head");
+  if (!head) return;
+  new ResizeObserver(() => document.documentElement.style.setProperty("--head-h", `${head.offsetHeight}px`)).observe(head);
+}
