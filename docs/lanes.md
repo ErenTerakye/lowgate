@@ -175,13 +175,14 @@ Kev is an open-weight, Jev-style family on Qwen3.5 bases (Apache-2.0, [github.co
 
 | Lane | Pin (`--run`) | GPU | Hosted-equivalent price |
 |---|---|---|---|
-| `kev-0.8b` | `jaredpalmer/kev-0.8b@v1.0` | L4 | none listed |
-| `kev-4b` | `jaredpalmer/kev-4b@v1.0` | L4 (about 14.3 GB resident, model card) | $0.042/M input, output free (OpenRouter, vendor, checked 2026-10-30) |
-| `kev-9b` | `jaredpalmer/kev-9b@v1.0` | L4 if about 17 GB fits, else A100 | none listed |
+| `kev-0.8b` | `jaredpalmer/kev-0.8b@v1.0` | A100 (README: L4 or any 4 GB GPU) | none listed |
+| `kev-4b` | `jaredpalmer/kev-4b@v1.0` | A100 (README: L40S or H100) | $0.042/M input, output free (OpenRouter, vendor, checked 2026-10-30) |
+| `kev-9b` | `jaredpalmer/kev-9b@v1.0` | A100 (README: L40S or H100) | none listed |
 
 - `bridge/kev/kev_colab.ipynb` clones this repo (read-only token from Colab Secrets), starts Kev on `127.0.0.1:8009` next to the benchmark, probes course 42, flies courses 5001–5020 and downloads `bench/<lane>/`.
 - Every Kev lane flies Jev's prompt f1, untuned, so the comparison with Jev is like for like.
 - The `v1.0` tag was read on the 4B model card only. The notebook prints the model name the server reports; the benchmark refuses to save a course served by anything other than the pin.
+- All three run on a Colab A100: Kev's README lists L40S or H100 for 4B and 9B, which Colab does not offer, and one GPU type keeps the lanes' answer times comparable.
 - Answer times measure the Colab GPU, not a hosted service.
 
 ## Laya reproducibility check (prepared 2026-10-31)
@@ -191,7 +192,7 @@ The benchmark flew Laya v4 as an MLX build on this Mac. `pnpm agree` asks anothe
 | Build | Where | Courses | Same pick | Distance (mean / max) | Answer p50 |
 |---|---|---|---|---|---|
 | MLX (the benchmark build) against its own recordings | This Mac (M3) | 5001–5005, 1,416 decisions | 1,416 (100%; 99.7–100%) | 0.0004 / 0.0005 | 206 ms |
-| PyTorch checkpoint `laya-descent-v4` | Colab L4 (`bridge/laya/repro_colab.ipynb`) | 5001–5020, 5,801 decisions | not run yet | | |
+| PyTorch checkpoint `laya-descent-v4` | Colab A100 (`bridge/laya/repro_colab.ipynb`) | 5001–5020, 5,801 decisions | not run yet | | |
 
 The MLX row is the baseline: the remaining distance is the recordings rounding probabilities to 4 decimals. The PyTorch run also times Laya on the same GPU type as the Kev lanes. Measured, 2026-10-31.
 
