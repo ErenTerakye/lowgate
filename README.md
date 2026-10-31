@@ -29,6 +29,15 @@ pnpm bench             # 20 courses per lane, resumable, recordings in bench/
 pnpm bench --summary   # rebuild bench/results.json from the recordings
 ```
 
+## Deploy
+
+The site is static: replays and results are built from `bench/` and need no server or key. It runs as a Cloudflare Worker with static assets only (`apps/web/wrangler.jsonc`), on the free plan, at `lowgate.erenterakye.com`.
+
+```bash
+pnpm exec wrangler login
+pnpm deploy:web        # build, then upload apps/web/dist
+```
+
 ## How it works
 
 - **Deterministic engine** (`packages/engine`, version `descent-3`): pure TypeScript, seeded PRNG, fixed 60 Hz physics, one decision per second. Level *n* of a course is a pure function of `(seed, n)`, so every lane flies the same terrain and wind, and every recording replays bit-for-bit.

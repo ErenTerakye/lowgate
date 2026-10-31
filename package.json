@@ -15,12 +15,14 @@
     "laya-dagger": "node packages/decisions/scripts/laya-dagger.ts",
     "probe": "node --env-file-if-exists=.env packages/decisions/scripts/probe.ts",
     "test": "vitest run",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "deploy:web": "pnpm build && wrangler deploy --config apps/web/wrangler.jsonc"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "wrangler": "4.130.0"
   }
 }

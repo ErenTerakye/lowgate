@@ -1,3 +1,8 @@
 packages:
   - packages/*
   - apps/*
+
+# Wrangler's native tooling; all other dependency scripts remain blocked.
+allowBuilds:
+  esbuild: true
+  workerd: true

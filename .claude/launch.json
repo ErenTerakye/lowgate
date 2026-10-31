@@ -1,7 +1,45 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "web", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@lowgate/web", "dev", "--port", "5173", "--strictPort"], "port": 5173 },
-    { "name": "web-alt", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@lowgate/web", "dev", "--port", "5174", "--strictPort"], "port": 5174 }
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@lowgate/web",
+        "dev",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "web-alt",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@lowgate/web",
+        "dev",
+        "--port",
+        "5174",
+        "--strictPort"
+      ],
+      "port": 5174
+    },
+    {
+      "name": "worker",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "exec",
+        "wrangler",
+        "dev",
+        "--config",
+        "apps/web/wrangler.jsonc",
+        "--port",
+        "8787"
+      ],
+      "port": 8787
+    }
   ]
 }
