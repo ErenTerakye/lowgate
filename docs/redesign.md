@@ -112,7 +112,7 @@ rationale became the probability bars.
 | R3 | Small prompt sweep per lane on the menu | Done 2026-10-30 on held-out course 1001: Jev and Clef-flash fly f1, the chat lane c3 (now Gemma 4 12B, local). Clef-flash f2 and m2 not flown (daily quota). Results in `docs/lanes.md`. |
 | R4 | Laya retrained on menu labels (Colab) | Done 2026-10-30: the bridge serves `laya-descent-v4-mlx` on f3 (v3 plus one DAgger round), frozen for the benchmark. Held-out accuracy 0.187 → 0.891; probe on courses 1001 and 1002 landed 14/16 (v3: 12/16, v2: 0/16). `pnpm laya-dataset`, `pnpm laya-dagger`, results in docs/lanes.md. |
 | R5 | `pnpm bench`: 20 courses, recording v2, results with spread | Done 2026-10-31: all five lanes flew courses 5001–5020 (unseen by every lane); results in `docs/lanes.md`. Resumable, one recording per lane and course in `bench/`, each checked by replay. |
-| R6 | New UI: shared course, trails, lane panels, confidence timeline, results table, replay player | A replay matches its recording on every lane. Works on desktop and mobile. |
+| R6 | New UI: shared course, trails, lane panels, confidence timeline, results table, replay player | Done 2026-10-31: the start page replays any benchmark course with all 9 lanes on one terrain. Each recording is re-flown from its seed and checked against its state hashes on load and at every decision; all 180 replay to their recorded outcomes (`packages/decisions/test/replay.test.ts` plays course 5001 for every lane), and a full playthrough of course 5003 matched its recordings on every level. Checked at desktop width and 375 px. |
 | R7 | Cloudflare Pages and a rate-limited Worker (was M6) | Public page serves replays without a key. |
 | R8 | README with results, a GIF and setup (was M7) | |
 

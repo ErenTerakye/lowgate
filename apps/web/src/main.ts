@@ -1,319 +1,427 @@
-import {
-  COURSE_LEVELS,
-  DT,
-  ENGINE_VERSION,
-  FUEL_CAPACITY,
-  LEVEL_TIME_LIMIT_S,
-  MANOEUVRES,
-  SAFE_TILT_DEG,
-  SAFE_VX,
-  SAFE_VY,
-  autopilot,
-  clamp,
-  createLane,
-  decisionInLevel,
-  needsDecision,
-  nextLevel,
-  stepLane,
-  summarize,
-  terrainHeightAt,
-  windAt,
-  type LaneState,
-  type Manoeuvre,
-} from "@lowgate/engine";
+import { COURSE_LEVELS, DT, MANOEUVRES, type LaneState, type Manoeuvre, type Outcome } from "@lowgate/engine";
+import { LaneReplay, argmax, usdFor, type BenchResults, type LaneResult, type Recording } from "@lowgate/decisions";
+import raw from "../../../bench/results.json?raw";
 import { icons } from "./icons.ts";
-import { LaneRenderer, OUTCOME_TEXT } from "./render.ts";
+import { HOLLOW, colorOf, darkColorOf } from "./lanes.ts";
+import { CourseRenderer, type LanderView } from "./render.ts";
 import "./style.css";
+import "./replay.css";
 
 /**
- * Course viewer for engine descent-3: the menu
- * autopilot flies one course of 8 levels, one manoeuvre per second. The
- * view with model lanes, the shared course and replays replace this in R6.
+ * Replay player (R6): every lane flies one benchmark course on the same
+ * terrain, played back from its recording. Each recording is re-flown from
+ * its seed and checked against its saved state hashes before it is shown, and
+ * again decision by decision as it plays. Levels are in lockstep: every lane
+ * flies level n together, and the next level starts once all have finished.
  */
 
-/** Seconds a level's outcome stays on screen before the next level starts. Display only. */
-const OUTCOME_PAUSE_S = 1.5;
+/** Seconds every lane's outcome stays on screen before the next level starts. Display only. */
+const OUTCOME_PAUSE_S = 2;
 /** Never simulate more than this many steps per frame (e.g. after a background tab). */
 const MAX_STEPS_PER_FRAME = 20;
-/** Picks shown in the decision strip. */
-const RECENT = 10;
+/** The confidence line spans a level's longest possible run: 60 one-second decisions. */
+const TIMELINE_DECISIONS = 60;
+const SPEEDS = [1, 2, 4, 8, 16] as const;
+
+const results = JSON.parse(raw) as BenchResults;
+const recordingUrls = import.meta.glob<string>("../../../bench/*/*.json", { query: "?url", import: "default" });
+const urlFor = (lane: string, seed: number) => recordingUrls[`../../../bench/${lane}/${seed}.json`];
+
+const SHORT_OUTCOME: Record<Outcome, string> = {
+  landed: "Landed",
+  crashed_speed: "Too fast",
+  crashed_tilt: "Too tilted",
+  crashed_terrain: "Hit terrain",
+  out_of_bounds: "Off course",
+  timeout: "Out of time",
+};
+
+const TILT_NAMES = ["L30", "L15", "L5", "Up", "R5", "R15", "R30"];
+const describe = (m: Manoeuvre): string => `${m.tilt === 0 ? "Upright" : `${Math.abs(m.tilt)}° ${m.tilt > 0 ? "right" : "left"}`}, throttle ${m.throttle}`;
+const ms = (v: number): string => (v >= 1000 ? `${(v / 1000).toFixed(1)} s` : `${Math.round(v)} ms`);
+const usd = (v: number): string => (v === 0 ? "$0" : v < 0.001 ? "<$0.001" : `$${v.toFixed(3)}`);
 
 const params = new URLSearchParams(location.search);
-
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
   <header class="topbar">
     <div class="brand">
       <h1>Low Gate</h1>
-      <p>Course viewer: the autopilot picks one of ${MANOEUVRES.length} manoeuvres every second, across ${COURSE_LEVELS} levels.</p>
+      <p>${results.lanes.length} lanes fly the same course, each replayed from its benchmark recording. Every lane sees the same terrain and wind; the game waits for each answer, so only the choices differ.</p>
     </div>
     <nav><a href="./results.html">Benchmark results</a></nav>
   </header>
-  <main class="viewer">
+  <main class="viewer replay">
     <section class="flight" aria-label="Flight">
       <div class="flight-head">
-        <div class="flight-title"><h2>Autopilot</h2><span class="badge">no model</span></div>
-        <div class="flight-score"><b id="landed">0/0</b> landed</div>
+        <div class="flight-title"><h2 id="course-name">Course</h2><span class="badge" id="level-name"></span></div>
+        <p class="verify" id="verify" role="status"></p>
       </div>
-      <div class="screen"><canvas class="lane-canvas" id="canvas"></canvas></div>
+      <div class="screen"><canvas class="lane-canvas" id="canvas" aria-label="All lanes flying the current level"></canvas></div>
       <div class="deck">
         <div class="deck-play">
           <button id="toggle" type="button" class="primary"></button>
-          <button id="restart" type="button" class="icon-only" title="Restart this course (R)" aria-label="Restart this course">${icons.restart}</button>
+          <button id="prev" type="button" class="icon-only" title="Previous level (←)" aria-label="Previous level">${icons.prev}</button>
+          <button id="restart" type="button" class="icon-only" title="Replay this level (R)" aria-label="Replay this level">${icons.restart}</button>
+          <button id="next" type="button" class="icon-only" title="Next level (→)" aria-label="Next level">${icons.next}</button>
         </div>
         <div class="segmented" id="speed" role="group" aria-label="Playback speed">
-          ${[1, 2, 4, 8].map((n) => `<button type="button" data-speed="${n}" aria-pressed="${n === 1}">${n}×</button>`).join("")}
+          ${SPEEDS.map((n) => `<button type="button" data-speed="${n}" aria-pressed="${n === 1}">${n}×</button>`).join("")}
         </div>
         <div class="deck-course">
-          <label for="seed">Course</label>
-          <input id="seed" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="go" />
-          <button id="new-seed" type="button" title="Fly a random course">${icons.dice}<span>Random</span></button>
+          <label for="course">Course</label>
+          <select id="course">${results.courses.map((c) => `<option value="${c}">${c}</option>`).join("")}</select>
         </div>
       </div>
-      <ol class="levels" id="levels" aria-label="Levels of this course"></ol>
+      <div class="board-wrap">
+        <p class="board-note" id="board-note">How each level ended, shown as the replay reaches it. A number is the landing quality (0–100).</p>
+        <div class="board-scroll"><table class="board" id="board" aria-describedby="board-note"></table></div>
+      </div>
     </section>
-    <aside class="side">
-      <section class="panel-box" aria-labelledby="inst-title">
-        <h3 id="inst-title">Instruments</h3>
-        <div id="gauges"></div>
-        <p class="gauge-note" id="wind"></p>
-      </section>
-      <section class="panel-box" aria-labelledby="pick-title">
-        <h3 id="pick-title">Decision</h3>
-        <div class="pick">
-          <div class="pick-glyph" id="pick-glyph"></div>
-          <div class="pick-text"><b id="manoeuvre">Waiting to start</b><span id="decision">–</span></div>
-        </div>
-        <p class="recent-label">Last ${RECENT} picks, newest on the right</p>
-        <ol class="recent" id="recent"></ol>
-      </section>
-      <section class="panel-box" aria-labelledby="course-title">
-        <h3 id="course-title">Course</h3>
-        <dl class="summary">
-          <div><dt>Mean quality</dt><dd id="quality">–</dd></div>
-          <div><dt>Decisions</dt><dd id="decisions">0</dd></div>
-        </dl>
-        <ol class="level-results" id="results"></ol>
-      </section>
-    </aside>
+    <aside class="side lanes" id="lanes" aria-label="Lanes"></aside>
   </main>
   <footer class="help">
-    <span><kbd>Space</kbd> start / pause</span>
-    <span><kbd>R</kbd> restart</span>
-    <span>Engine version ${ENGINE_VERSION}.</span>
+    <span><kbd>Space</kbd> play / pause</span>
+    <span><kbd>←</kbd> <kbd>→</kbd> level</span>
+    <span><kbd>R</kbd> replay level</span>
+    <span>Select a lane to follow it on the course. Engine ${results.engine}.</span>
   </footer>
 `;
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
-const seedInput = $<HTMLInputElement>("seed");
-const toggleBtn = $<HTMLButtonElement>("toggle");
-const speedGroup = $<HTMLDivElement>("speed");
 const canvas = $<HTMLCanvasElement>("canvas");
+const toggleBtn = $<HTMLButtonElement>("toggle");
+const courseSelect = $<HTMLSelectElement>("course");
+const speedGroup = $<HTMLDivElement>("speed");
 
-/** Altitude (m) under which a reading outside the landing limits would crash on touchdown. */
-const DANGER_ALTITUDE = 25;
-
-interface Gauge {
-  readonly root: HTMLDivElement;
-  readonly value: HTMLSpanElement;
-  readonly flag: HTMLSpanElement;
-  readonly marker: HTMLDivElement;
+/** One lane in the player: its replay for the loaded course and its panel. */
+interface PlayerLane {
+  readonly result: LaneResult;
+  readonly replay: LaneReplay | null;
+  /** Why the lane is not shown on this course, if it is not. */
+  readonly missing: string | null;
+  readonly panel: Panel;
+  /** Top probability of each decision played in this level, for the confidence line. */
+  confidence: number[];
+  shownPosition: number;
 }
 
-/** A gauge row: a track over [lo, hi] with the landing limits shaded, or a plain fill bar. */
-function gauge(name: string, lo: number, hi: number, safe: readonly [number, number] | null, centred = false): Gauge {
-  const root = document.createElement("div");
-  root.className = "gauge";
-  const at = (v: number) => `${(((v - lo) / (hi - lo)) * 100).toFixed(2)}%`;
-  root.innerHTML = `
-    <div class="gauge-line"><span class="gauge-name"></span><span><span class="gauge-value"></span><span class="gauge-flag"></span></span></div>
-    <div class="track" aria-hidden="true">
-      ${safe ? `<div class="track-safe" style="left:${at(safe[0])};width:calc(${at(safe[1])} - ${at(safe[0])})"></div>` : ""}
-      ${centred ? `<div class="track-centre"></div>` : ""}
-      <div class="${safe ? "track-marker" : "track-fill"}"></div>
-    </div>`;
-  root.querySelector(".gauge-name")!.textContent = name;
-  $("gauges").append(root);
-  return {
-    root,
-    value: root.querySelector(".gauge-value")!,
-    flag: root.querySelector(".gauge-flag")!,
-    marker: root.querySelector(".track-marker, .track-fill")!,
-  };
+interface Panel {
+  readonly root: HTMLElement;
+  readonly status: HTMLSpanElement;
+  readonly cells: HTMLSpanElement[];
+  readonly pick: HTMLElement;
+  readonly detail: HTMLSpanElement;
+  readonly line: SVGPolylineElement;
+  readonly area: SVGPolygonElement;
+  readonly show: HTMLButtonElement;
 }
 
-const placeAt = (v: number, lo: number, hi: number) => `${(clamp((v - lo) / (hi - lo), 0, 1) * 100).toFixed(2)}%`;
-
-const gauges = {
-  descent: gauge("Descent rate", 0, 10, [0, SAFE_VY]),
-  sideways: gauge("Sideways speed", -6, 6, [-SAFE_VX, SAFE_VX], true),
-  tilt: gauge("Tilt", -40, 40, [-SAFE_TILT_DEG, SAFE_TILT_DEG], true),
-  altitude: gauge("Altitude", 0, 250, null),
-  fuel: gauge("Fuel", 0, 1, null),
-  time: gauge("Time left", 0, LEVEL_TIME_LIMIT_S, null),
-};
-
-/** Within the limits, outside them, or outside them close enough to the ground to crash. */
-function setLimit(g: Gauge, over: boolean, altitude: number): void {
-  const danger = over && altitude < DANGER_ALTITUDE;
-  g.root.classList.toggle("is-over", over && !danger);
-  g.root.classList.toggle("is-danger", danger);
-  g.flag.textContent = danger ? "would crash" : over ? "over limit" : "";
-}
-
-function side(v: number, pos: string, neg: string, eps: number): string {
-  return v > eps ? pos : v < -eps ? neg : "";
-}
-
-function updateInstruments(): void {
-  const { lander, level } = lane;
-  const altitude = Math.max(0, lander.y - terrainHeightAt(level, lander.x));
-  const down = -lander.vy;
-  gauges.descent.marker.style.left = placeAt(down, 0, 10);
-  gauges.descent.value.textContent = `${Math.abs(lander.vy).toFixed(1)} m/s ${side(lander.vy, "up", "down", 0.05)}`.trim();
-  setLimit(gauges.descent, down > SAFE_VY, altitude);
-
-  gauges.sideways.marker.style.left = placeAt(lander.vx, -6, 6);
-  gauges.sideways.value.textContent = `${Math.abs(lander.vx).toFixed(1)} m/s ${side(lander.vx, "right", "left", 0.05)}`.trim();
-  setLimit(gauges.sideways, Math.abs(lander.vx) > SAFE_VX, altitude);
-
-  gauges.tilt.marker.style.left = placeAt(lander.angle, -40, 40);
-  gauges.tilt.value.textContent = lander.angle === 0 ? "upright" : `${Math.abs(lander.angle).toFixed(1)}° ${side(lander.angle, "right", "left", 0)}`;
-  setLimit(gauges.tilt, Math.abs(lander.angle) > SAFE_TILT_DEG, altitude);
-
-  gauges.altitude.marker.style.width = placeAt(altitude, 0, 250);
-  gauges.altitude.value.textContent = `${altitude.toFixed(0)} m`;
-
-  const fuel = lander.fuel / FUEL_CAPACITY;
-  gauges.fuel.marker.style.width = placeAt(fuel, 0, 1);
-  gauges.fuel.value.textContent = `${Math.round(fuel * 100)}%`;
-  gauges.fuel.root.classList.toggle("is-low", fuel < 0.2);
-
-  const left = Math.max(0, LEVEL_TIME_LIMIT_S - lander.t * DT);
-  gauges.time.marker.style.width = placeAt(left, 0, LEVEL_TIME_LIMIT_S);
-  gauges.time.value.textContent = `${left.toFixed(0)} s`;
-  gauges.time.root.classList.toggle("is-low", left < 10);
-
-  const wind = windAt(level, lander.t * DT);
-  $("wind").textContent = `Shaded: landing limits. Wind ${Math.abs(wind).toFixed(2)} m/s² ${side(wind, "to the right", "to the left", 0.02)}`.trim() + ".";
-}
-
-/** A manoeuvre drawn: the target tilt as a line from upright, and throttle as pips. One string per menu entry. */
-const GLYPHS = MANOEUVRES.map((m) => {
-  const a = (m.tilt * Math.PI) / 180;
-  const x2 = 20 + Math.sin(a) * 16;
-  const y2 = 26 - Math.cos(a) * 16;
-  const pips = Array.from({ length: 4 }, (_, i) => `<rect class="glyph-pip${i < m.throttle ? " is-on" : ""}" x="${8 + i * 6.5}" y="32" width="5" height="4" rx="1"/>`).join("");
-  return `<svg viewBox="0 0 40 40" aria-hidden="true"><line class="glyph-axis" x1="20" y1="8" x2="20" y2="27"/><line class="glyph-tilt" x1="20" y1="26" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>${pips}</svg>`;
-});
-
-const RECENT_LIST = $("recent");
-RECENT_LIST.innerHTML = Array.from({ length: RECENT }, () => "<li></li>").join("");
-
-let seed = Number(params.get("seed")) || 42;
-let lane: LaneState;
-let manoeuvre: Manoeuvre | null = null;
-/** Menu indices of this level's picks, newest last. */
-let recent: number[] = [];
-let shownPicks = -1;
-let shownResults = -1;
-let renderer: LaneRenderer;
-/** Simulated seconds left on the current outcome banner. */
-let pauseLeft = 0;
+let seed = results.courses.includes(Number(params.get("course"))) ? Number(params.get("course")) : results.courses[0]!;
+let level = 0;
+let lanes: PlayerLane[] = [];
+let selected: string | null = params.get("lane");
+const hidden = new Set<string>();
 let running = false;
 let speed = 1;
 let accumulator = 0;
 let lastFrame = 0;
+/** Simulated seconds left on the end-of-level pause; null while the level is still being flown. */
+let pauseLeft: number | null = null;
+let loadToken = 0;
+let renderer = new CourseRenderer(canvas, seed);
 
-function describe(m: Manoeuvre): string {
-  const side = m.tilt === 0 ? "Upright" : `${Math.abs(m.tilt)}° ${m.tilt > 0 ? "right" : "left"}`;
-  return `${side}, throttle ${m.throttle} of 4`;
+function makePanel(result: LaneResult): Panel {
+  const root = document.createElement("section");
+  root.className = "lane-panel";
+  root.style.setProperty("--lane", colorOf(result.lane));
+  root.tabIndex = 0;
+  root.setAttribute("role", "button");
+  root.setAttribute("aria-pressed", "false");
+  root.innerHTML = `
+    <div class="lane-head">
+      <span class="swatch${HOLLOW.has(result.lane) ? " is-hollow" : ""}"></span>
+      <h3></h3>
+      <span class="lane-status"></span>
+      <button type="button" class="lane-show" aria-pressed="true"></button>
+    </div>
+    <div class="lane-body">
+      <div class="menu-grid" aria-hidden="true">${Array.from({ length: MANOEUVRES.length }, () => "<span></span>").join("")}</div>
+      <div class="lane-pick"><b>–</b><span></span></div>
+    </div>
+    <svg class="confidence" viewBox="0 0 ${TIMELINE_DECISIONS} 20" preserveAspectRatio="none" aria-hidden="true">
+      <line x1="0" x2="${TIMELINE_DECISIONS}" y1="10" y2="10" class="confidence-mid"/>
+      <polygon class="confidence-area"/><polyline class="confidence-line"/>
+    </svg>`;
+  root.querySelector("h3")!.textContent = result.label;
+  const swatch = root.querySelector<HTMLSpanElement>(".swatch")!;
+  swatch.style.background = colorOf(result.lane);
+  swatch.style.setProperty("--hollow", colorOf(result.lane));
+  const show = root.querySelector<HTMLButtonElement>(".lane-show")!;
+  show.setAttribute("aria-label", `Show ${result.label} on the course`);
+  const grid = [...root.querySelectorAll<HTMLSpanElement>(".menu-grid span")];
+  // Columns are tilts left to right; rows are throttle, full at the top. MANOEUVRES is tilt-major.
+  const cells = MANOEUVRES.map((_, i) => grid[(4 - (i % 5)) * 7 + Math.floor(i / 5)]!);
+  return {
+    root,
+    status: root.querySelector(".lane-status")!,
+    cells,
+    pick: root.querySelector(".lane-pick b")!,
+    detail: root.querySelector(".lane-pick span")!,
+    line: root.querySelector(".confidence-line")!,
+    area: root.querySelector(".confidence-area")!,
+    show,
+  };
 }
 
-function setup(): void {
-  lane = createLane(seed);
-  manoeuvre = null;
-  recent = [];
-  shownPicks = -1;
-  shownResults = -1;
-  pauseLeft = 0;
-  renderer = new LaneRenderer(canvas, seed);
-  seedInput.value = String(seed);
-  history.replaceState(null, "", `?seed=${seed}`);
+const panels = new Map(results.lanes.map((r) => [r.lane, makePanel(r)]));
+$("lanes").append(...[...panels.values()].map((p) => p.root));
+for (const [id, p] of panels) {
+  const choose = () => {
+    selected = selected === id ? null : id;
+    updateUrl();
+    render();
+  };
+  p.root.addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).closest(".lane-show")) return;
+    choose();
+  });
+  p.root.addEventListener("keydown", (e) => {
+    if (e.target !== p.root || (e.key !== "Enter" && e.key !== " ")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    choose();
+  });
+  p.show.addEventListener("click", () => {
+    if (hidden.has(id)) hidden.delete(id);
+    else hidden.add(id);
+    render();
+  });
+}
+
+async function loadCourse(next: number): Promise<void> {
+  const token = ++loadToken;
+  running = false;
+  seed = next;
+  courseSelect.value = String(seed);
+  $("course-name").textContent = `Course ${seed}`;
+  $("verify").textContent = "Loading and checking the recordings…";
+  const loaded = await Promise.all(
+    results.lanes.map(async (result): Promise<PlayerLane> => {
+      const panel = panels.get(result.lane)!;
+      const base = { result, panel, confidence: [], shownPosition: -1 };
+      const url = urlFor(result.lane, seed);
+      if (!url) return { ...base, replay: null, missing: "not flown on this course" };
+      try {
+        const response = await fetch(await url());
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const replay = new LaneReplay((await response.json()) as Recording);
+        return { ...base, replay, missing: replay.check.ok ? null : `does not replay: ${replay.check.reason}` };
+      } catch (err) {
+        return { ...base, replay: null, missing: `could not load (${err instanceof Error ? err.message : String(err)})` };
+      }
+    }),
+  );
+  if (token !== loadToken) return;
+  lanes = loaded;
+  renderer = new CourseRenderer(canvas, seed);
+  const ok = lanes.filter((l) => !l.missing);
+  const decisions = ok.reduce((n, l) => n + l.replay!.rec.decisions.length, 0);
+  $("verify").textContent =
+    ok.length === lanes.length
+      ? `All ${lanes.length} recordings replay to their saved states (${decisions.toLocaleString("en-GB")} decisions checked).`
+      : `${ok.length} of ${lanes.length} recordings replay to their saved states; the others are listed in their panels.`;
+  $("verify").classList.toggle("is-bad", ok.length !== lanes.length);
+  buildBoard();
+  seekLevel(Math.min(COURSE_LEVELS - 1, Math.max(0, Number(params.get("level") ?? 1) - 1)));
+  params.delete("level");
+}
+
+function playable(l: PlayerLane): l is PlayerLane & { replay: LaneReplay } {
+  return l.replay !== null && l.missing === null;
+}
+
+function seekLevel(n: number): void {
+  level = n;
+  pauseLeft = null;
+  for (const l of lanes) {
+    l.confidence = [];
+    l.shownPosition = -1;
+    if (playable(l) && !l.replay.seek(level)) l.confidence = [];
+  }
+  renderer.reset();
+  updateUrl();
   render();
 }
 
+/** Lanes that reached this level, so have something to draw. */
+function flyingHere(l: PlayerLane): boolean {
+  return playable(l) && l.replay.levelStarts.length > level;
+}
+
 function step(): void {
-  if (lane.finished) return;
-  if (lane.outcome !== null) {
-    pauseLeft -= DT;
-    if (pauseLeft <= 0) {
-      lane = nextLevel(lane);
-      recent = [];
+  const here = lanes.filter(flyingHere);
+  if (pauseLeft === null) {
+    for (const l of here) {
+      const before = l.replay!.position;
+      l.replay!.step();
+      if (l.replay!.position !== before) {
+        const d = l.replay!.current!;
+        if (d.probs) l.confidence.push(Math.max(...d.probs));
+      }
     }
+    if (here.every((l) => l.replay!.levelOver() || l.replay!.mismatch)) pauseLeft = OUTCOME_PAUSE_S;
     return;
   }
-  if (needsDecision(lane)) {
-    const pick = autopilot(lane.level, lane.lander);
-    manoeuvre = MANOEUVRES[pick]!;
-    recent = [...recent.slice(-(RECENT - 1)), pick];
+  pauseLeft -= DT;
+  if (pauseLeft > 0) return;
+  if (level < COURSE_LEVELS - 1) seekLevel(level + 1);
+  else {
+    pauseLeft = 0;
+    running = false;
   }
-  lane = stepLane(lane, manoeuvre!);
-  if (lane.outcome !== null) pauseLeft = OUTCOME_PAUSE_S;
 }
 
-/** Redraws the pick glyphs only when a new decision arrives. */
-function renderPicks(): void {
-  const key = lane.level.index * 1e4 + decisionInLevel(lane) * 10 + recent.length;
-  if (key === shownPicks) return;
-  shownPicks = key;
-  const items = RECENT_LIST.children;
-  for (let i = 0; i < RECENT; i++) {
-    const pick = recent[i - (RECENT - recent.length)];
-    const li = items[i] as HTMLLIElement;
-    li.innerHTML = pick === undefined ? "" : GLYPHS[pick]!;
-    li.title = pick === undefined ? "" : describe(MANOEUVRES[pick]!);
-  }
-  const last = recent.at(-1);
-  $("pick-glyph").innerHTML = last === undefined ? "" : GLYPHS[last]!;
+function courseOver(): boolean {
+  return level === COURSE_LEVELS - 1 && pauseLeft !== null && pauseLeft <= 0;
 }
 
-function renderLevels(): void {
-  $("levels").innerHTML = Array.from({ length: COURSE_LEVELS }, (_, i) => {
-    const r = lane.results[i];
-    if (r) {
-      const ok = r.outcome === "landed";
-      const text = ok ? `Level ${i + 1}: landed, quality ${r.landing!.quality.toFixed(0)}` : `Level ${i + 1}: ${OUTCOME_TEXT[r.outcome]}`;
-      return `<li class="${ok ? "is-good" : "is-bad"}" title="${text}" aria-label="${text}"><span aria-hidden="true">${ok ? "✓" : "✕"} ${i + 1}</span></li>`;
+function statusOf(l: PlayerLane): { text: string; tone: "good" | "bad" | "" } {
+  if (l.missing) return { text: l.missing, tone: "bad" };
+  const r = l.replay!;
+  if (r.mismatch) return { text: `stopped: ${r.mismatch}`, tone: "bad" };
+  if (r.levelStarts.length <= level) return { text: "Not flown", tone: "bad" };
+  if (r.stopped()) return { text: `Stopped: ${r.rec.stoppedBy?.kind ?? "error"}`, tone: "bad" };
+  const outcome = r.lane.outcome;
+  if (outcome === "landed") return { text: `Landed, quality ${r.lane.results.at(-1)!.landing!.quality.toFixed(0)}`, tone: "good" };
+  if (outcome) return { text: SHORT_OUTCOME[outcome], tone: "bad" };
+  return { text: r.current ? `Decision ${r.current.n + 1}` : "Ready", tone: "" };
+}
+
+function renderPanel(l: PlayerLane): void {
+  const p = l.panel;
+  const visible = !hidden.has(l.result.lane);
+  p.root.setAttribute("aria-pressed", String(selected === l.result.lane));
+  p.root.classList.toggle("is-hidden", !visible);
+  p.show.innerHTML = visible ? icons.eye : icons.eyeOff;
+  p.show.setAttribute("aria-pressed", String(visible));
+  p.show.title = visible ? "Hide on the course" : "Show on the course";
+  const status = statusOf(l);
+  p.status.textContent = status.text;
+  p.status.className = `lane-status${status.tone ? ` is-${status.tone}` : ""}`;
+
+  const r = l.replay;
+  const position = r && !l.missing ? r.position : -1;
+  if (position === l.shownPosition) return;
+  l.shownPosition = position;
+  const d = r && !l.missing && r.lane.level.index === level ? r.current : null;
+  const probs = d?.probs ?? null;
+  const top = probs ? Math.max(...probs) : 1;
+  p.cells.forEach((cell, i) => {
+    const v = probs ? probs[i]! / top : d && d.pick === i ? 1 : 0;
+    cell.style.opacity = String(v === 0 ? 0 : 0.12 + 0.88 * v);
+    cell.classList.toggle("is-pick", d !== null && d.pick === i);
+  });
+  if (!d) {
+    p.pick.textContent = "–";
+    p.detail.textContent = l.result.model ? "Waiting for the first decision" : "Scripted, no model";
+  } else {
+    const m = MANOEUVRES[d.pick]!;
+    p.pick.textContent = `${TILT_NAMES[MENU_TILT_INDEX(m)]} · throttle ${m.throttle}`;
+    p.pick.title = describe(m);
+    const parts = [
+      !d.answered ? "unanswered, last manoeuvre repeated" : probs ? `${Math.round(probs[d.pick]! * 100)}% likely` : l.result.model ? "picked, no probabilities" : "scripted",
+    ];
+    if (l.result.model) parts.push(`answered in ${ms(d.latencyMs)}`);
+    if (probs && argmax(probs) !== d.pick) parts.push("not its top option");
+    p.detail.textContent = parts.join(" · ");
+  }
+  const hasProbs = r !== null && r.rec.decisions.some((x) => x.probs !== null);
+  p.root.querySelector<SVGElement>(".confidence")!.style.display = hasProbs ? "" : "none";
+  const points = l.confidence.map((c, i) => `${i + 0.5},${(20 - c * 20).toFixed(2)}`);
+  p.line.setAttribute("points", points.join(" "));
+  p.area.setAttribute("points", points.length ? `0.5,20 ${points.join(" ")} ${l.confidence.length - 0.5},20` : "");
+}
+
+const MENU_TILT_INDEX = (m: Manoeuvre): number => [-30, -15, -5, 0, 5, 15, 30].indexOf(m.tilt);
+
+/** The course table: one row per lane, one column per level, filled in as the replay reaches each result. */
+function buildBoard(): void {
+  const board = $<HTMLTableElement>("board");
+  board.querySelector("thead")?.remove();
+  board.querySelector("tbody")?.remove();
+  const head = board.createTHead().insertRow();
+  head.innerHTML = `<th scope="col">Lane</th>${Array.from({ length: COURSE_LEVELS }, (_, i) => `<th scope="col"><button type="button" data-level="${i}" aria-label="Go to level ${i + 1}">${i + 1}</button></th>`).join("")}<th scope="col" class="num">Landed</th>`;
+  const body = board.createTBody();
+  for (const l of lanes) {
+    const row = body.insertRow();
+    row.dataset.lane = l.result.lane;
+    row.innerHTML = `<th scope="row"><span class="swatch${HOLLOW.has(l.result.lane) ? " is-hollow" : ""}" style="background:${colorOf(l.result.lane)};--hollow:${colorOf(l.result.lane)}"></span></th>${"<td></td>".repeat(COURSE_LEVELS)}<td class="num total"></td>`;
+    row.querySelector("th")!.append(l.result.label);
+  }
+}
+
+function costOf(l: PlayerLane): string | null {
+  if (!l.result.model || !l.replay) return null;
+  let input = 0;
+  let output = 0;
+  for (const d of l.replay.rec.decisions) {
+    input += d.usage?.inputTokens ?? 0;
+    output += d.usage?.outputTokens ?? 0;
+  }
+  const price = l.result.model.price;
+  return price.source === "none" ? null : usd(usdFor(input, output, price));
+}
+
+function renderBoard(): void {
+  const board = $<HTMLTableElement>("board");
+  for (const button of board.querySelectorAll<HTMLButtonElement>("thead button")) {
+    const current = Number(button.dataset.level) === level;
+    button.classList.toggle("is-current", current);
+    if (current) button.setAttribute("aria-current", "step");
+    else button.removeAttribute("aria-current");
+  }
+  for (const l of lanes) {
+    const row = board.querySelector<HTMLTableRowElement>(`tr[data-lane="${l.result.lane}"]`);
+    if (!row) continue;
+    const results: readonly LaneState["results"][number][] = l.replay && !l.missing ? l.replay.lane.results : [];
+    const cells = row.querySelectorAll("td");
+    for (let i = 0; i < COURSE_LEVELS; i++) {
+      const r = results[i];
+      const td = cells[i]!;
+      const notFlown = l.replay && !l.missing && l.replay.levelStarts.length <= i && i <= level;
+      td.className = r ? (r.outcome === "landed" ? "is-good" : "is-bad") : i === level ? "is-current" : "";
+      td.textContent = r ? (r.landing ? r.landing.quality.toFixed(0) : "✕") : notFlown ? "–" : "";
+      td.title = r ? (r.landing ? `Level ${i + 1}: landed, quality ${r.landing.quality.toFixed(1)}` : `Level ${i + 1}: ${SHORT_OUTCOME[r.outcome].toLowerCase()}`) : "";
     }
-    const current = i === lane.level.index && !lane.finished;
-    return `<li class="${current ? "is-current" : ""}"${current ? ' aria-current="step"' : ""}>${i + 1}</li>`;
-  }).join("");
+    const landed = results.filter((r) => r.outcome === "landed").length;
+    const cost = costOf(l);
+    cells[COURSE_LEVELS]!.textContent = `${landed}/${results.length}`;
+    cells[COURSE_LEVELS]!.title = cost ? `This course cost ${cost} at the lane's listed price` : "";
+  }
 }
 
 function render(): void {
-  renderer.draw(lane);
-  updateInstruments();
-  renderPicks();
-  const s = summarize(lane.results);
-  $("landed").textContent = `${s.landed}/${s.levels}`;
-  $("quality").textContent = s.meanQuality === null ? "–" : s.meanQuality.toFixed(1);
-  $("decisions").textContent = String(s.decisions + (lane.outcome === null ? decisionInLevel(lane) : 0));
-  $("manoeuvre").textContent = manoeuvre ? describe(manoeuvre) : "Waiting to start";
-  $("decision").textContent = lane.outcome === null ? `Decision ${decisionInLevel(lane)} of level ${lane.level.index + 1}` : OUTCOME_TEXT[lane.outcome];
-  const resultsKey = lane.results.length * 10 + lane.level.index;
-  if (resultsKey !== shownResults) {
-    shownResults = resultsKey;
-    renderLevels();
-    $("results").innerHTML = lane.results
-      .map((r) => {
-        const detail = r.landing ? `quality ${r.landing.quality.toFixed(0)}, ${r.landing.offset.toFixed(1)} m off centre` : OUTCOME_TEXT[r.outcome];
-        return `<li class="${r.landing ? "is-good" : "is-bad"}">Level ${r.index + 1}: ${detail}, ${r.decisions} decisions</li>`;
-      })
-      .join("");
+  const here = lanes.filter(flyingHere);
+  const first = here[0]?.replay;
+  $("level-name").textContent = `Level ${level + 1} of ${COURSE_LEVELS}`;
+  if (first) {
+    const views: LanderView[] = here
+      .filter((l) => !hidden.has(l.result.lane))
+      .map((l) => ({ id: l.result.lane, label: l.result.label, color: darkColorOf(l.result.lane), state: l.replay!.lane }));
+    let banner: { text: string; good: boolean } | null = null;
+    if (pauseLeft !== null) {
+      const landed = here.filter((l) => l.replay!.lane.outcome === "landed").length;
+      banner = { text: `Level ${level + 1}: ${landed} of ${here.length} landed`, good: landed * 2 >= here.length };
+    }
+    renderer.draw(first.lane.level, views, selected && !hidden.has(selected) ? selected : null, banner);
   }
-  toggleBtn.innerHTML = lane.finished ? `${icons.play}<span>Finished</span>` : running ? `${icons.pause}<span>Pause</span>` : `${icons.play}<span>Start</span>`;
-  toggleBtn.disabled = lane.finished;
+  for (const l of lanes) renderPanel(l);
+  renderBoard();
+  const over = courseOver();
+  toggleBtn.innerHTML = over ? `${icons.restart}<span>Again</span>` : running ? `${icons.pause}<span>Pause</span>` : `${icons.play}<span>Play</span>`;
+  $<HTMLButtonElement>("prev").disabled = level === 0;
+  $<HTMLButtonElement>("next").disabled = level === COURSE_LEVELS - 1;
 }
 
 function frame(now: number): void {
@@ -321,43 +429,44 @@ function frame(now: number): void {
   accumulator += ((now - lastFrame) / 1000) * speed;
   lastFrame = now;
   let steps = 0;
-  while (accumulator >= DT && steps < MAX_STEPS_PER_FRAME * speed) {
+  while (accumulator >= DT && steps < MAX_STEPS_PER_FRAME * speed && running) {
     step();
     accumulator -= DT;
     steps++;
   }
   if (steps >= MAX_STEPS_PER_FRAME * speed) accumulator = 0;
-  if (lane.finished) running = false;
   render();
   if (running) requestAnimationFrame(frame);
 }
 
 function toggle(): void {
-  if (lane.finished) return;
+  if (courseOver()) {
+    seekLevel(0);
+  }
   running = !running;
   if (running) {
     lastFrame = performance.now();
+    accumulator = 0;
     requestAnimationFrame(frame);
   }
   render();
 }
 
-function restart(): void {
-  running = false;
-  setup();
+function updateUrl(): void {
+  const q = new URLSearchParams({ course: String(seed), level: String(level + 1) });
+  if (selected) q.set("lane", selected);
+  history.replaceState(null, "", `?${q}`);
 }
 
 toggleBtn.addEventListener("click", toggle);
-$("restart").addEventListener("click", restart);
-$("new-seed").addEventListener("click", () => {
-  seed = Math.floor(Math.random() * 100_000) + 1;
-  restart();
+$("restart").addEventListener("click", () => seekLevel(level));
+$("prev").addEventListener("click", () => level > 0 && seekLevel(level - 1));
+$("next").addEventListener("click", () => level < COURSE_LEVELS - 1 && seekLevel(level + 1));
+$("board").addEventListener("click", (e) => {
+  const button = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-level]");
+  if (button) seekLevel(Number(button.dataset.level));
 });
-seedInput.addEventListener("change", () => {
-  const n = Number(seedInput.value);
-  if (Number.isInteger(n) && n > 0) seed = n;
-  restart();
-});
+courseSelect.addEventListener("change", () => void loadCourse(Number(courseSelect.value)));
 speedGroup.addEventListener("click", (e) => {
   const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-speed]");
   if (!btn) return;
@@ -365,12 +474,15 @@ speedGroup.addEventListener("click", (e) => {
   for (const b of speedGroup.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b === btn));
 });
 window.addEventListener("keydown", (e) => {
-  if (e.target instanceof HTMLInputElement) return;
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+  if ((e.target as HTMLElement).closest?.(".lane-panel") && (e.key === " " || e.key === "Enter")) return;
   if (e.key === " ") {
     e.preventDefault();
     toggle();
-  } else if (e.key === "r" || e.key === "R") restart();
+  } else if (e.key === "r" || e.key === "R") seekLevel(level);
+  else if (e.key === "ArrowLeft" && level > 0) seekLevel(level - 1);
+  else if (e.key === "ArrowRight" && level < COURSE_LEVELS - 1) seekLevel(level + 1);
 });
-window.addEventListener("resize", () => renderer.draw(lane));
+window.addEventListener("resize", () => render());
 
-setup();
+void loadCourse(seed);

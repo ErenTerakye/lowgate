@@ -12,4 +12,5 @@ export { flyCourse, decideWithRetry, autopilotClient, MAX_RETRIES, RETRY_DELAYS_
 export { RECORDING_FORMAT, makeRecording, replayRecording, type Recording, type ReplayCheck } from "./recording.ts";
 export { wilson, meanSpread, percentile, type Interval, type MeanSpread } from "./stats.ts";
 export { summarizeLane, rankLanes, benchResults, type LaneResult, type BenchResults } from "./results.ts";
+export { LaneReplay, type LevelStart } from "./replay.ts";
 export { agreementReport, totalVariation, topMargin, type AgreementReport, type ReplayedAnswer } from "./agreement.ts";

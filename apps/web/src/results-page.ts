@@ -2,6 +2,7 @@ import type { Outcome } from "@lowgate/engine";
 import type { BenchResults, LaneResult } from "@lowgate/decisions";
 import raw from "../../../bench/results.json?raw";
 import { Tooltip, linear, log, scatter, type TooltipRow } from "./charts.ts";
+import { HOLLOW, colorOf } from "./lanes.ts";
 import "./style.css";
 import "./results.css";
 
@@ -14,28 +15,6 @@ import "./results.css";
 const results = JSON.parse(raw) as BenchResults;
 const COURSES = results.courses.length;
 const LEVELS_PER_COURSE = 8;
-
-/**
- * Fixed per lane, never by rank: the first four categorical slots, validated on
- * the white panel. Four slots cannot all be told apart pairwise (Clef's yellow
- * sits near Laya's orange), so Clef's marks are hollow and every mark carries
- * its lane's name. The autopilot is the grey reference. The Kev lanes take
- * slots 5–8 (validated with the first four on white: magenta and aqua are
- * under 3:1, so the names on the marks and the table carry them).
- */
-const LANE_COLOR: Record<string, string> = {
-  autopilot: "#6b7380",
-  jev: "#2a78d6",
-  laya: "#eb6834",
-  "gemma-local": "#1baf7a",
-  clef: "#c98500",
-  "kev-4b": "#e87ba4",
-  "kev-0.8b": "#008300",
-  "kev-9b": "#6250d6",
-  "kev-27b": "#e34948",
-};
-const HOLLOW = new Set(["clef"]);
-const colorOf = (lane: string) => LANE_COLOR[lane] ?? "#6b7380";
 
 /** A lane's key: a filled dot, or a ring for the lanes drawn hollow. */
 function swatch(lane: string): HTMLSpanElement {
@@ -130,7 +109,7 @@ if (incomplete.length) {
   header.append(el("p", "status", `Still flying: ${incomplete.map((l) => `${l.label} ${l.courses} of ${COURSES} courses`).join(", ")}. Figures for those lanes cover the courses flown so far.`));
 }
 const nav = el("nav", "page-nav");
-const back = el("a", undefined, "Watch the course viewer");
+const back = el("a", undefined, "Watch the lanes fly a course");
 back.href = "./";
 nav.append(back);
 header.append(nav);

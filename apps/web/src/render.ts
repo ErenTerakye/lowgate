@@ -9,6 +9,7 @@ import {
   createRng,
   terrainHeightAt,
   type LaneState,
+  type Level,
   type Outcome,
   type Rng,
 } from "@lowgate/engine";
@@ -46,21 +47,36 @@ interface Particle {
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
+/** One lane on the shared course, as the renderer needs it. */
+export interface LanderView {
+  readonly id: string;
+  readonly label: string;
+  /** Lane colour, stepped for the black canvas. */
+  readonly color: string;
+  readonly state: LaneState;
+}
+
+/** Per-lander memory between frames: its trail and the last outcome seen, for one-off effects. */
+interface Track {
+  trail: { x: number; y: number }[];
+  lastOutcome: Outcome | null;
+  lastStep: number;
+}
+
 /**
- * Draws one lane's world onto its canvas: a descent camera that zooms in near
- * the ground, plus dust and debris effects. Purely visual: it reads game
- * state and never changes it, and its randomness is separate from the engine's.
+ * Draws the shared course: one terrain and pad, and every lane's lander in its
+ * own colour with a trail. The camera frames the pad and every lander still
+ * flying. Purely visual: it reads game state and never changes it, and its
+ * randomness is separate from the engine's. The selected lane is drawn last,
+ * at full strength, with its altitude line, velocity arrow and name.
  */
-export class LaneRenderer {
+export class CourseRenderer {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly fx: Rng;
   private readonly stars: { x: number; y: number; r: number }[];
-  /** Recent positions, each marked with whether the speed was then inside the landing limits. */
-  private trail: { x: number; y: number; ok: boolean }[] = [];
+  private tracks = new Map<string, Track>();
   private particles: Particle[] = [];
   private levelIndex = -1;
-  private lastStep = 0;
-  private lastOutcome: Outcome | null = null;
   private lastFrame = performance.now();
   private flash = 0;
   private cam = { zoom: 1, x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
@@ -80,13 +96,15 @@ export class LaneRenderer {
     }));
   }
 
-  draw(lane: LaneState): void {
+  /** Forget trails and effects, for a jump to another level or course. */
+  reset(): void {
+    this.levelIndex = -1;
+  }
+
+  draw(level: Level, landers: readonly LanderView[], selected: string | null, banner: { text: string; good: boolean } | null): void {
     const now = performance.now();
     const frameDt = Math.min(0.1, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
-    // Effects advance with simulation time, so they freeze on pause and follow the speed setting.
-    const simDt = Math.max(0, lane.step - this.lastStep) * DT;
-    this.lastStep = lane.step;
 
     const { canvas, ctx } = this;
     const dpr = window.devicePixelRatio || 1;
@@ -99,8 +117,17 @@ export class LaneRenderer {
     const css = getComputedStyle(canvas);
     const color = (name: string): string => css.getPropertyValue(name).trim();
 
-    this.trackEvents(lane, simDt);
-    this.updateCamera(lane, frameDt);
+    if (level.index !== this.levelIndex) {
+      this.levelIndex = level.index;
+      this.tracks = new Map();
+      this.particles = [];
+      this.cam = { zoom: 1, x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
+    }
+    // Effects advance with simulation time, so they freeze on pause and follow the speed setting.
+    let simDt = 0;
+    for (const v of landers) simDt = Math.max(simDt, this.trackEvents(level, v));
+    this.updateParticles(level, simDt);
+    this.updateCamera(level, landers, frameDt);
 
     const s = (w / WORLD_WIDTH) * this.cam.zoom;
     const X = (x: number): number => (x - this.cam.x) * s + w / 2;
@@ -108,58 +135,67 @@ export class LaneRenderer {
 
     this.drawSky(w, h, color);
     this.drawStars(w, h, s, color);
-    this.drawTerrain(lane, h, s, X, Y, color);
-    this.drawPad(lane, now, s, X, Y, color);
-    this.drawTrail(s, X, Y, color);
-    this.drawGuides(lane, dpr, s, X, Y, color);
+    this.drawTerrain(level, h, s, X, Y, color);
+    this.drawPad(level, landers.some((v) => v.state.outcome === "landed"), now, s, X, Y, color);
+    // The selected lane goes last, so it sits on top.
+    const order = [...landers].sort((a, b) => Number(a.id === selected) - Number(b.id === selected));
+    for (const v of order) this.drawTrail(v, selected === null || v.id === selected, s, X, Y);
+    const focus = landers.find((v) => v.id === selected);
+    if (focus) this.drawGuides(level, focus.state, dpr, s, X, Y, color);
     this.drawParticles(s, X, Y, color);
-    this.drawLander(lane, X(lane.lander.x), Y(lane.lander.y), s, dpr, color);
+    for (const v of order) this.drawLander(v, X(v.state.lander.x), Y(v.state.lander.y), s, dpr, color, selected === null || v.id === selected);
+    if (focus) this.drawName(focus, X(focus.state.lander.x), Y(focus.state.lander.y), s, dpr, w, color);
 
     if (this.flash > 0) {
       ctx.fillStyle = `rgba(255, 236, 200, ${this.flash * 0.35})`;
       ctx.fillRect(0, 0, w, h);
       this.flash = Math.max(0, this.flash - frameDt * 3);
     }
-    this.drawBanner(lane, w, h, dpr, color);
+    if (banner) this.drawBanner(banner, w, h, dpr, color);
   }
 
-  private trackEvents(lane: LaneState, simDt: number): void {
-    const { lander, level, outcome } = lane;
-    if (level.index !== this.levelIndex) {
-      this.levelIndex = level.index;
-      this.trail = [];
-      this.particles = [];
-      this.lastOutcome = null;
-      this.cam = { zoom: 1, x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
+  /** Extends a lander's trail and fires its one-off effects. Returns the simulated seconds since its last frame. */
+  private trackEvents(level: Level, view: LanderView): number {
+    const { lander, outcome, step } = view.state;
+    let t = this.tracks.get(view.id);
+    if (!t) {
+      t = { trail: [], lastOutcome: outcome, lastStep: step };
+      this.tracks.set(view.id, t);
     }
+    const simDt = Math.max(0, step - t.lastStep) * DT;
+    t.lastStep = step;
     if (outcome === null) {
-      this.trail.push({ x: lander.x, y: lander.y, ok: -lander.vy <= SAFE_VY && Math.abs(lander.vx) <= SAFE_VX });
-      if (this.trail.length > TRAIL_STEPS) this.trail.shift();
+      const last = t.trail.at(-1);
+      if (!last || last.x !== lander.x || last.y !== lander.y) t.trail.push({ x: lander.x, y: lander.y });
+      if (t.trail.length > TRAIL_STEPS) t.trail.shift();
     }
 
     const intensity = reducedMotion.matches ? 0.3 : 1;
-    if (outcome !== this.lastOutcome && outcome !== null) {
+    if (outcome !== t.lastOutcome && outcome !== null) {
       const ground = terrainHeightAt(level, lander.x);
-      if (outcome === "landed") this.burst(lander.x, ground, 26 * intensity, "dust", 9);
-      else if (outcome !== "timeout") {
-        this.burst(lander.x, Math.max(ground, lander.y), 40 * intensity, "debris", 22);
-        this.burst(lander.x, Math.max(ground, lander.y), 24 * intensity, "spark", 30);
-        this.burst(lander.x, ground, 20 * intensity, "dust", 12);
-        if (!reducedMotion.matches) this.flash = 1;
+      if (outcome === "landed") this.burst(lander.x, ground, 18 * intensity, "dust", 9);
+      else if (outcome !== "timeout" && outcome !== "out_of_bounds") {
+        this.burst(lander.x, Math.max(ground, lander.y), 26 * intensity, "debris", 22);
+        this.burst(lander.x, Math.max(ground, lander.y), 16 * intensity, "spark", 30);
+        this.burst(lander.x, ground, 14 * intensity, "dust", 12);
+        if (!reducedMotion.matches) this.flash = Math.max(this.flash, 0.6);
       }
     }
-    this.lastOutcome = outcome;
+    t.lastOutcome = outcome;
 
     // Engine exhaust lifts dust off the surface below.
     const altitude = lander.y - terrainHeightAt(level, lander.x);
     if (outcome === null && lander.throttle > 0 && altitude < 22 && simDt > 0) {
-      const n = Math.round(lander.throttle * (1 - altitude / 22) * 2 * intensity);
+      const n = Math.round(lander.throttle * (1 - altitude / 22) * intensity);
       for (let i = 0; i < n; i++) {
         const dir = this.fx.next() < 0.5 ? -1 : 1;
         this.spawn(lander.x + this.fx.range(-2, 2), terrainHeightAt(level, lander.x) + 0.3, dir * this.fx.range(6, 16), this.fx.range(0.5, 3), "dust");
       }
     }
+    return simDt;
+  }
 
+  private updateParticles(level: Level, simDt: number): void {
     for (const p of this.particles) {
       p.life -= simDt;
       p.vy -= (p.kind === "dust" ? 0.6 : 3.2) * simDt;
@@ -191,17 +227,19 @@ export class LaneRenderer {
   }
 
   /**
-   * Frame the lander and the pad together: the camera holds both in view and
-   * zooms in as they converge, so the target never leaves the screen.
+   * Frame the pad and every lander still flying: the camera holds them in view
+   * and zooms in as they converge, so the target never leaves the screen.
    */
-  private updateCamera(lane: LaneState, frameDt: number): void {
-    const { lander, level } = lane;
+  private updateCamera(level: Level, landers: readonly LanderView[], frameDt: number): void {
     const { pad } = level;
-    const ground = terrainHeightAt(level, lander.x);
-    const x0 = Math.min(lander.x, pad.x0) - FRAME_MARGIN;
-    const x1 = Math.max(lander.x, pad.x1) + FRAME_MARGIN;
-    const y0 = Math.min(ground, pad.y) - FRAME_MARGIN * 0.6;
-    const y1 = Math.max(lander.y, pad.y) + FRAME_MARGIN;
+    const flying = landers.filter((v) => v.state.outcome === null);
+    const shown = (flying.length ? flying : landers).map((v) => v.state.lander).filter((l) => l.x >= 0 && l.x <= WORLD_WIDTH);
+    const xs = [pad.x0, pad.x1, ...shown.map((l) => l.x)];
+    const grounds = shown.map((l) => terrainHeightAt(level, l.x));
+    const x0 = Math.min(...xs) - FRAME_MARGIN;
+    const x1 = Math.max(...xs) + FRAME_MARGIN;
+    const y0 = Math.min(pad.y, ...grounds) - FRAME_MARGIN * 0.6;
+    const y1 = Math.max(pad.y, ...shown.map((l) => l.y)) + FRAME_MARGIN;
     const target = clamp(Math.min(WORLD_WIDTH / (x1 - x0), WORLD_HEIGHT / (y1 - y0)), 1, MAX_ZOOM);
     const k = reducedMotion.matches ? 1 : 1 - Math.exp(-frameDt * 2.5);
     const zoom = this.cam.zoom + (target - this.cam.zoom) * k;
@@ -239,7 +277,7 @@ export class LaneRenderer {
   }
 
   private drawTerrain(
-    lane: LaneState,
+    level: Level,
     h: number,
     s: number,
     X: (x: number) => number,
@@ -247,7 +285,7 @@ export class LaneRenderer {
     color: (n: string) => string,
   ): void {
     const { ctx } = this;
-    const { terrain } = lane.level;
+    const { terrain } = level;
     const top = Math.min(...terrain.map(Y));
     ctx.beginPath();
     ctx.moveTo(X(0), h + 2);
@@ -272,9 +310,9 @@ export class LaneRenderer {
     }
   }
 
-  private drawPad(lane: LaneState, now: number, s: number, X: (x: number) => number, Y: (y: number) => number, color: (n: string) => string): void {
+  private drawPad(level: Level, landed: boolean, now: number, s: number, X: (x: number) => number, Y: (y: number) => number, color: (n: string) => string): void {
     const { ctx } = this;
-    const { pad } = lane.level;
+    const { pad } = level;
     const dpr = window.devicePixelRatio || 1;
     const thick = Math.max(4 * dpr, s * 1.4);
     // A faint column of light marks the landing zone from any distance.
@@ -286,8 +324,7 @@ export class LaneRenderer {
     ctx.fillRect(X(pad.x0), Y(pad.y) - glowH, X(pad.x1) - X(pad.x0), glowH);
     ctx.fillStyle = color("--pad");
     ctx.fillRect(X(pad.x0), Y(pad.y) - thick / 2, X(pad.x1) - X(pad.x0), thick);
-    // Beacons blink until the lane lands, then hold steady.
-    const landed = lane.outcome === "landed";
+    // Beacons blink until a lane lands, then hold steady.
     const on = landed || reducedMotion.matches || Math.floor(now / 450) % 2 === 0;
     ctx.fillStyle = color(landed ? "--trail-ok" : "--beacon");
     for (const x of [pad.x0, pad.x1]) {
@@ -299,21 +336,20 @@ export class LaneRenderer {
     ctx.globalAlpha = 1;
   }
 
-  /** The path flown, green while the speed was inside the landing limits and amber while it was not. */
-  private drawTrail(s: number, X: (x: number) => number, Y: (y: number) => number, color: (n: string) => string): void {
+  /** The path flown, in the lane's colour; lanes other than the selected one recede. */
+  private drawTrail(view: LanderView, strong: boolean, s: number, X: (x: number) => number, Y: (y: number) => number): void {
     const { ctx } = this;
-    if (this.trail.length < 2) return;
+    const trail = this.tracks.get(view.id)?.trail ?? [];
+    if (trail.length < 2) return;
     const dpr = window.devicePixelRatio || 1;
-    const ok = color("--trail-ok");
-    const over = color("--trail-over");
-    ctx.lineWidth = Math.max(2 * dpr, s * 0.45);
+    ctx.lineWidth = Math.max((strong ? 2 : 1.5) * dpr, s * (strong ? 0.45 : 0.3));
     ctx.lineCap = "round";
-    for (let i = 1; i < this.trail.length; i++) {
-      const a = this.trail[i - 1]!;
-      const b = this.trail[i]!;
+    ctx.strokeStyle = view.color;
+    for (let i = 1; i < trail.length; i++) {
+      const a = trail[i - 1]!;
+      const b = trail[i]!;
       // Older segments fade so the latest path reads first.
-      ctx.globalAlpha = 0.25 + 0.65 * (i / this.trail.length);
-      ctx.strokeStyle = b.ok ? ok : over;
+      ctx.globalAlpha = (strong ? 1 : 0.45) * (0.25 + 0.75 * (i / trail.length));
       ctx.beginPath();
       ctx.moveTo(X(a.x), Y(a.y));
       ctx.lineTo(X(b.x), Y(b.y));
@@ -325,6 +361,7 @@ export class LaneRenderer {
 
   /** Where the lander is heading (its position LOOKAHEAD_S from now, ignoring thrust) and how high it is. */
   private drawGuides(
+    level: Level,
     lane: LaneState,
     dpr: number,
     s: number,
@@ -333,7 +370,7 @@ export class LaneRenderer {
     color: (n: string) => string,
   ): void {
     const { ctx } = this;
-    const { lander, level } = lane;
+    const { lander } = lane;
     if (lane.outcome !== null) return;
     const ground = terrainHeightAt(level, lander.x);
     ctx.strokeStyle = color("--guide");
@@ -386,15 +423,16 @@ export class LaneRenderer {
     ctx.globalAlpha = 1;
   }
 
-  private drawLander(lane: LaneState, cx: number, cy: number, s: number, dpr: number, color: (n: string) => string): void {
+  private drawLander(view: LanderView, cx: number, cy: number, s: number, dpr: number, color: (n: string) => string, strong: boolean): void {
     const { ctx } = this;
-    const { lander, outcome } = lane;
+    const { lander, outcome } = view.state;
     const crashed = outcome !== null && outcome !== "landed" && outcome !== "timeout";
-    if (crashed) return; // Debris particles take over.
+    if (crashed) return; // Debris particles take over; a lander out of the area is gone.
     // One lander unit in pixels. Drawn larger than true scale (~8 m) when zoomed out
     // so it stays readable; the foot line (origin) is always at the true position.
     const u = Math.max(1.1 * s, MIN_UNIT_PX * dpr);
     ctx.save();
+    ctx.globalAlpha = strong ? 1 : 0.55;
     ctx.translate(cx, cy);
     ctx.rotate((lander.angle * Math.PI) / 180);
 
@@ -437,8 +475,10 @@ export class LaneRenderer {
     ctx.closePath();
     ctx.stroke();
     ctx.fill();
+    // The band across the descent stage is the lane's colour.
+    ctx.fillStyle = view.color;
+    ctx.fillRect(-u * 2.3, -u * 2.2, u * 4.6, u * 0.8);
     ctx.fillStyle = color("--foil-shadow");
-    ctx.fillRect(-u * 2.3, -u * 1.9, u * 4.6, u * 0.5);
     ctx.fillRect(-u * 0.6, -u * 1.4, u * 1.2, u * 0.4);
 
     // Ascent stage cabin with a window.
@@ -461,26 +501,57 @@ export class LaneRenderer {
     ctx.closePath();
     ctx.fill();
     ctx.restore();
+
+    // A marker above every lander in its lane's colour, readable when the landers are drawn small.
+    const r = Math.max(4 * dpr, u * 0.9);
+    const my = cy - u * 7 - r;
+    ctx.globalAlpha = strong ? 1 : 0.6;
+    ctx.fillStyle = view.color;
+    ctx.strokeStyle = color("--outline");
+    ctx.lineWidth = Math.max(1, dpr);
+    ctx.beginPath();
+    ctx.moveTo(cx, my + r);
+    ctx.lineTo(cx - r, my - r * 0.4);
+    ctx.lineTo(cx + r, my - r * 0.4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.globalAlpha = 1;
   }
 
-  /** The level's outcome, centred over the scene. Flight readouts live in the instrument panel beside the canvas. */
-  private drawBanner(lane: LaneState, w: number, h: number, dpr: number, color: (n: string) => string): void {
+  /** The selected lane's name beside its lander. */
+  private drawName(view: LanderView, cx: number, cy: number, s: number, dpr: number, w: number, color: (n: string) => string): void {
+    if (view.state.outcome !== null && view.state.outcome !== "landed" && view.state.outcome !== "timeout") return;
     const { ctx } = this;
-    if (lane.outcome !== null) {
-      const ok = lane.outcome === "landed";
-      const quality = lane.results.at(-1)?.landing?.quality;
-      const text = ok && quality !== undefined ? `${OUTCOME_TEXT.landed}, quality ${quality.toFixed(0)}` : OUTCOME_TEXT[lane.outcome];
-      ctx.font = `600 ${Math.round(22 * dpr)}px ${FONT}`;
-      const tw = ctx.measureText(text).width;
-      const bx = (w - tw) / 2 - 14 * dpr;
-      const by = h * 0.24;
-      ctx.fillStyle = color("--banner-bg");
-      ctx.fillRect(bx, by, tw + 28 * dpr, 36 * dpr);
-      ctx.fillStyle = color(ok ? "--banner-good" : "--banner-bad");
-      ctx.fillRect(bx, by, 4 * dpr, 36 * dpr);
-      ctx.fillStyle = color("--overlay");
-      ctx.textBaseline = "middle";
-      ctx.fillText(text, bx + 16 * dpr, by + 18 * dpr);
-    }
+    const u = Math.max(1.1 * s, MIN_UNIT_PX * dpr);
+    ctx.font = `600 ${Math.round(13 * dpr)}px ${FONT}`;
+    const tw = ctx.measureText(view.label).width;
+    const pad = 6 * dpr;
+    const right = cx + u * 4 + tw + pad * 2 < w;
+    const bx = right ? cx + u * 4 : cx - u * 4 - tw - pad * 2;
+    const by = cy - u * 7 - 12 * dpr;
+    ctx.fillStyle = color("--banner-bg");
+    ctx.fillRect(bx, by, tw + pad * 2, 22 * dpr);
+    ctx.fillStyle = view.color;
+    ctx.fillRect(bx, by, 3 * dpr, 22 * dpr);
+    ctx.fillStyle = color("--overlay");
+    ctx.textBaseline = "middle";
+    ctx.fillText(view.label, bx + pad, by + 11 * dpr);
+  }
+
+  /** A line over the scene once the level is over for every lane. */
+  private drawBanner(banner: { text: string; good: boolean }, w: number, h: number, dpr: number, color: (n: string) => string): void {
+    const { ctx } = this;
+    ctx.font = `600 ${Math.round(20 * dpr)}px ${FONT}`;
+    const tw = ctx.measureText(banner.text).width;
+    const bx = (w - tw) / 2 - 14 * dpr;
+    const by = h * 0.2;
+    ctx.fillStyle = color("--banner-bg");
+    ctx.fillRect(bx, by, tw + 28 * dpr, 36 * dpr);
+    ctx.fillStyle = color(banner.good ? "--banner-good" : "--banner-bad");
+    ctx.fillRect(bx, by, 4 * dpr, 36 * dpr);
+    ctx.fillStyle = color("--overlay");
+    ctx.textBaseline = "middle";
+    ctx.fillText(banner.text, bx + 16 * dpr, by + 18 * dpr);
   }
 }

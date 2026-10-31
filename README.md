@@ -22,7 +22,7 @@ The name comes from Apollo: low gate is the point in the descent where the crew 
 ```bash
 pnpm install
 cp .env.example .env   # add your own keys; .env is never committed
-pnpm dev               # course viewer at http://localhost:5173, results at /results.html
+pnpm dev               # replays at http://localhost:5173, results at /results.html
 pnpm test
 pnpm typecheck
 pnpm bench             # 20 courses per lane, resumable, recordings in bench/

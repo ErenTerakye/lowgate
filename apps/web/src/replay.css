@@ -1,0 +1,363 @@
+/*
+ * Replay player: the shared course on the left with the deck and the course
+ * table under it, one panel per lane on the right. Lane colour marks identity
+ * only (swatch, grid, line); text stays in the ink tokens.
+ */
+.viewer.replay {
+  --side: 340px;
+  --canvas-max: calc((100svh - 230px) * 4 / 3);
+}
+
+.verify {
+  margin: 0;
+  font-size: 14px;
+  color: var(--good);
+}
+
+.verify.is-bad {
+  color: var(--bad);
+}
+
+#course {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  height: 40px;
+  padding: 0 8px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: 6px;
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 50%;
+  vertical-align: 0;
+}
+
+.swatch.is-hollow {
+  background: transparent !important;
+  box-shadow: inset 0 0 0 2.5px var(--hollow);
+}
+
+/* Lane panels: a compact card each, the whole card selects the lane. */
+.lanes {
+  gap: 8px;
+}
+
+.lane-panel {
+  padding: 10px 12px 8px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.lane-panel:hover {
+  border-color: var(--rule-strong);
+}
+
+.lane-panel[aria-pressed="true"] {
+  border-color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--lane);
+}
+
+.lane-panel.is-hidden .lane-body,
+.lane-panel.is-hidden .confidence {
+  opacity: 0.35;
+}
+
+.lane-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lane-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.lane-head .swatch {
+  flex: none;
+  margin: 0;
+}
+
+.lane-status {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  font-size: 13px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.lane-status.is-good {
+  color: var(--good);
+  font-weight: 600;
+}
+
+.lane-status.is-bad {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+.lane-show {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin: -4px -6px -4px 0;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.lane-show[aria-pressed="false"] {
+  color: var(--bad);
+}
+
+.lane-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+/* The menu: 7 tilts across, throttle up the side (full at the top). Shade is probability relative to the top option. */
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 9px);
+  grid-template-rows: repeat(5, 9px);
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-2);
+  border-radius: 4px;
+}
+
+.menu-grid span {
+  border-radius: 2px;
+  background: var(--lane);
+  opacity: 0;
+}
+
+.menu-grid span.is-pick {
+  outline: 2px solid var(--ink);
+  outline-offset: 0;
+}
+
+.lane-pick {
+  display: grid;
+  min-width: 0;
+}
+
+.lane-pick b {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.lane-pick span {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-2);
+}
+
+/* Confidence through the level: the top option's probability at each decision, 0 at the bottom, 1 at the top. */
+.confidence {
+  display: block;
+  width: 100%;
+  height: 22px;
+  margin-top: 8px;
+  overflow: visible;
+}
+
+.confidence-mid {
+  stroke: var(--rule);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 2 3;
+}
+
+.confidence-area {
+  fill: var(--lane);
+  opacity: 0.18;
+}
+
+.confidence-line {
+  fill: none;
+  stroke: var(--lane);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+
+/* Course table under the deck. */
+.board-wrap {
+  margin-top: 12px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+
+.board {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-note {
+  margin: 0;
+  padding: 10px 12px 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.board-scroll {
+  overflow-x: auto;
+}
+
+.board th,
+.board td {
+  padding: 4px 6px;
+  border-top: 1px solid var(--rule);
+  text-align: center;
+}
+
+.board th[scope="row"] {
+  text-align: left;
+  font-weight: 500;
+  white-space: nowrap;
+  padding-left: 12px;
+}
+
+.board .num {
+  text-align: right;
+  padding-right: 12px;
+}
+
+.board thead th {
+  border-top: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.board thead th:first-child {
+  text-align: left;
+  padding-left: 12px;
+}
+
+.board thead button {
+  height: 26px;
+  min-width: 30px;
+  padding: 0 6px;
+  font-size: 13px;
+  border-color: var(--rule);
+}
+
+.board thead button.is-current {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.board td {
+  min-width: 34px;
+}
+
+.board td.is-good {
+  color: var(--good);
+  font-weight: 600;
+}
+
+.board td.is-bad {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+.board td.is-current {
+  background: var(--surface-2);
+}
+
+@media (max-width: 900px) {
+  .lanes {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .lanes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .board {
+    font-size: 12px;
+  }
+
+  .board th,
+  .board td {
+    padding: 4px 1px;
+  }
+
+  .board th[scope="row"],
+  .board thead th:first-child {
+    padding-left: 6px;
+  }
+
+  .board .num {
+    padding-right: 6px;
+  }
+
+  .board td {
+    min-width: 0;
+  }
+
+  .board thead button {
+    min-width: 21px;
+    height: 24px;
+    padding: 0;
+    font-size: 12px;
+  }
+
+  .board .swatch {
+    margin-right: 5px;
+  }
+}
+
+/* The deck holds more here than in the old viewer: on a narrow flight column, play controls, speed and course each get a row. */
+@container (max-width: 660px) {
+  .replay .deck {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .replay .deck-play {
+    display: flex;
+  }
+
+  .replay .segmented {
+    display: flex;
+  }
+
+  .replay .segmented button {
+    flex: 1;
+  }
+
+  .replay .deck-course {
+    grid-column: auto;
+  }
+}
