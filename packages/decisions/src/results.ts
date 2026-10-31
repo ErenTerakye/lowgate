@@ -26,7 +26,8 @@ export interface LaneResult {
   readonly agreesWithAutopilot: { readonly exact: number; readonly tilt: number; readonly throttle: number };
   readonly meanTopProbability: number | null;
   readonly latencyMs: { readonly p50: number | null; readonly p95: number | null; readonly source: "measured, from this machine" };
-  readonly tokensPerDecision: { readonly input: number; readonly output: number; readonly source: "provider-reported" } | null;
+  /** `output` is null when no call reported an output count. */
+  readonly tokensPerDecision: { readonly input: number; readonly output: number | null; readonly source: "provider-reported" } | null;
   readonly costUsd: { readonly total: number; readonly priceSource: PriceSource } | null;
   /** For a local lane: the measured tokens at a hosted API's price for the same model. The benchmark paid nothing. */
   readonly hostedEquivalentUsd: { readonly total: number; readonly price: HostedPrice } | null;
@@ -79,11 +80,12 @@ export function summarizeLane(recordings: readonly Recording[], options: { reado
   const outcomes: Partial<Record<Outcome, number>> = {};
   for (const r of results) outcomes[r.outcome] = (outcomes[r.outcome] ?? 0) + 1;
   const withUsage = answered.flatMap((d) => (d.usage ? [d.usage] : []));
+  const outputs = withUsage.flatMap((u) => (u.outputTokens === null ? [] : [u.outputTokens]));
   const withProbs = answered.flatMap((d) => (d.probs ? [d.probs] : []));
   const share = (n: number) => (answered.length ? n / answered.length : 0);
   const model = first.model;
   const tokenCost = (price: ModelInfo["price"] | HostedPrice) =>
-    withUsage.reduce((a, u) => a + usdFor(u.inputTokens, u.outputTokens, price), 0);
+    withUsage.reduce((a, u) => a + usdFor(u.inputTokens, u.outputTokens ?? 0, price), 0);
   const hosted = options.hostedEquivalent;
   return {
     lane: first.lane,
@@ -108,7 +110,7 @@ export function summarizeLane(recordings: readonly Recording[], options: { reado
     tokensPerDecision: withUsage.length
       ? {
           input: withUsage.reduce((a, u) => a + u.inputTokens, 0) / withUsage.length,
-          output: withUsage.reduce((a, u) => a + u.outputTokens, 0) / withUsage.length,
+          output: outputs.length ? outputs.reduce((a, n) => a + n, 0) / outputs.length : null,
           source: "provider-reported",
         }
       : null,

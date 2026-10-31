@@ -142,7 +142,7 @@ export function parseSystemOne(raw: unknown): { probs: number[]; usage: Usage | 
   }
 
   const u = body?.usage as Record<string, unknown> | undefined;
-  const usage = u ? { inputTokens: num(u.input_tokens ?? 0, "usage.input_tokens"), outputTokens: num(u.output_tokens ?? 0, "usage.output_tokens") } : null;
+  const usage = u ? { inputTokens: num(u.input_tokens ?? 0, "usage.input_tokens"), outputTokens: u.output_tokens === undefined ? null : num(u.output_tokens, "usage.output_tokens") } : null;
   const served = typeof body?.model === "string" ? { servedModel: body.model } : {};
   return { probs, usage, ...served };
 }

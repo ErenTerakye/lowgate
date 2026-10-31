@@ -76,7 +76,7 @@ const answered = records.filter((r) => r.answered);
 const share = (pred: (r: (typeof records)[number]) => boolean): number | null => (answered.length ? answered.filter(pred).length / answered.length : null);
 const latencies = answered.map((r) => r.latencyMs);
 const inTokens = mean(answered.flatMap((r) => (r.usage ? [r.usage.inputTokens] : [])));
-const outTokens = mean(answered.flatMap((r) => (r.usage ? [r.usage.outputTokens] : [])));
+const outTokens = mean(answered.flatMap((r) => (r.usage?.outputTokens != null ? [r.usage.outputTokens] : [])));
 const perDecisionUsd = model && inTokens !== null ? usdFor(inTokens, outTokens ?? 0, model.price) : null;
 const served = [...new Set(answered.map((r) => r.servedModel ?? "(not reported)"))];
 const errors = records.flatMap((r) => (r.error ? [r.error.kind] : []));

@@ -57,6 +57,10 @@ describe("parseSystemOne", () => {
     expect(usage).toEqual({ inputTokens: 1231, outputTokens: 4 });
   });
 
+  it("reports a missing output count as null, not 0", () => {
+    expect(parseSystemOne({ ...answer, usage: { input_tokens: 842 } }).usage).toEqual({ inputTokens: 842, outputTokens: null });
+  });
+
   it("multiplies split tilt and throttle answers back into the menu", () => {
     const split = {
       answers: {
@@ -167,6 +171,11 @@ describe("LlmJsonClient", () => {
     expect(r.ok && r.decision).toMatchObject({ pick: optionIndex("L5-T3"), probs: null, usage: { inputTokens: 310, outputTokens: 12 } });
     const body = JSON.parse(log[0]!.init.body as string);
     expect(body.response_format.json_schema.schema.properties.manoeuvre.enum).toEqual(OPTION_KEYS);
+  });
+
+  it("reports a missing completion count as null, not 0", () => {
+    const body = { choices: [{ message: { content: '{"manoeuvre":"L5-T3"}' } }], usage: { prompt_tokens: 310 } };
+    expect(parseLlmResponse(body).usage).toEqual({ inputTokens: 310, outputTokens: null });
   });
 
   it("tolerates prose around the JSON and a key in the wrong case", () => {

@@ -272,7 +272,7 @@ const cost = section(
     tr.append(laneCell(l), el("td", "num", ms(l.latencyMs.p50)), el("td", "num", ms(l.latencyMs.p95)));
     tr.append(el("td", "num", l.answerSecondsPerCourse === undefined ? "–" : minutes(l.answerSecondsPerCourse)));
     const t = l.tokensPerDecision;
-    tr.append(el("td", "num", t ? `${Math.round(t.input)} / ${Math.round(t.output)}` : "–"));
+    tr.append(el("td", "num", t ? `${Math.round(t.input)} / ${t.output === null ? "not reported" : Math.round(t.output)}` : "–"));
     tr.append(costCell(l, 1), costCell(l, COURSES / l.courses));
   }
   wrap.append(table);

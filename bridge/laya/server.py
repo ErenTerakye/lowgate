@@ -72,7 +72,8 @@ def answer(agent: Agent, model: str, body: dict[str, Any]) -> dict[str, Any]:
         "model": model,
         "answers": answers,
         # Local runs cost nothing; tokens are still reported when Laya gives them.
-        "usage": {"input_tokens": int(usage.get("input_tokens", 0)), "output_tokens": 0},
+        # Laya scores the options in an encoder and writes no text, so 0 output is the true count.
+        "usage": {"input_tokens": int(usage.get("input_tokens", 0)), "output_tokens": int(usage.get("output_tokens", 0))},
     }
 
 

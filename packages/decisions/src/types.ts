@@ -3,7 +3,8 @@ import type { LaneState } from "@lowgate/engine";
 /** Tokens as reported by the provider for one call. */
 export interface Usage {
   readonly inputTokens: number;
-  readonly outputTokens: number;
+  /** Null when the provider left the output count out, so a missing count is never read as 0. */
+  readonly outputTokens: number | null;
 }
 
 export type DecisionErrorKind =

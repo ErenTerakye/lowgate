@@ -205,7 +205,7 @@ export function parseLlmResponse(raw: unknown): { pick: number; usage: Usage | n
   const u = body.usage as Record<string, unknown> | undefined;
   const usage =
     u && typeof u.prompt_tokens === "number"
-      ? { inputTokens: u.prompt_tokens, outputTokens: typeof u.completion_tokens === "number" ? u.completion_tokens : 0 }
+      ? { inputTokens: u.prompt_tokens, outputTokens: typeof u.completion_tokens === "number" ? u.completion_tokens : null }
       : null;
   const served = typeof body.model === "string" ? { servedModel: body.model } : {};
   return { pick, usage, ...served };
