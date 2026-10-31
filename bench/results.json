@@ -765,7 +765,310 @@
       },
       "hostedEquivalentUsd": null,
       "answerSecondsPerCourse": 235.23510000000002
+    },
+    {
+      "lane": "kev-4b",
+      "label": "Kev 4B",
+      "model": {
+        "provider": "self-hosted (Colab GPU)",
+        "model": "jaredpalmer/kev-4b@v1.0",
+        "pinned": true,
+        "price": {
+          "input": 0,
+          "output": 0,
+          "source": "none"
+        }
+      },
+      "prompts": [
+        "f1"
+      ],
+      "servedModels": [
+        "jaredpalmer/kev-4b@v1.0"
+      ],
+      "courses": 20,
+      "levels": 160,
+      "landed": 5,
+      "landingRate": 0.03125,
+      "landingRate95": {
+        "low": 0.01342051660267917,
+        "high": 0.0710602917092403
+      },
+      "perCourse": [
+        {
+          "seed": 5001,
+          "landed": 0
+        },
+        {
+          "seed": 5002,
+          "landed": 1
+        },
+        {
+          "seed": 5003,
+          "landed": 0
+        },
+        {
+          "seed": 5004,
+          "landed": 0
+        },
+        {
+          "seed": 5005,
+          "landed": 0
+        },
+        {
+          "seed": 5006,
+          "landed": 0
+        },
+        {
+          "seed": 5007,
+          "landed": 1
+        },
+        {
+          "seed": 5008,
+          "landed": 0
+        },
+        {
+          "seed": 5009,
+          "landed": 1
+        },
+        {
+          "seed": 5010,
+          "landed": 0
+        },
+        {
+          "seed": 5011,
+          "landed": 0
+        },
+        {
+          "seed": 5012,
+          "landed": 0
+        },
+        {
+          "seed": 5013,
+          "landed": 1
+        },
+        {
+          "seed": 5014,
+          "landed": 0
+        },
+        {
+          "seed": 5015,
+          "landed": 0
+        },
+        {
+          "seed": 5016,
+          "landed": 0
+        },
+        {
+          "seed": 5017,
+          "landed": 0
+        },
+        {
+          "seed": 5018,
+          "landed": 0
+        },
+        {
+          "seed": 5019,
+          "landed": 1
+        },
+        {
+          "seed": 5020,
+          "landed": 0
+        }
+      ],
+      "quality": {
+        "mean": 40.58,
+        "sd": 11.512905801751355,
+        "ci": {
+          "low": 30.48867847763098,
+          "high": 50.67132152236901
+        },
+        "n": 5
+      },
+      "outcomes": {
+        "out_of_bounds": 145,
+        "crashed_terrain": 8,
+        "landed": 5,
+        "crashed_speed": 1,
+        "timeout": 1
+      },
+      "decisions": 4336,
+      "unanswered": 0,
+      "retried": 0,
+      "agreesWithAutopilot": {
+        "exact": 0.25345940959409596,
+        "tilt": 0.4017527675276753,
+        "throttle": 0.5682656826568265
+      },
+      "meanTopProbability": 0.23492689114391124,
+      "latencyMs": {
+        "p50": 61,
+        "p95": 63,
+        "source": "measured, from this machine"
+      },
+      "tokensPerDecision": {
+        "input": 598.5864852398524,
+        "output": 300.0634225092251,
+        "source": "provider-reported"
+      },
+      "costUsd": {
+        "total": 0,
+        "priceSource": "none"
+      },
+      "hostedEquivalentUsd": {
+        "total": 0.10900978200000068,
+        "price": {
+          "provider": "OpenRouter",
+          "model": "jaredpalmer/kev-4b",
+          "input": 0.042,
+          "output": 0,
+          "source": "vendor",
+          "checked": "2026-10-30",
+          "url": "https://openrouter.ai/jaredpalmer/kev-4b/providers"
+        }
+      },
+      "answerSecondsPerCourse": 13.2951
+    },
+    {
+      "lane": "kev-0.8b",
+      "label": "Kev 0.8B",
+      "model": {
+        "provider": "self-hosted (Colab GPU)",
+        "model": "jaredpalmer/kev-0.8b@v1.0",
+        "pinned": true,
+        "price": {
+          "input": 0,
+          "output": 0,
+          "source": "none"
+        }
+      },
+      "prompts": [
+        "f1"
+      ],
+      "servedModels": [
+        "jaredpalmer/kev-0.8b@v1.0"
+      ],
+      "courses": 20,
+      "levels": 160,
+      "landed": 0,
+      "landingRate": 0,
+      "landingRate95": {
+        "low": 0,
+        "high": 0.02344619553271408
+      },
+      "perCourse": [
+        {
+          "seed": 5001,
+          "landed": 0
+        },
+        {
+          "seed": 5002,
+          "landed": 0
+        },
+        {
+          "seed": 5003,
+          "landed": 0
+        },
+        {
+          "seed": 5004,
+          "landed": 0
+        },
+        {
+          "seed": 5005,
+          "landed": 0
+        },
+        {
+          "seed": 5006,
+          "landed": 0
+        },
+        {
+          "seed": 5007,
+          "landed": 0
+        },
+        {
+          "seed": 5008,
+          "landed": 0
+        },
+        {
+          "seed": 5009,
+          "landed": 0
+        },
+        {
+          "seed": 5010,
+          "landed": 0
+        },
+        {
+          "seed": 5011,
+          "landed": 0
+        },
+        {
+          "seed": 5012,
+          "landed": 0
+        },
+        {
+          "seed": 5013,
+          "landed": 0
+        },
+        {
+          "seed": 5014,
+          "landed": 0
+        },
+        {
+          "seed": 5015,
+          "landed": 0
+        },
+        {
+          "seed": 5016,
+          "landed": 0
+        },
+        {
+          "seed": 5017,
+          "landed": 0
+        },
+        {
+          "seed": 5018,
+          "landed": 0
+        },
+        {
+          "seed": 5019,
+          "landed": 0
+        },
+        {
+          "seed": 5020,
+          "landed": 0
+        }
+      ],
+      "quality": null,
+      "outcomes": {
+        "out_of_bounds": 138,
+        "timeout": 15,
+        "crashed_terrain": 7
+      },
+      "decisions": 6146,
+      "unanswered": 0,
+      "retried": 0,
+      "agreesWithAutopilot": {
+        "exact": 0.01773511226814188,
+        "tilt": 0.026358607224210868,
+        "throttle": 0.6524568825252196
+      },
+      "meanTopProbability": 0.06620686625447454,
+      "latencyMs": {
+        "p50": 28,
+        "p95": 30,
+        "source": "measured, from this machine"
+      },
+      "tokensPerDecision": {
+        "input": 598.1527822974292,
+        "output": 298.8603970061829,
+        "source": "provider-reported"
+      },
+      "costUsd": {
+        "total": 0,
+        "priceSource": "none"
+      },
+      "hostedEquivalentUsd": null,
+      "answerSecondsPerCourse": 8.6846
     }
   ],
-  "at": "2026-10-31T06:51:51.861Z"
+  "at": "2026-10-31T07:34:49.938Z"
 }

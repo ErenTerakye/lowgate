@@ -160,6 +160,8 @@ Every lane flew the same 20 courses (160 levels), unseen by every lane during tu
 | Gemma 4 12B, local | 20/20 | 147/160 (92%) | 87–95% | 46.8 ± 1.8 | 38% | 5,490 ms | 1,691 s | $0 here; $0.45 hosted-equivalent (SiliconFlow's listed price, vendor) |
 | Laya v4, local | 20/20 | 142/160 (89%) | 83–93% | 41.1 ± 1.6 | 79% | 199 ms | 74 s | $0 |
 | Clef-flash | 20/20 | 75/160 (47%) | 39–55% | 40.7 ± 2.6 | 24% | 508 ms | 235 s | $0.24 (vendor price) |
+| Kev 4B `kev-4b@v1.0`, Colab G4 | 20/20 | 5/160 (3%) | 1–7% | 40.6 ± 10.1 | 25% | 61 ms | 13 s | $0 here; $0.11 hosted-equivalent (OpenRouter's listed price, vendor) |
+| Kev 0.8B `kev-0.8b@v1.0`, Colab G4 | 20/20 | 0/160 (0%) | 0–2% | – | 2% | 28 ms | 9 s | $0 |
 
 Intervals: Wilson for landing rate, normal-approximation 95% for the mean quality of landed levels.
 
@@ -169,7 +171,7 @@ Intervals: Wilson for landing rate, normal-approximation 95% for the mean qualit
 - **Clef-flash is far behind** at 47%, and the roughest landings of the model lanes. Its last 8 courses ran a day later (2026-10-31), after Workers AI's free allowance came back: Cloudflare's dashboard showed the block lasting about 24 hours from the heavy use, not ending at 00:00 UTC. The 12 courses of 2026-10-30 used about 14k neurons by the dashboard's chart (read off, not exported), about 6% above the listed 3,455 neurons per million tokens, so the cost shown here may be slightly low.
 - Gemma's generation speed on this Mac, estimated from the latency of 3,444 decisions against their output tokens: about 10.5 output tokens/s, plus about 1.8 s to read each ~600-token prompt (7.1 output tokens/s end to end, measured).
 
-## Kev on Colab (prepared 2026-10-31, not flown yet)
+## Kev on Colab (flown 2026-10-31; 9B to fly again)
 
 Kev is an open-weight, Jev-style family on Qwen3.5 bases (Apache-2.0, [github.com/jaredpalmer/kev](https://github.com/jaredpalmer/kev)). Its `kev.serve` speaks the same `/v1/systemone` contract as Jev, so the Kev lanes reuse `SystemOneClient` with no adapter changes; a test pins the answer shape from Kev's README. This Mac (16 GB) cannot hold Kev-4B (it needs a 32 GB Mac), so the lanes run on a Colab Pro GPU, chosen over OpenRouter (Kev-4B only, paid) on 2026-10-30.
 
@@ -184,6 +186,19 @@ Kev is an open-weight, Jev-style family on Qwen3.5 bases (Apache-2.0, [github.co
 - The `v1.0` tag was read on the 4B model card only. The notebook prints the model name the server reports; the benchmark refuses to save a course served by anything other than the pin.
 - All three run on a Colab G4 (NVIDIA RTX PRO 6000, 96 GB). Kev's README lists L40S or H100 for 4B and 9B; this Colab account has no H100, and the GPU only needs bf16 and enough memory, since the benchmark is this project's own. One GPU type keeps the lanes' answer times comparable.
 - Answer times measure the Colab GPU, not a hosted service.
+
+**Results (measured, 2026-10-31).** Kev 4B landed 5 of 160 levels and Kev 0.8B none; 145 and 138 of their levels ended out of bounds, drifting sideways off the course. To rule out a misread answer, every decision was replayed and its top tilt and throttle compared with the autopilot's at the same state (Kev 4B: 4,336 decisions; Jev: 6,255):
+
+| Same top choice as the autopilot | Kev 4B | Jev |
+|---|---|---|
+| Throttle, autopilot wants Low | 59% | 57% |
+| Throttle, autopilot wants Medium | 50% | 49% |
+| Tilt, autopilot wants full left (L30) | 41%; full right 1,302 times | 85% |
+| Tilt, autopilot wants full right (R30) | 41%; full left never | 92% |
+
+Throttle is read as well as Jev's, so the levels are not mixed up. Kev often answers 'full right' when the lander must tilt full left to get back to the pad, never the reverse, so this is not a swapped key: untuned on Jev's prompt, Kev confuses which way to go when far off. Its README scores Kev 4B at 38 against Jev's 54 on its own held-out tests.
+
+**Kev 9B was not measured.** It ran in the same Colab runtime as 0.8B, three minutes later. 9B's server loaded but could not bind port 8009 (`[Errno 98] address already in use`), and the 0.8B server, still running, answered every question; the 9B recordings match 0.8B's probabilities exactly. The pin check did not catch it, because Kev's response echoes the model name the request asks for. Those recordings were removed from `bench/`, and the notebook now stops any earlier Kev before starting one and checks the `run` the server reports at `/v1/models` against the pin.
 
 ## Laya reproducibility check (prepared 2026-10-31)
 

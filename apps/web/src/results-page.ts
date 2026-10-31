@@ -19,7 +19,9 @@ const LEVELS_PER_COURSE = 8;
  * Fixed per lane, never by rank: the first four categorical slots, validated on
  * the white panel. Four slots cannot all be told apart pairwise (Clef's yellow
  * sits near Laya's orange), so Clef's marks are hollow and every mark carries
- * its lane's name. The autopilot is the grey reference.
+ * its lane's name. The autopilot is the grey reference. The Kev lanes take
+ * slots 5–7 (validated with the first four on white: magenta and aqua are
+ * under 3:1, so the names on the marks and the table carry them).
  */
 const LANE_COLOR: Record<string, string> = {
   autopilot: "#6b7380",
@@ -27,6 +29,9 @@ const LANE_COLOR: Record<string, string> = {
   laya: "#eb6834",
   "gemma-local": "#1baf7a",
   clef: "#c98500",
+  "kev-4b": "#e87ba4",
+  "kev-0.8b": "#008300",
+  "kev-9b": "#6250d6",
 };
 const HOLLOW = new Set(["clef"]);
 const colorOf = (lane: string) => LANE_COLOR[lane] ?? "#6b7380";
@@ -258,7 +263,7 @@ copy.append(copyChart);
 // 6. Speed and cost.
 const cost = section(
   "Answer time and cost",
-  `Answer times are measured from this Mac. Tokens are as the provider reports them. Cost is for the courses flown at each lane's listed price, and scaled to all ${COURSES} courses. Local lanes cost nothing per token here; where the same model is sold on a hosted API, its price for the same tokens is shown underneath.`,
+  `Answer times are measured where each lane was flown: this Mac, or for the Kev lanes a Colab G4 GPU with the model on the same machine, so no network time. Tokens are as the provider reports them. Cost is for the courses flown at each lane's listed price, and scaled to all ${COURSES} courses. Local and self-hosted lanes cost nothing per token here; where the same model is sold on a hosted API, its price for the same tokens is shown underneath.`,
 );
 {
   const wrap = el("div", "table-wrap");
@@ -270,7 +275,8 @@ const cost = section(
   const costCell = (l: LaneResult, scale: number): HTMLTableCellElement => {
     const c = l.costUsd;
     const td = el("td", "num", c ? usd(c.total * scale) : "–");
-    if (c) td.append(el("span", "source", PRICE_TEXT[c.priceSource] ?? c.priceSource));
+    const selfHosted = l.model?.provider.startsWith("self-hosted") ?? false;
+    if (c) td.append(el("span", "source", selfHosted ? "self-hosted GPU" : (PRICE_TEXT[c.priceSource] ?? c.priceSource)));
     const h = l.hostedEquivalentUsd ?? null;
     if (h) {
       const alt = el("span", "hosted");
@@ -306,9 +312,9 @@ foot.append(
 );
 app.append(foot);
 
-/** Landing rates start at 30%: dots and intervals, not bars, so the axis need not start at zero, and the top cluster needs the room. */
-const Y_DOMAIN = [0.3, 1] as const;
-const Y_TICKS = [0.4, 0.6, 0.8, 1];
+/** Landing rates run the full 0–100%: the Kev lanes land 0–3%, far below the rest. */
+const Y_DOMAIN = [0, 1] as const;
+const Y_TICKS = [0, 0.25, 0.5, 0.75, 1];
 
 function drawCharts(): void {
   scatter(
@@ -320,12 +326,12 @@ function drawCharts(): void {
         label: l.label,
         color: colorOf(l.lane),
         hollow: HOLLOW.has(l.lane),
-        x: Math.max(50, l.latencyMs.p50 ?? 50),
+        x: Math.max(20, l.latencyMs.p50 ?? 20),
         y: l.landingRate,
         ...(l.landingRate95 ? { yLow: l.landingRate95.low, yHigh: l.landingRate95.high } : {}),
         tooltip: [...landedRows(l), { value: ms(l.latencyMs.p50), label: "median answer time" }],
       })),
-      x: (r) => log([100, 20_000], r, [100, 300, 1000, 3000, 10_000], (v) => ms(v)),
+      x: (r) => log([20, 20_000], r, [30, 100, 300, 1000, 3000, 10_000], (v) => ms(v)),
       y: (r) => linear(Y_DOMAIN, r, Y_TICKS, (v) => pct(v)),
       xTitle: "Median answer time (log scale)",
       yTitle: "Levels landed",
