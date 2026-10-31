@@ -51,7 +51,8 @@
   font-size: 16px;
   line-height: 1.5;
   color: var(--ink);
-  background: var(--page);
+  /* The root takes the header's colour, which is what mobile Safari paints behind the status bar; the page grey is on body. */
+  background: var(--surface);
 }
 
 * {
