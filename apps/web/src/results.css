@@ -8,6 +8,20 @@
   color: var(--ink-2);
 }
 
+/* The two kinds of model, told apart once, in the same small hint style as the replay panels' key. */
+.kinds {
+  max-width: 72ch;
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.kinds b {
+  font-weight: 600;
+  color: var(--ink);
+}
+
 .panel {
   margin-top: 32px;
 }
@@ -234,6 +248,22 @@ table {
 
 .partial {
   color: var(--accent-ink);
+}
+
+.lane-kind {
+  display: block;
+  margin-left: 18px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.ran-on {
+  display: block;
+  margin-left: 18px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-2);
 }
 
 .num {

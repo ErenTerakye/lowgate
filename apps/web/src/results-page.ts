@@ -1,9 +1,9 @@
-import type { Outcome } from "@lowgate/engine";
+import { MANOEUVRES, type Outcome } from "@lowgate/engine";
 import type { BenchResults, LaneResult } from "@lowgate/decisions";
 import raw from "../../../bench/results.json?raw";
 import { Tooltip, linear, log, scatter, type TooltipRow } from "./charts.ts";
 import { siteHeader } from "./chrome.ts";
-import { HOLLOW, colorOf } from "./lanes.ts";
+import { HOLLOW, KIND_LABEL, colorOf, kindOf, kindsNote, pilotsPhrase } from "./lanes.ts";
 import "./style.css";
 import "./results.css";
 
@@ -57,11 +57,22 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
   return node;
 }
 
-function laneCell(l: LaneResult): HTMLTableCellElement {
+/** Where a model ran, and so where its answers were timed: local ones on the laptop, self-hosted on Colab, the rest over their provider's API. */
+function ranOn(l: LaneResult): string | null {
+  const p = l.model?.provider;
+  if (!p) return null;
+  if (p.startsWith("local")) return "M3 MacBook Pro, 16 GB";
+  if (p.startsWith("self-hosted")) return "Google Colab GPU";
+  return `${p} API`;
+}
+
+function laneCell(l: LaneResult, withHost = false): HTMLTableCellElement {
   const td = el("th", "lane-cell");
   td.scope = "row";
-  td.append(swatch(l.lane), el("span", "lane-label", l.label));
+  td.append(swatch(l.lane), el("span", "lane-label", l.label), el("span", "lane-kind", KIND_LABEL[kindOf(l.lane)]));
   if (l.model) td.append(el("span", "model-id", l.model.model));
+  const host = withHost ? ranOn(l) : null;
+  if (host) td.append(el("span", "ran-on", host));
   if (l.courses < COURSES) td.append(el("span", "partial", `${l.courses} of ${COURSES} courses so far`));
   return td;
 }
@@ -99,16 +110,17 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 
 app.insertAdjacentHTML("beforeend", siteHeader("results"));
 const header = el("div", "page-intro wrap");
-header.append(el("h1", undefined, "Benchmark results"));
-header.append(
-  el(
-    "p",
-    "lede",
-    `${lanes.length} lanes fly the same ${COURSES} courses, ${LEVELS_PER_COURSE} levels each, none of them seen in tuning or training. The game waits for every answer, so only judgment is scored: answer time and cost are measured and shown, never counted.`,
-  ),
-);
+{
+  const kinds = el("p", "kinds");
+  kinds.innerHTML = kindsNote(MANOEUVRES.length);
+  header.append(
+    el("h1", undefined, "Benchmark results"),
+    el("p", "lede", `${pilotsPhrase(lanes.map((l) => l.lane))} fly the same ${COURSES} courses of ${LEVELS_PER_COURSE} levels, none seen in tuning or training. The game waits for every answer, so only judgment is scored; answer time and cost are shown, never counted.`),
+    kinds,
+  );
+}
 if (incomplete.length) {
-  header.append(el("p", "status", `Still flying: ${incomplete.map((l) => `${l.label} ${l.courses} of ${COURSES} courses`).join(", ")}. Figures for those lanes cover the courses flown so far.`));
+  header.append(el("p", "status", `Still flying: ${incomplete.map((l) => `${l.label} ${l.courses} of ${COURSES} courses`).join(", ")}. Figures for those pilots cover the courses flown so far.`));
 }
 app.append(header);
 
@@ -122,7 +134,7 @@ function section(title: string, note: string): HTMLElement {
 // 1. Landing rate against answer time.
 const hero = section(
   "Landing rate against answer time",
-  "Each dot is a model lane: the share of levels it landed, with the 95% interval, against its median answer time on a log scale. The dashed line is the autopilot, a hand-written controller with no model.",
+  "Each dot is a model: the share of levels it landed, with the 95% interval, against its median answer time on a log scale. The dashed line is the autopilot, a hand-written controller with no model.",
 );
 const heroChart = el("div", "chart-host");
 hero.append(heroChart);
@@ -132,7 +144,7 @@ const rank = section("Ranking", "Ranked by landing rate, ties broken by mean lan
 {
   const wrap = el("div", "table-wrap");
   const table = el("table", "data");
-  headRow(table, ["#", "Lane", "Landed", "Landing rate", "Quality", "Same pick as autopilot", "Unanswered"]);
+  headRow(table, ["#", "Pilot", "Landed", "Landing rate", "Quality", "Same pick as autopilot", "Unanswered"]);
   const body = table.createTBody();
   lanes.forEach((l, i) => {
     const tr = body.insertRow();
@@ -160,11 +172,11 @@ const rank = section("Ranking", "Ranked by landing rate, ties broken by mean lan
 }
 
 // 3. How levels ended.
-const ends = section("How each level ended", "Counts out of the levels each lane flew. The bar is the share of that lane's levels.");
+const ends = section("How each level ended", "Counts out of the levels each pilot flew. The bar is the share of that pilot's levels.");
 {
   const wrap = el("div", "table-wrap");
   const table = el("table", "data outcomes");
-  headRow(table, ["Lane", ...OUTCOMES.map((o) => o.label)]);
+  headRow(table, ["Pilot", ...OUTCOMES.map((o) => o.label)]);
   const body = table.createTBody();
   for (const l of lanes) {
     const tr = body.insertRow();
@@ -232,7 +244,7 @@ const grid = section("Landings per course", `Levels landed out of ${LEVELS_PER_C
 // 5. Copying the autopilot against landing.
 const copy = section(
   "Copying the autopilot against landing",
-  "How often a lane picked the autopilot's manoeuvre, against its landing rate. Laya was trained to copy the autopilot; the other models only read a prompt. Landing well while disagreeing means a lane found its own way down.",
+  "How often each model picked the same move as the autopilot, against its landing rate. Laya was trained to copy the autopilot; the other models only read a prompt. Landing well while disagreeing means a model found its own way down.",
 );
 const copyChart = el("div", "chart-host");
 copy.append(copyChart);
@@ -240,25 +252,26 @@ copy.append(copyChart);
 // 6. Speed and cost.
 const cost = section(
   "Answer time and cost",
-  `Answer times are measured where each lane was flown: an M3 MacBook Pro with 16 GB RAM, or for the Kev lanes a Colab G4 GPU. Local and self-hosted models answered on that same machine, so their times include no network time. Tokens are as the provider reports them. Cost is for the courses flown at each lane's listed price, and scaled to all ${COURSES} courses. Local and self-hosted lanes cost nothing per token here; where the same model is sold on a hosted API, its price for the same tokens is shown underneath.`,
+  "Each model is timed on the machine named under it. Models on the laptop or Colab ran beside the game, so their times include no network delay. Running a model yourself costs nothing per token; where it is also sold on a paid API, that price is shown underneath.",
 );
 {
   const wrap = el("div", "table-wrap");
   const table = el("table", "data");
-  headRow(table, ["Lane", "Median answer", "95th percentile", "Waiting per course", "Tokens in / out per decision", "Cost so far", `Cost for ${COURSES} courses`]);
+  headRow(table, ["Pilot", "Median answer", "95th percentile", "Waiting per course", "Tokens in / out per decision", `Cost for ${COURSES} courses`]);
   const body = table.createTBody();
   const minutes = (s: number) => (s >= 60 ? `${(s / 60).toFixed(1)} min` : `${s.toFixed(0)} s`);
-  /** The lane's own cost, then, for a local lane with a hosted equivalent, that price as a second labelled line. */
-  const costCell = (l: LaneResult, scale: number): HTMLTableCellElement => {
+  /** The model's own cost for every course, then, for a local model with a hosted equivalent, that price as a second labelled line. */
+  const costCell = (l: LaneResult): HTMLTableCellElement => {
     const c = l.costUsd;
+    const scale = COURSES / l.courses;
     const td = el("td", "num", c ? usd(c.total * scale) : "–");
     const selfHosted = l.model?.provider.startsWith("self-hosted") ?? false;
-    if (c) td.append(el("span", "source", selfHosted ? "self-hosted GPU" : (PRICE_TEXT[c.priceSource] ?? c.priceSource)));
+    if (c) td.append(el("span", "source", selfHosted ? "GPU rental not counted" : (PRICE_TEXT[c.priceSource] ?? c.priceSource)));
     const h = l.hostedEquivalentUsd ?? null;
     if (h) {
       const alt = el("span", "hosted");
-      alt.append(el("b", undefined, `${usd(h.total * scale)}`), document.createTextNode(" if hosted, at "));
-      const link = el("a", undefined, `${h.price.provider}'s price`);
+      alt.append(el("b", undefined, `${usd(h.total * scale)}`), document.createTextNode(" on "));
+      const link = el("a", undefined, `${h.price.provider}'s API`);
       link.href = h.price.url;
       link.rel = "noopener";
       link.title = `$${h.price.input}/M input, $${h.price.output}/M output for ${h.price.model}, checked ${h.price.checked}`;
@@ -269,11 +282,11 @@ const cost = section(
   };
   for (const l of models) {
     const tr = body.insertRow();
-    tr.append(laneCell(l), el("td", "num", ms(l.latencyMs.p50)), el("td", "num", ms(l.latencyMs.p95)));
+    tr.append(laneCell(l, true), el("td", "num", ms(l.latencyMs.p50)), el("td", "num", ms(l.latencyMs.p95)));
     tr.append(el("td", "num", l.answerSecondsPerCourse === undefined ? "–" : minutes(l.answerSecondsPerCourse)));
     const t = l.tokensPerDecision;
     tr.append(el("td", "num", t ? `${Math.round(t.input)} / ${t.output === null ? "not reported" : Math.round(t.output)}` : "–"));
-    tr.append(costCell(l, 1), costCell(l, COURSES / l.courses));
+    tr.append(costCell(l));
   }
   wrap.append(table);
   cost.append(wrap);
@@ -297,7 +310,7 @@ function drawCharts(): void {
   scatter(
     heroChart,
     {
-      description: `Landing rate against median answer time for ${models.length} model lanes`,
+      description: `Landing rate against median answer time for ${models.length} models`,
       points: models.map((l) => ({
         id: l.lane,
         label: l.label,
@@ -319,7 +332,7 @@ function drawCharts(): void {
   scatter(
     copyChart,
     {
-      description: "Share of picks matching the autopilot against landing rate, per lane",
+      description: "Share of picks matching the autopilot against landing rate, per pilot",
       points: lanes.map((l) => ({
         id: l.lane,
         label: l.label,

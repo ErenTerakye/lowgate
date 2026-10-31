@@ -3,7 +3,7 @@ import { LaneReplay, argmax, usdFor, type BenchResults, type LaneResult, type Re
 import raw from "../../../bench/results.json?raw";
 import { siteHeader } from "./chrome.ts";
 import { icons } from "./icons.ts";
-import { colorOf, darkColorOf, inkOn, tagOf } from "./lanes.ts";
+import { KIND_LABEL, colorOf, darkColorOf, inkOn, kindOf, pilotsPhrase, tagOf } from "./lanes.ts";
 import { CourseRenderer, type Banner, type LanderView } from "./render.ts";
 import "./style.css";
 import "./replay.css";
@@ -51,9 +51,9 @@ const params = new URLSearchParams(location.search);
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
   ${siteHeader("replays")}
-  <div class="page-intro wrap">
+  <div class="page-intro wrap is-compact">
     <h1>Course replays</h1>
-    <p class="lede">${results.lanes.length} lanes fly the same course, each replayed from its benchmark recording. Every lane sees the same terrain and wind; the game waits for each answer, so only the choices differ.</p>
+    <p class="lede">${pilotsPhrase(results.lanes.map((l) => l.lane))} fly the same terrain and wind. The game waits for every answer, so only the choices differ.</p>
   </div>
   <main class="viewer replay wrap">
     <section class="flight" aria-label="Flight">
@@ -61,7 +61,7 @@ app.innerHTML = `
         <div class="flight-title"><h2 id="course-name">Course</h2><span class="badge" id="level-name"></span></div>
         <p class="verify" id="verify" role="status"></p>
       </div>
-      <div class="screen"><canvas class="lane-canvas" id="canvas" aria-label="All lanes flying the current level"></canvas></div>
+      <div class="screen"><canvas class="lane-canvas" id="canvas" aria-label="All pilots flying the current level"></canvas></div>
       <div class="deck">
         <div class="deck-play">
           <button id="toggle" type="button" class="primary"></button>
@@ -83,7 +83,7 @@ app.innerHTML = `
         <div class="board-scroll"><table class="board" id="board" aria-describedby="board-note"></table></div>
       </div>
     </section>
-    <aside class="side lanes" id="lanes" aria-label="Lanes"><p class="lanes-hint">Select a lane to follow it on the course; the eye hides it.</p></aside>
+    <aside class="side lanes" id="lanes" aria-label="Pilots"><p class="lanes-hint">Each grid holds all ${MANOEUVRES.length} moves. <b>System One models</b> shade every move by probability; the <b>LLM</b> writes its pick as text, so only that move lights. Select a pilot to follow it; the eye hides it.</p></aside>
   </main>
 `;
 
@@ -153,7 +153,7 @@ function makePanel(result: LaneResult): Panel {
   root.innerHTML = `
     <div class="lane-head">
       <span class="lane-tag" aria-hidden="true"></span>
-      <h3></h3>
+      <div class="lane-name-block"><h3></h3><span class="lane-kind"></span></div>
       <span class="lane-status"></span>
       <button type="button" class="lane-show" aria-pressed="true"></button>
     </div>
@@ -166,6 +166,7 @@ function makePanel(result: LaneResult): Panel {
       <polygon class="confidence-area"/><polyline class="confidence-line"/>
     </svg>`;
   root.querySelector("h3")!.textContent = result.label;
+  root.querySelector(".lane-kind")!.textContent = KIND_LABEL[kindOf(result.lane)];
   const tag = root.querySelector<HTMLSpanElement>(".lane-tag")!;
   tag.textContent = tagOf(result.lane);
   tag.style.background = colorOf(result.lane);
@@ -249,7 +250,7 @@ async function loadCourse(next: number): Promise<void> {
   const decisions = ok.reduce((n, l) => n + l.replay!.rec.decisions.length, 0);
   $("verify").textContent =
     ok.length === lanes.length
-      ? `All ${lanes.length} recordings replay to their saved states (${decisions.toLocaleString("en-GB")} decisions checked).`
+      ? `✓ ${lanes.length} recordings verified, ${decisions.toLocaleString("en-GB")} decisions checked`
       : `${ok.length} of ${lanes.length} recordings replay to their saved states; the others are listed in their panels.`;
   $("verify").classList.toggle("is-bad", ok.length !== lanes.length);
   buildBoard();
@@ -369,7 +370,7 @@ function buildBoard(): void {
   board.querySelector("thead")?.remove();
   board.querySelector("tbody")?.remove();
   const head = board.createTHead().insertRow();
-  head.innerHTML = `<th scope="col">Lane</th>${Array.from({ length: COURSE_LEVELS }, (_, i) => `<th scope="col"><button type="button" data-level="${i}" aria-label="Go to level ${i + 1}">${i + 1}</button></th>`).join("")}<th scope="col" class="num">Landed</th>`;
+  head.innerHTML = `<th scope="col">Pilot</th>${Array.from({ length: COURSE_LEVELS }, (_, i) => `<th scope="col"><button type="button" data-level="${i}" aria-label="Go to level ${i + 1}">${i + 1}</button></th>`).join("")}<th scope="col" class="num">Landed</th>`;
   const body = board.createTBody();
   for (const l of lanes) {
     const row = body.insertRow();
@@ -419,7 +420,7 @@ function renderBoard(): void {
     const landed = results.filter((r) => r.outcome === "landed").length;
     const cost = costOf(l);
     cells[COURSE_LEVELS]!.textContent = `${landed}/${results.length}`;
-    cells[COURSE_LEVELS]!.title = cost ? `This course cost ${cost} at the lane's listed price` : "";
+    cells[COURSE_LEVELS]!.title = cost ? `This course cost ${cost} at the model's listed price` : "";
   }
 }
 
