@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - apps/*
+  - video
 
 # Wrangler's native tooling; all other dependency scripts remain blocked.
 allowBuilds:

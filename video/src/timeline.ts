@@ -1,0 +1,56 @@
+/**
+ * Where each scene sits, in frames at 60 fps. The soundtrack script reads the same table, so a cue moves with the
+ * scene it belongs to.
+ */
+export const SCENES = {
+  hook: { from: 0, len: 210 },
+  how: { from: 210, len: 450 },
+  race: { from: 660, len: 420 },
+  score: { from: 1080, len: 360 },
+  traces: { from: 1440, len: 560 },
+  speed: { from: 2000, len: 330 },
+  end: { from: 2330, len: 240 },
+} as const;
+
+export const TOTAL_FRAMES = SCENES.end.from + SCENES.end.len;
+
+/** How It Works: real time for the first decisions, then up to speed so the landing fits the scene. */
+export const HOW_SLOW_FRAMES = 110;
+export const HOW_RAMP_FRAMES = 60;
+/** Frames left at the end of a flight scene to see the result. */
+export const HOW_HOLD = 60;
+
+/** Physics steps flown by frame f of How It Works, for a flight of `total` steps. */
+export function howStep(f: number, total: number): { step: number; speed: number } {
+  const flying = SCENES.how.len - HOW_HOLD;
+  const rampEnd = HOW_SLOW_FRAMES + HOW_RAMP_FRAMES;
+  // Steps covered before the top speed: the slow part and the linear ramp from 1x to vmax.
+  // total = slow + ramp * (1 + vmax) / 2 + (flying - rampEnd) * vmax
+  const vmax = (total - HOW_SLOW_FRAMES - HOW_RAMP_FRAMES / 2) / (HOW_RAMP_FRAMES / 2 + (flying - rampEnd));
+  if (f <= HOW_SLOW_FRAMES) return { step: Math.max(0, f), speed: 1 };
+  if (f <= rampEnd) {
+    const u = f - HOW_SLOW_FRAMES;
+    const v = 1 + ((vmax - 1) * u) / HOW_RAMP_FRAMES;
+    return { step: HOW_SLOW_FRAMES + (u * (1 + v)) / 2, speed: v };
+  }
+  const step = HOW_SLOW_FRAMES + (HOW_RAMP_FRAMES * (1 + vmax)) / 2 + (f - rampEnd) * vmax;
+  return { step: Math.min(total, step), speed: vmax };
+}
+
+/** Race: every lane starts together and the longest flight ends RACE_HOLD frames before the scene does. */
+export const RACE_LEAD = 50;
+export const RACE_HOLD = 70;
+export function raceStep(f: number, longest: number): number {
+  const frames = SCENES.race.len - RACE_LEAD - RACE_HOLD;
+  return Math.max(0, Math.min(longest, ((f - RACE_LEAD) / frames) * longest));
+}
+
+/** Traces: the small model's flights draw, hold, then the large model's. */
+export const TRACE = {
+  smallStart: 40,
+  smallDraw: 170,
+  bigStart: 270,
+  bigDraw: 170,
+} as const;
+/** Longest flight is a 60 s timeout; trace points are every 10 physics steps. */
+export const TRACE_POINTS_MAX = 361;

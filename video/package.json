@@ -1,0 +1,24 @@
+{
+  "name": "@lowgate/video",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "data": "node scripts/extract.ts",
+    "audio": "node scripts/soundtrack.ts",
+    "studio": "remotion studio src/index.ts",
+    "render": "node scripts/extract.ts && node scripts/soundtrack.ts && remotion render src/index.ts Launch out/lowgate-launch.mp4"
+  },
+  "dependencies": {
+    "@lowgate/decisions": "workspace:*",
+    "@lowgate/engine": "workspace:*",
+    "@remotion/cli": "4.0.536",
+    "@remotion/google-fonts": "4.0.536",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.536"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2"
+  }
+}
