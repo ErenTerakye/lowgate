@@ -51,7 +51,6 @@
   font-size: 16px;
   line-height: 1.5;
   color: var(--ink);
-  /* The root takes the header's colour, which is what mobile Safari paints behind the status bar; the page grey is on body. */
   background: var(--surface);
 }
 
@@ -62,7 +61,10 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--page);
+  /* Mobile Safari tints the status bar with body's background colour, so that stays the header's white; the page grey
+     is painted as an image over it, which Safari ignores. */
+  background-color: var(--surface);
+  background-image: linear-gradient(var(--page), var(--page));
 }
 
 /* Buttons set their own display, which would otherwise override [hidden]. */
