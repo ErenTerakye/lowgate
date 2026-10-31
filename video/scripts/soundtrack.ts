@@ -5,14 +5,20 @@
  *
  *   node video/scripts/soundtrack.ts
  *
+ * The video loops on LinkedIn, so the soundtrack is circular: it is exactly as long as the video, and any sound still
+ * ringing at the end (the last chord, the reverb) is folded back onto the start.
+ *
  * Writes video/public/soundtrack.wav (generated, not committed). Needs video/src/data/flights.json (`pnpm data`).
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { HOW_SLOW_FRAMES, RACE_LEAD, RACE_HOLD, SCENES, TOTAL_FRAMES, TRACE, howStep } from "../src/timeline.ts";
+import { HOW_SLOW_FRAMES, LOOP_FADE, RACE_LEAD, RACE_HOLD, SCENES, TOTAL_FRAMES, TRACE, howStep } from "../src/timeline.ts";
 
 const RATE = 48000;
 const FPS = 60;
-const N = Math.ceil(((TOTAL_FRAMES + 30) / FPS) * RATE);
+/** The loop's length in samples: exactly the video's. */
+const L = Math.round((TOTAL_FRAMES / FPS) * RATE);
+/** Room past the end for tails, which are folded back onto the start. */
+const N = L + 8 * RATE;
 const dry = [new Float32Array(N), new Float32Array(N)];
 const wet = [new Float32Array(N), new Float32Array(N)];
 
@@ -168,8 +174,9 @@ pad(Bbmaj7, S("score"), S("score") + 2.5, 0.04, 0.5);
 pad(Csus, S("score") + 2.5, E("score"), 0.04, 0.5);
 pulse(S("race") + sec(RACE_LEAD) - bar / 8, E("score") - 0.1, [38, 38, 34, 41], bar, 0.16);
 
-// Scene changes.
+// Scene changes, including the one from the end card back to the opening.
 for (const k of ["how", "race", "score", "traces", "speed", "end"] as const) sweep(S(k) - 0.35, 0.8, 0.09, 300, 5000, "whoosh");
+sweep(sec(TOTAL_FRAMES - LOOP_FADE / 2) - 0.4, 0.8, 0.09, 300, 5000, "whoosh");
 
 // How It Works: a blip for every decision, which speeds up as the flight does, and a chime on touchdown.
 {
@@ -282,23 +289,34 @@ function reverb(x: Float32Array, spread: number): Float32Array {
   return out;
 }
 
+/** Wraps everything past the loop's end back onto its start. */
+function fold(x: Float32Array): Float32Array {
+  const out = new Float32Array(L);
+  for (let i = 0; i < x.length; i++) out[i % L]! += x[i]!;
+  return out;
+}
+
 const mix = [0, 1].map((c) => {
-  const rv = reverb(wet[c]!, c * 23);
-  const m = new Float32Array(N);
-  for (let i = 0; i < N; i++) m[i] = dry[c]![i]! + rv[i]! * 0.35;
+  const d = fold(dry[c]!);
+  const w = fold(wet[c]!);
+  // Reverb over two laps of the loop, keeping the second: its tail from the end is already ringing at the start.
+  const twice = new Float32Array(2 * L);
+  twice.set(w);
+  twice.set(w, L);
+  const rv = reverb(twice, c * 23).subarray(L);
+  const m = new Float32Array(L);
+  for (let i = 0; i < L; i++) m[i] = d[i]! + rv[i]! * 0.35;
   return m;
 });
 
-// Fade out the tail, then soft-limit and bring the peak to -1 dBFS.
-const fadeFrom = Math.floor(sec(TOTAL_FRAMES - 40) * RATE);
-for (const m of mix) for (let i = fadeFrom; i < N; i++) m[i]! *= Math.max(0, 1 - (i - fadeFrom) / (N - fadeFrom));
+// Soft-limit and bring the peak to -1 dBFS.
 let peak = 0;
-for (const m of mix) for (let i = 0; i < N; i++) peak = Math.max(peak, Math.abs(Math.tanh(m[i]! * 1.5)));
+for (const m of mix) for (let i = 0; i < L; i++) peak = Math.max(peak, Math.abs(Math.tanh(m[i]! * 1.5)));
 const gain = 10 ** (-1 / 20) / peak;
 
-const pcm = Buffer.alloc(44 + N * 4);
+const pcm = Buffer.alloc(44 + L * 4);
 pcm.write("RIFF", 0);
-pcm.writeUInt32LE(36 + N * 4, 4);
+pcm.writeUInt32LE(36 + L * 4, 4);
 pcm.write("WAVEfmt ", 8);
 pcm.writeUInt32LE(16, 16);
 pcm.writeUInt16LE(1, 20);
@@ -308,10 +326,10 @@ pcm.writeUInt32LE(RATE * 4, 28);
 pcm.writeUInt16LE(4, 32);
 pcm.writeUInt16LE(16, 34);
 pcm.write("data", 36);
-pcm.writeUInt32LE(N * 4, 40);
-for (let i = 0; i < N; i++) {
+pcm.writeUInt32LE(L * 4, 40);
+for (let i = 0; i < L; i++) {
   for (let c = 0; c < 2; c++) pcm.writeInt16LE(Math.round(Math.tanh(mix[c]![i]! * 1.5) * gain * 32767), 44 + i * 4 + c * 2);
 }
 mkdirSync(new URL("../public/", import.meta.url), { recursive: true });
 writeFileSync(new URL("../public/soundtrack.wav", import.meta.url), pcm);
-console.log(`soundtrack.wav: ${(N / RATE).toFixed(1)} s, peak gain ${gain.toFixed(2)}`);
+console.log(`soundtrack.wav: ${(L / RATE).toFixed(1)} s, peak gain ${gain.toFixed(2)}`);

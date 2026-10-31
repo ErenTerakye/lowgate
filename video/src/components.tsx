@@ -31,7 +31,7 @@ export function Backdrop() {
 /** Wraps a scene: its content leaves by sliding up and fading over its last frames. */
 export function Scene({ len, children, exit = 16 }: { len: number; children: ReactNode; exit?: number }) {
   const f = useCurrentFrame();
-  const t = interpolate(f, [len - exit, len], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.in(Easing.cubic) });
+  const t = interpolate(f, [len - exit, len - 1], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.in(Easing.cubic) });
   return <AbsoluteFill style={{ opacity: 1 - t, transform: `translateY(${-40 * t}px)` }}>{children}</AbsoluteFill>;
 }
 

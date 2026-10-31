@@ -9,10 +9,13 @@ export const SCENES = {
   score: { from: 1080, len: 360 },
   traces: { from: 1440, len: 560 },
   speed: { from: 2000, len: 330 },
-  end: { from: 2330, len: 240 },
+  end: { from: 2330, len: 270 },
 } as const;
 
 export const TOTAL_FRAMES = SCENES.end.from + SCENES.end.len;
+
+/** LinkedIn loops its autoplay, so the last frames fade into the first: the end card leaves as the opening returns. */
+export const LOOP_FADE = 40;
 
 /** How It Works: real time for the first decisions, then up to speed so the landing fits the scene. */
 export const HOW_SLOW_FRAMES = 110;

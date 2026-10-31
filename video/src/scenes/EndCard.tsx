@@ -1,5 +1,6 @@
-import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import { Lander, Rise, ease } from "../components";
+import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { Lander, Rise, Scene, ease } from "../components";
+import { LOOP_FADE, SCENES } from "../timeline";
 import { BODY, C, DISPLAY, WIDTH } from "../theme";
 
 const PAD_Y = 560;
@@ -13,7 +14,7 @@ export function EndCard() {
   const touched = descent > 0.995;
   const glow = spring({ frame: f - 70, fps, config: { damping: 30 } });
   return (
-    <AbsoluteFill>
+    <Scene len={SCENES.end.len} exit={LOOP_FADE}>
       <svg width={WIDTH} height={1350} style={{ position: "absolute" }}>
         <defs>
           <radialGradient id="padglow">
@@ -36,6 +37,6 @@ export function EndCard() {
           <div style={{ fontFamily: BODY, fontSize: 28, color: C.muted, marginTop: 80 }}>Replays, results and code: link in the post.</div>
         </Rise>
       </div>
-    </AbsoluteFill>
+    </Scene>
   );
 }

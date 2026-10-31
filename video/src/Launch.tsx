@@ -1,6 +1,6 @@
-import { AbsoluteFill, Audio, Sequence, staticFile } from "remotion";
+import { AbsoluteFill, Audio, Freeze, Sequence, interpolate, staticFile, useCurrentFrame } from "remotion";
 import { Backdrop } from "./components";
-import { SCENES } from "./timeline";
+import { LOOP_FADE, SCENES, TOTAL_FRAMES } from "./timeline";
 import { Hook } from "./scenes/Hook";
 import { HowItWorks } from "./scenes/HowItWorks";
 import { Race } from "./scenes/Race";
@@ -19,6 +19,18 @@ const PARTS = [
   [SCENES.end, EndCard],
 ] as const;
 
+/** The opening's first frame, fading in over the end so the loop back to frame 0 has no cut. */
+function LoopIn() {
+  const f = useCurrentFrame();
+  return (
+    <AbsoluteFill style={{ opacity: interpolate(f, [0, LOOP_FADE - 1], [0, 1], { extrapolateRight: "clamp" }) }}>
+      <Freeze frame={0}>
+        <Hook />
+      </Freeze>
+    </AbsoluteFill>
+  );
+}
+
 export function Launch({ withAudio = true }: { withAudio?: boolean }) {
   return (
     <AbsoluteFill>
@@ -28,6 +40,9 @@ export function Launch({ withAudio = true }: { withAudio?: boolean }) {
           <Part />
         </Sequence>
       ))}
+      <Sequence from={TOTAL_FRAMES - LOOP_FADE} durationInFrames={LOOP_FADE}>
+        <LoopIn />
+      </Sequence>
       {withAudio ? <Audio src={staticFile("soundtrack.wav")} /> : null}
     </AbsoluteFill>
   );
