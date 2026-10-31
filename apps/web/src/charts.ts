@@ -156,18 +156,27 @@ export function scatter(host: HTMLElement, spec: ScatterSpec, tooltip: Tooltip):
     svgText(svg, width - MARGIN.right, ry - 6, spec.reference.label, { "text-anchor": "end", class: "reference-label" });
   }
 
-  // Direct labels sit right of the dot, or left near the right edge, nudged apart vertically.
-  const placed: { x: number; y: number; right: boolean }[] = [];
+  // Direct labels sit right of the dot, or left near the right edge or when another dot sits where the label would
+  // go, nudged apart vertically. Label width is estimated at 7 px a character.
+  const placed: { x0: number; x1: number; y: number }[] = [];
   const order = [...spec.points].sort((a, b) => y(a.y) - y(b.y));
-  const labels = new Map<string, { x: number; y: number; right: boolean }>();
-  for (const p of order) {
+  const labels = new Map<string, { y: number; right: boolean }>();
+  const span = (p: ScatterPoint, right: boolean): [number, number] => {
     const px = x(p.x);
-    const right = px < width - MARGIN.right - 110;
+    const w = 12 + p.label.length * 7;
+    return right ? [px, px + w] : [px - w, px];
+  };
+  const blocksRight = (p: ScatterPoint) => {
+    const [, end] = span(p, true);
+    return spec.points.some((q) => q !== p && x(q.x) > x(p.x) && x(q.x) - 8 < end && Math.abs(y(q.y) - y(p.y)) < 14);
+  };
+  for (const p of order) {
+    const right = x(p.x) < width - MARGIN.right - 110 && !blocksRight(p);
+    const [x0, x1] = span(p, right);
     let ly = y(p.y) + 4;
-    for (const q of placed) if (q.right === right && Math.abs(q.x - px) < 120 && Math.abs(q.y - ly) < 16) ly = q.y + 16;
-    const spot = { x: px, y: ly, right };
-    placed.push(spot);
-    labels.set(p.id, spot);
+    for (const q of placed) if (x0 < q.x1 && q.x0 < x1 && Math.abs(q.y - ly) < 18) ly = q.y + 18;
+    placed.push({ x0, x1, y: ly });
+    labels.set(p.id, { y: ly, right });
   }
 
   for (const p of spec.points) {

@@ -304,6 +304,155 @@
       "answerSecondsPerCourse": 65.0593
     },
     {
+      "lane": "kev-27b",
+      "label": "Kev 27B",
+      "model": {
+        "provider": "self-hosted (Colab GPU)",
+        "model": "jaredpalmer/kev-27b@v1.0",
+        "pinned": true,
+        "price": {
+          "input": 0,
+          "output": 0,
+          "source": "none"
+        }
+      },
+      "prompts": [
+        "f1"
+      ],
+      "servedModels": [
+        "jaredpalmer/kev-27b@v1.0"
+      ],
+      "courses": 20,
+      "levels": 160,
+      "landed": 151,
+      "landingRate": 0.94375,
+      "landingRate95": {
+        "low": 0.8965638030747685,
+        "high": 0.9701276983899478
+      },
+      "perCourse": [
+        {
+          "seed": 5001,
+          "landed": 7
+        },
+        {
+          "seed": 5002,
+          "landed": 7
+        },
+        {
+          "seed": 5003,
+          "landed": 7
+        },
+        {
+          "seed": 5004,
+          "landed": 8
+        },
+        {
+          "seed": 5005,
+          "landed": 8
+        },
+        {
+          "seed": 5006,
+          "landed": 8
+        },
+        {
+          "seed": 5007,
+          "landed": 7
+        },
+        {
+          "seed": 5008,
+          "landed": 6
+        },
+        {
+          "seed": 5009,
+          "landed": 7
+        },
+        {
+          "seed": 5010,
+          "landed": 8
+        },
+        {
+          "seed": 5011,
+          "landed": 8
+        },
+        {
+          "seed": 5012,
+          "landed": 8
+        },
+        {
+          "seed": 5013,
+          "landed": 8
+        },
+        {
+          "seed": 5014,
+          "landed": 8
+        },
+        {
+          "seed": 5015,
+          "landed": 8
+        },
+        {
+          "seed": 5016,
+          "landed": 8
+        },
+        {
+          "seed": 5017,
+          "landed": 8
+        },
+        {
+          "seed": 5018,
+          "landed": 7
+        },
+        {
+          "seed": 5019,
+          "landed": 7
+        },
+        {
+          "seed": 5020,
+          "landed": 8
+        }
+      ],
+      "quality": {
+        "mean": 47.44238410596028,
+        "sd": 10.569733122370955,
+        "ci": {
+          "low": 45.75651581331062,
+          "high": 49.12825239860994
+        },
+        "n": 151
+      },
+      "outcomes": {
+        "crashed_speed": 6,
+        "landed": 151,
+        "timeout": 3
+      },
+      "decisions": 6469,
+      "unanswered": 0,
+      "retried": 0,
+      "agreesWithAutopilot": {
+        "exact": 0.4359251816354924,
+        "tilt": 0.6461586025660844,
+        "throttle": 0.6388931828721596
+      },
+      "meanTopProbability": 0.4239664708610289,
+      "latencyMs": {
+        "p50": 239,
+        "p95": 239,
+        "source": "measured, from this machine"
+      },
+      "tokensPerDecision": {
+        "input": 591.468696861957,
+        "output": 299.80646158602565,
+        "source": "provider-reported"
+      },
+      "costUsd": {
+        "total": 0,
+        "priceSource": "none"
+      },
+      "hostedEquivalentUsd": null,
+      "answerSecondsPerCourse": 76.46395
+    },
+    {
       "lane": "gemma-local",
       "label": "Gemma 4 12B",
       "model": {
@@ -613,6 +762,157 @@
       },
       "hostedEquivalentUsd": null,
       "answerSecondsPerCourse": 73.58375
+    },
+    {
+      "lane": "kev-9b",
+      "label": "Kev 9B",
+      "model": {
+        "provider": "self-hosted (Colab GPU)",
+        "model": "jaredpalmer/kev-9b@v1.0",
+        "pinned": true,
+        "price": {
+          "input": 0,
+          "output": 0,
+          "source": "none"
+        }
+      },
+      "prompts": [
+        "f1"
+      ],
+      "servedModels": [
+        "jaredpalmer/kev-9b@v1.0"
+      ],
+      "courses": 20,
+      "levels": 160,
+      "landed": 118,
+      "landingRate": 0.7375,
+      "landingRate95": {
+        "low": 0.6643294221546077,
+        "high": 0.7995336349673532
+      },
+      "perCourse": [
+        {
+          "seed": 5001,
+          "landed": 8
+        },
+        {
+          "seed": 5002,
+          "landed": 5
+        },
+        {
+          "seed": 5003,
+          "landed": 5
+        },
+        {
+          "seed": 5004,
+          "landed": 7
+        },
+        {
+          "seed": 5005,
+          "landed": 5
+        },
+        {
+          "seed": 5006,
+          "landed": 7
+        },
+        {
+          "seed": 5007,
+          "landed": 6
+        },
+        {
+          "seed": 5008,
+          "landed": 5
+        },
+        {
+          "seed": 5009,
+          "landed": 6
+        },
+        {
+          "seed": 5010,
+          "landed": 7
+        },
+        {
+          "seed": 5011,
+          "landed": 5
+        },
+        {
+          "seed": 5012,
+          "landed": 6
+        },
+        {
+          "seed": 5013,
+          "landed": 5
+        },
+        {
+          "seed": 5014,
+          "landed": 6
+        },
+        {
+          "seed": 5015,
+          "landed": 7
+        },
+        {
+          "seed": 5016,
+          "landed": 5
+        },
+        {
+          "seed": 5017,
+          "landed": 6
+        },
+        {
+          "seed": 5018,
+          "landed": 6
+        },
+        {
+          "seed": 5019,
+          "landed": 6
+        },
+        {
+          "seed": 5020,
+          "landed": 5
+        }
+      ],
+      "quality": {
+        "mean": 46.19830508474576,
+        "sd": 10.105097157162835,
+        "ci": {
+          "low": 44.375049366692195,
+          "high": 48.02156080279933
+        },
+        "n": 118
+      },
+      "outcomes": {
+        "landed": 118,
+        "out_of_bounds": 15,
+        "crashed_speed": 12,
+        "timeout": 14,
+        "crashed_terrain": 1
+      },
+      "decisions": 7117,
+      "unanswered": 0,
+      "retried": 0,
+      "agreesWithAutopilot": {
+        "exact": 0.28649711957285373,
+        "tilt": 0.500772797527048,
+        "throttle": 0.556835745398342
+      },
+      "meanTopProbability": 0.3814108613179691,
+      "latencyMs": {
+        "p50": 82,
+        "p95": 82,
+        "source": "measured, from this machine"
+      },
+      "tokensPerDecision": {
+        "input": 593.3019530701138,
+        "output": 299.9030490375158,
+        "source": "provider-reported"
+      },
+      "costUsd": {
+        "total": 0,
+        "priceSource": "none"
+      },
+      "hostedEquivalentUsd": null,
+      "answerSecondsPerCourse": 29.0947
     },
     {
       "lane": "clef",
@@ -1070,5 +1370,5 @@
       "answerSecondsPerCourse": 8.6846
     }
   ],
-  "at": "2026-10-31T07:34:49.938Z"
+  "at": "2026-10-31T08:26:13.216Z"
 }

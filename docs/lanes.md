@@ -161,6 +161,8 @@ Every lane flew the same 20 courses (160 levels), unseen by every lane during tu
 | Laya v4, local | 20/20 | 142/160 (89%) | 83–93% | 41.1 ± 1.6 | 79% | 199 ms | 74 s | $0 |
 | Clef-flash | 20/20 | 75/160 (47%) | 39–55% | 40.7 ± 2.6 | 24% | 508 ms | 235 s | $0.24 (vendor price) |
 | Kev 4B `kev-4b@v1.0`, Colab G4 | 20/20 | 5/160 (3%) | 1–7% | 40.6 ± 10.1 | 25% | 61 ms | 13 s | $0 here; $0.11 hosted-equivalent (OpenRouter's listed price, vendor) |
+| Kev 27B `kev-27b@v1.0`, Colab G4 | 20/20 | 151/160 (94%) | 90–97% | 47.4 ± 1.7 | 44% | 239 ms | 76 s | $0 (no hosted price checked) |
+| Kev 9B `kev-9b@v1.0`, Colab G4 | 20/20 | 118/160 (74%) | 66–80% | 46.2 ± 1.8 | 29% | 82 ms | 29 s | $0 |
 | Kev 0.8B `kev-0.8b@v1.0`, Colab G4 | 20/20 | 0/160 (0%) | 0–2% | – | 2% | 28 ms | 9 s | $0 |
 
 Intervals: Wilson for landing rate, normal-approximation 95% for the mean quality of landed levels.
@@ -168,10 +170,11 @@ Intervals: Wilson for landing rate, normal-approximation 95% for the mean qualit
 - **Jev lands nearly as often as the autopilot** and lands better (quality 46.7 vs 42.3), while agreeing with the autopilot's exact pick only 39% of the time. It flies its own way, not a copy of the script.
 - **Gemma matches Jev's landing quality** (46.8) but lands less often: 13 misses against Jev's 4. The intervals barely overlap, so the gap is probably real but not large. It is also 27× slower per answer and the only lane whose run took a night (about 9.4 hours of answers on this Mac).
 - **Laya v4 is close to the autopilot's picks** (79% the same, as trained) but lands less softly than any other lane (41.1). Imitation got it to 89% landed; it does not improve on its teacher.
+- **Kev scales from nothing to near Jev**: 0.8B and 4B land 0–3%, 9B 74%, 27B 94% with the best landing quality of any lane (47.4). Details and the tilt analysis are under Kev on Colab below.
 - **Clef-flash is far behind** at 47%, and the roughest landings of the model lanes. Its last 8 courses ran a day later (2026-10-31), after Workers AI's free allowance came back: Cloudflare's dashboard showed the block lasting about 24 hours from the heavy use, not ending at 00:00 UTC. The 12 courses of 2026-10-30 used about 14k neurons by the dashboard's chart (read off, not exported), about 6% above the listed 3,455 neurons per million tokens, so the cost shown here may be slightly low.
 - Gemma's generation speed on this Mac, estimated from the latency of 3,444 decisions against their output tokens: about 10.5 output tokens/s, plus about 1.8 s to read each ~600-token prompt (7.1 output tokens/s end to end, measured).
 
-## Kev on Colab (flown 2026-10-31; 9B and 27B to fly)
+## Kev on Colab (flown 2026-10-31)
 
 Kev is an open-weight, Jev-style family on Qwen3.5 bases (Apache-2.0, [github.com/jaredpalmer/kev](https://github.com/jaredpalmer/kev)). Its `kev.serve` speaks the same `/v1/systemone` contract as Jev, so the Kev lanes reuse `SystemOneClient` with no adapter changes; a test pins the answer shape from Kev's README. This Mac (16 GB) cannot hold Kev-4B (it needs a 32 GB Mac), so the lanes run on a Colab Pro GPU, chosen over OpenRouter (Kev-4B only, paid) on 2026-10-30.
 
@@ -180,26 +183,38 @@ Kev is an open-weight, Jev-style family on Qwen3.5 bases (Apache-2.0, [github.co
 | `kev-0.8b` | `jaredpalmer/kev-0.8b@v1.0` | G4 (README: L4 or any 4 GB GPU) | none listed |
 | `kev-4b` | `jaredpalmer/kev-4b@v1.0` | G4 (README: L40S or H100) | $0.042/M input, output free (OpenRouter, vendor, checked 2026-10-30) |
 | `kev-9b` | `jaredpalmer/kev-9b@v1.0` | G4 (README: L40S or H100) | none listed |
-| `kev-27b` | `jaredpalmer/kev-27b@v1.0` (tag not yet confirmed; the notebook's run check shows it) | G4, 96 GB (README: 80 GB GPU; about 54 GB of bf16 weights) | not checked |
+| `kev-27b` | `jaredpalmer/kev-27b@v1.0` | G4, 96 GB (README: 80 GB GPU; about 54 GB of bf16 weights) | not checked |
 
 - `bridge/kev/kev_colab.ipynb` clones this repo (read-only token from Colab Secrets), starts Kev on `127.0.0.1:8009` next to the benchmark, probes course 42, flies courses 5001–5020 and downloads `bench/<lane>/`.
 - Every Kev lane flies Jev's prompt f1, untuned, so the comparison with Jev is like for like.
-- The `v1.0` tag was read on the 4B model card only. The notebook prints the model name the server reports; the benchmark refuses to save a course served by anything other than the pin.
-- All three run on a Colab G4 (NVIDIA RTX PRO 6000, 96 GB). Kev's README lists L40S or H100 for 4B and 9B; this Colab account has no H100, and the GPU only needs bf16 and enough memory, since the benchmark is this project's own. One GPU type keeps the lanes' answer times comparable.
+- Each run's server log shows the checkpoint it loaded: `kev-<size>@v1.0` with its Hub snapshot hash. The notebook checks the `run` the server reports at `/v1/models` against the pin before flying, because Kev's answers echo whatever model name the request asks for.
+- All four run on a Colab G4 (NVIDIA RTX PRO 6000, 96 GB). Kev's README lists L40S or H100 for 4B and 9B and an 80 GB GPU for 27B; this Colab account has no H100, and the GPU only needs bf16 and enough memory, since the benchmark is this project's own. One GPU type keeps the lanes' answer times comparable.
 - Answer times measure the Colab GPU, not a hosted service.
 
-**Results (measured, 2026-10-31).** Kev 4B landed 5 of 160 levels and Kev 0.8B none; 145 and 138 of their levels ended out of bounds, drifting sideways off the course. To rule out a misread answer, every decision was replayed and its top tilt and throttle compared with the autopilot's at the same state (Kev 4B: 4,336 decisions; Jev: 6,255):
+**Results (measured, 2026-10-31).** Kev's landing rate climbs steeply with size, on Jev's prompt with no tuning:
 
-| Same top choice as the autopilot | Kev 4B | Jev |
-|---|---|---|
-| Throttle, autopilot wants Low | 59% | 57% |
-| Throttle, autopilot wants Medium | 50% | 49% |
-| Tilt, autopilot wants full left (L30) | 41%; full right 1,302 times | 85% |
-| Tilt, autopilot wants full right (R30) | 41%; full left never | 92% |
+| Lane | Landed | 95% interval | Quality | Median answer (Colab G4) | How the misses ended |
+|---|---|---|---|---|---|
+| Kev 0.8B | 0/160 | 0–2% | – | 28 ms | 138 off course, 15 out of time, 7 hit terrain |
+| Kev 4B | 5/160 | 1–7% | 40.6 ± 10.1 | 61 ms | 145 off course, 8 hit terrain, 1 too fast, 1 out of time |
+| Kev 9B | 118/160 | 66–80% | 46.2 ± 1.8 | 82 ms | 15 off course, 14 out of time, 12 too fast, 1 hit terrain |
+| Kev 27B | 151/160 | 90–97% | 47.4 ± 1.7 | 239 ms | 6 too fast, 3 out of time |
+| Jev (for reference) | 156/160 | 94–99% | 46.7 ± 1.6 | 203 ms (over the network) | 3 too fast, 1 out of time |
 
-Throttle is read as well as Jev's, so the levels are not mixed up. Kev often answers 'full right' when the lander must tilt full left to get back to the pad, never the reverse, so this is not a swapped key: untuned on Jev's prompt, Kev confuses which way to go when far off. Its README scores Kev 4B at 38 against Jev's 54 on its own held-out tests.
+- **Kev 27B is close to Jev.** Its interval overlaps Jev's (90–97% against 94–99%), so 20 courses cannot separate them; it landed 5 fewer levels. Its landing quality, 47.4, is the highest of any lane, within noise of Jev's 46.7 and Gemma's 46.8. This matches Kev's README, which puts 27B (52.3) closest to Jev (54) on its held-out tests.
+- **The small Kevs fail on tilt, not throttle.** Replaying every decision and comparing its top tilt and throttle with the autopilot's at the same state:
 
-**Kev 9B was not measured.** It ran in the same Colab runtime as 0.8B, three minutes later. 9B's server loaded but could not bind port 8009 (`[Errno 98] address already in use`), and the 0.8B server, still running, answered every question; the 9B recordings match 0.8B's probabilities exactly. The pin check did not catch it, because Kev's response echoes the model name the request asks for. Those recordings were removed from `bench/`, and the notebook now stops any earlier Kev before starting one and checks the `run` the server reports at `/v1/models` against the pin.
+| Same top choice as the autopilot | Kev 4B | Kev 9B | Kev 27B | Jev |
+|---|---|---|---|---|
+| Throttle, autopilot wants Low | 59% | 59% | 59% | 57% |
+| Throttle, autopilot wants Medium | 50% | 46% | 61% | 49% |
+| Tilt, autopilot wants full left (L30) | 41%; full right 1,302 times | 83% | 85% | 85% |
+| Tilt, autopilot wants full right (R30) | 41%; full left never | 23%; R15 1,439 times | 83% | 92% |
+
+  Every size reads throttle about as well as Jev, so the answers are not misread. Kev 4B often answers 'full right' when the lander must tilt full left to get back to the pad, never the reverse, so it is not a swapped key: it confuses which way to go when far off, and drifts off the course. Kev 9B knows the direction but often tilts too little to the right (R15 for R30), and lands 74%. Kev 27B tilts like Jev.
+- Answer times are on a G4 with the model on the same machine; Jev's 203 ms includes the network to TypeSafe. Kev 27B at 239 ms is the slowest Kev but still well under a second.
+
+**The first Kev 9B run was discarded.** It ran in the same Colab runtime as 0.8B, three minutes later. 9B's server loaded but could not bind port 8009 (`[Errno 98] address already in use`), and the 0.8B server, still running, answered every question; those recordings matched 0.8B's probabilities exactly. The pin check did not catch it, because Kev's response echoes the model name the request asks for. The notebook now stops any earlier Kev before starting one and checks the `run` reported at `/v1/models`; 9B was flown again in a new runtime, and its log shows the 9B checkpoint loading.
 
 ## Laya reproducibility check (prepared 2026-10-31)
 

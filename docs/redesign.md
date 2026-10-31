@@ -23,7 +23,7 @@ there are far fewer of them.
 | Ranking | Landing rate across all levels, ties broken by an average landing-quality score made of distance from the pad centre, touchdown speed and fuel left. Both are shown with their spread. |
 | Explaining a decision | The probability bars across the menu, and a timeline of how confident the lane was. The chat model (Gemma) returns no probabilities, so it gets a single bar for the manoeuvre it picked. |
 | View | One shared course: every lander on the same terrain in its own colour, with a trail. A panel per lane shows its bars, score, latency and cost. |
-| Roster | Jev, Clef-flash, Gemma 4 12B on this Mac (the chat lane; replaced Qwen3 30B on 2026-10-30 to leave the Workers AI allowance to Clef-flash, docs/lanes.md), Laya (retrained for the menu) and the autopilot (adapted to the menu). Kev, self-hosted on a Colab G4 (chosen over OpenRouter on 2026-10-30): 0.8B and 4B flown 2026-10-31, 9B to fly again. |
+| Roster | Jev, Clef-flash, Gemma 4 12B on this Mac (the chat lane; replaced Qwen3 30B on 2026-10-30 to leave the Workers AI allowance to Clef-flash, docs/lanes.md), Laya (retrained for the menu) and the autopilot (adapted to the menu). Kev, self-hosted on a Colab G4 (chosen over OpenRouter on 2026-10-30): 0.8B, 4B, 9B and 27B flown 2026-10-31. |
 | Name | Low Gate (repo `lowgate`), renamed from Decision Arena on 2026-10-30 because that name is taken by a similar System One project. The Apollo low gate is where the crew took over and chose the touchdown spot. Recordings keep the format tag `decision-arena/recording-2`. |
 | Old version | Tagged `v0-realtime`, then removed from the working tree, including `showcase.json`. Nothing is lost. |
 
