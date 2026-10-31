@@ -1,6 +1,7 @@
 {
   // Static assets only: the replays and results page are built from bench/ and need no server or key.
-  // Deploy with `pnpm deploy:web` from the repo root (builds first).
+  // Deploy with `pnpm deploy:web` from the repo root (builds first). It runs Wrangler from this folder so the root
+  // .env, which Wrangler would otherwise read, cannot swap its CLOUDFLARE_* values for your login.
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "lowgate",
   "compatibility_date": "2026-09-08",

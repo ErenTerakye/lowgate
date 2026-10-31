@@ -16,7 +16,7 @@
     "probe": "node --env-file-if-exists=.env packages/decisions/scripts/probe.ts",
     "test": "vitest run",
     "typecheck": "tsc -b",
-    "deploy:web": "pnpm build && wrangler deploy --config apps/web/wrangler.jsonc"
+    "deploy:web": "pnpm build && cd apps/web && ../../node_modules/.bin/wrangler deploy"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

@@ -31,7 +31,7 @@ pnpm bench --summary   # rebuild bench/results.json from the recordings
 
 ## Deploy
 
-The site is static: replays and results are built from `bench/` and need no server or key. It runs as a Cloudflare Worker with static assets only (`apps/web/wrangler.jsonc`), on the free plan, at `lowgate.erenterakye.com`.
+The site is static: replays and results are built from `bench/` and need no server or key. It runs as a Cloudflare Worker with static assets only (`apps/web/wrangler.jsonc`), on the free plan, at [lowgate.erenterakye.com](https://lowgate.erenterakye.com).
 
 ```bash
 pnpm exec wrangler login
