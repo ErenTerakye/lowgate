@@ -133,7 +133,8 @@ const MARGIN = { top: 34, right: 20, bottom: 44, left: 48 };
 /** A scatter with y whiskers and a direct label beside every dot (there are only a handful). */
 export function scatter(host: HTMLElement, spec: ScatterSpec, tooltip: Tooltip): void {
   const width = Math.max(300, host.clientWidth);
-  const height = Math.round(Math.min(380, Math.max(260, width * 0.56)));
+  // Wide charts get extra height: the leading lanes sit within a few points of each other near the top.
+  const height = Math.round(Math.min(460, Math.max(260, width * 0.56)));
   const x = spec.x([MARGIN.left, width - MARGIN.right]);
   const y = spec.y([height - MARGIN.bottom, MARGIN.top]);
   const svg = el("svg", { width, height, viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": spec.description, class: "chart" });

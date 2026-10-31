@@ -114,6 +114,21 @@
   stroke: var(--ink);
 }
 
+/* Focus and context: with one lane under the pointer or focused, the others recede, so its whisker and label stand out of the cluster. */
+.point {
+  transition: opacity 150ms ease-out;
+}
+
+.chart:has(.point:hover, .point:focus-visible) .point:not(:hover, :focus-visible) {
+  opacity: 0.25;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .point {
+    transition: none;
+  }
+}
+
 .point:focus-visible .hit {
   stroke: var(--focus);
   stroke-width: 2;

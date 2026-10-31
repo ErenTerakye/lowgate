@@ -33,6 +33,8 @@ const MIN_UNIT_PX = 6;
 /** The velocity arrow shows where the lander will be this many seconds from now. */
 const LOOKAHEAD_S = 2;
 const FONT = '"IBM Plex Sans", system-ui, sans-serif';
+/** Simulated seconds the level-end banner takes to ease in. */
+const BANNER_IN_S = 0.3;
 
 interface Particle {
   x: number;
@@ -57,6 +59,13 @@ export interface LanderView {
   readonly color: string;
   readonly ink: string;
   readonly state: LaneState;
+}
+
+/** The line shown once a level is over; age is the simulated seconds since, for its entrance. */
+export interface Banner {
+  readonly text: string;
+  readonly good: boolean;
+  readonly age: number;
 }
 
 /** Per-lander memory between frames: its trail and the last outcome seen, for one-off effects. */
@@ -104,7 +113,7 @@ export class CourseRenderer {
     this.levelIndex = -1;
   }
 
-  draw(level: Level, landers: readonly LanderView[], selected: string | null, banner: { text: string; good: boolean } | null): void {
+  draw(level: Level, landers: readonly LanderView[], selected: string | null, banner: Banner | null): void {
     const now = performance.now();
     const frameDt = Math.min(0.1, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
@@ -571,12 +580,16 @@ export class CourseRenderer {
   }
 
   /** A line over the scene once the level is over for every lane. */
-  private drawBanner(banner: { text: string; good: boolean }, w: number, h: number, dpr: number, color: (n: string) => string): void {
+  private drawBanner(banner: Banner, w: number, h: number, dpr: number, color: (n: string) => string): void {
     const { ctx } = this;
+    // Eases in, rising a few pixels, on simulated time: it holds still on pause and keeps pace with the speed.
+    const t = reducedMotion.matches ? 1 : clamp(banner.age / BANNER_IN_S, 0, 1);
+    const e = 1 - (1 - t) ** 3;
+    ctx.globalAlpha = e;
     ctx.font = `600 ${Math.round(20 * dpr)}px ${FONT}`;
     const tw = ctx.measureText(banner.text).width;
     const bx = (w - tw) / 2 - 14 * dpr;
-    const by = h * 0.2;
+    const by = h * 0.2 + (1 - e) * 10 * dpr;
     ctx.fillStyle = color("--banner-bg");
     ctx.fillRect(bx, by, tw + 28 * dpr, 36 * dpr);
     ctx.fillStyle = color(banner.good ? "--banner-good" : "--banner-bad");
@@ -584,5 +597,6 @@ export class CourseRenderer {
     ctx.fillStyle = color("--overlay");
     ctx.textBaseline = "middle";
     ctx.fillText(banner.text, bx + 16 * dpr, by + 18 * dpr);
+    ctx.globalAlpha = 1;
   }
 }

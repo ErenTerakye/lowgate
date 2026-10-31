@@ -1,10 +1,10 @@
-import { COURSE_LEVELS, DT, MANOEUVRES, type LaneState, type Manoeuvre, type Outcome } from "@lowgate/engine";
+import { COURSE_LEVELS, DT, MANOEUVRES, THROTTLE_LEVELS, type LaneState, type Manoeuvre, type Outcome } from "@lowgate/engine";
 import { LaneReplay, argmax, usdFor, type BenchResults, type LaneResult, type Recording } from "@lowgate/decisions";
 import raw from "../../../bench/results.json?raw";
 import { siteHeader } from "./chrome.ts";
 import { icons } from "./icons.ts";
 import { colorOf, darkColorOf, inkOn, tagOf } from "./lanes.ts";
-import { CourseRenderer, type LanderView } from "./render.ts";
+import { CourseRenderer, type Banner, type LanderView } from "./render.ts";
 import "./style.css";
 import "./replay.css";
 
@@ -37,8 +37,13 @@ const SHORT_OUTCOME: Record<Outcome, string> = {
   timeout: "Out of time",
 };
 
-const TILT_NAMES = ["L30", "L15", "L5", "Up", "R5", "R15", "R30"];
-const describe = (m: Manoeuvre): string => `${m.tilt === 0 ? "Upright" : `${Math.abs(m.tilt)}° ${m.tilt > 0 ? "right" : "left"}`}, throttle ${m.throttle}`;
+/** "Tilt 30° right · throttle 3 of 4", "Upright · engine off". */
+const describe = (m: Manoeuvre): string => {
+  const tilt = m.tilt === 0 ? "Upright" : `Tilt ${Math.abs(m.tilt)}° ${m.tilt > 0 ? "right" : "left"}`;
+  const top = THROTTLE_LEVELS - 1;
+  const throttle = m.throttle === 0 ? "engine off" : m.throttle === top ? "full throttle" : `throttle ${m.throttle} of ${top}`;
+  return `${tilt} · ${throttle}`;
+};
 const ms = (v: number): string => (v >= 1000 ? `${(v / 1000).toFixed(1)} s` : `${Math.round(v)} ms`);
 const usd = (v: number): string => (v === 0 ? "$0" : v < 0.001 ? "<$0.001" : `$${v.toFixed(3)}`);
 
@@ -153,7 +158,7 @@ function makePanel(result: LaneResult): Panel {
       <button type="button" class="lane-show" aria-pressed="true"></button>
     </div>
     <div class="lane-body">
-      <div class="menu-grid" aria-hidden="true">${Array.from({ length: MANOEUVRES.length }, () => "<span></span>").join("")}</div>
+      <div class="menu-grid" aria-hidden="true" title="Every option: tilt from left to right, throttle from off (bottom) to full (top). Darker means more likely.">${Array.from({ length: MANOEUVRES.length }, () => "<span></span>").join("")}</div>
       <div class="lane-pick"><b>–</b><span></span></div>
     </div>
     <svg class="confidence" viewBox="0 0 ${TIMELINE_DECISIONS} 20" preserveAspectRatio="none" aria-hidden="true">
@@ -332,10 +337,10 @@ function renderPanel(l: PlayerLane): void {
   l.shownPosition = position;
   const d = r && !l.missing && r.lane.level.index === level ? r.current : null;
   const probs = d?.probs ?? null;
-  const top = probs ? Math.max(...probs) : 1;
   p.cells.forEach((cell, i) => {
-    const v = probs ? probs[i]! / top : d && d.pick === i ? 1 : 0;
-    cell.style.opacity = String(v === 0 ? 0 : 0.12 + 0.88 * v);
+    // Absolute probability, square-root scaled so a few percent still shows: a 20% pick reads paler than a 90% one.
+    const v = probs ? Math.sqrt(probs[i]!) : d && d.pick === i ? 1 : 0;
+    cell.style.setProperty("--p", v.toFixed(3));
     cell.classList.toggle("is-pick", d !== null && d.pick === i);
   });
   if (!d) {
@@ -343,8 +348,7 @@ function renderPanel(l: PlayerLane): void {
     p.detail.textContent = l.result.model ? "Waiting for the first decision" : "Scripted, no model";
   } else {
     const m = MANOEUVRES[d.pick]!;
-    p.pick.textContent = `${TILT_NAMES[MENU_TILT_INDEX(m)]} · throttle ${m.throttle}`;
-    p.pick.title = describe(m);
+    p.pick.textContent = describe(m);
     const parts = [
       !d.answered ? "unanswered, last manoeuvre repeated" : probs ? `${Math.round(probs[d.pick]! * 100)}% likely` : l.result.model ? "picked, no probabilities" : "scripted",
     ];
@@ -358,8 +362,6 @@ function renderPanel(l: PlayerLane): void {
   p.line.setAttribute("points", points.join(" "));
   p.area.setAttribute("points", points.length ? `0.5,20 ${points.join(" ")} ${l.confidence.length - 0.5},20` : "");
 }
-
-const MENU_TILT_INDEX = (m: Manoeuvre): number => [-30, -15, -5, 0, 5, 15, 30].indexOf(m.tilt);
 
 /** The course table: one row per lane, one column per level, filled in as the replay reaches each result. */
 function buildBoard(): void {
@@ -432,10 +434,10 @@ function render(): void {
         const color = darkColorOf(l.result.lane);
         return { id: l.result.lane, label: l.result.label, tag: tagOf(l.result.lane), color, ink: inkOn(color), state: l.replay!.lane };
       });
-    let banner: { text: string; good: boolean } | null = null;
+    let banner: Banner | null = null;
     if (pauseLeft !== null) {
       const landed = here.filter((l) => l.replay!.lane.outcome === "landed").length;
-      banner = { text: `Level ${level + 1}: ${landed} of ${here.length} landed`, good: landed * 2 >= here.length };
+      banner = { text: `Level ${level + 1}: ${landed} of ${here.length} landed`, good: landed * 2 >= here.length, age: OUTCOME_PAUSE_S - pauseLeft };
     }
     const focus = hovered ?? selected;
     renderer.draw(first.lane.level, views, focus && !hidden.has(focus) ? focus : null, banner);
@@ -490,13 +492,30 @@ $("board").addEventListener("click", (e) => {
   const button = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-level]");
   if (button) seekLevel(Number(button.dataset.level));
 });
+// A row under the pointer highlights its lane on the course, as its panel does.
+$("board").addEventListener("mouseover", (e) => {
+  const lane = (e.target as HTMLElement).closest<HTMLTableRowElement>("tr[data-lane]")?.dataset.lane ?? null;
+  if (lane === hovered) return;
+  hovered = lane;
+  if (!running) render();
+});
+$("board").addEventListener("mouseleave", () => {
+  hovered = null;
+  if (!running) render();
+});
 courseSelect.addEventListener("change", () => void loadCourse(Number(courseSelect.value)));
 speedGroup.addEventListener("click", (e) => {
   const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-speed]");
   if (!btn) return;
   speed = Number(btn.dataset.speed);
   for (const b of speedGroup.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b === btn));
+  setTick();
 });
+/** Panel shading eases over part of one decision's time on screen, so it keeps up at every speed. */
+function setTick(): void {
+  $("lanes").style.setProperty("--tick", `${Math.round(Math.min(300, 400 / speed))}ms`);
+}
+setTick();
 window.addEventListener("keydown", (e) => {
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
   if ((e.target as HTMLElement).closest?.(".lane-panel") && (e.key === " " || e.key === "Enter")) return;
