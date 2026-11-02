@@ -27,29 +27,72 @@ export interface TooltipRow {
   readonly label: string;
 }
 
-/** One tooltip for the page: value first, label second, keyed by a short line of the lane colour. */
+/**
+ * One tooltip for the page: value first, label second, keyed by a short line of the lane colour.
+ * A mouse shows it on hover and the keyboard on focus. A touch has no hover and no leave, so a tap opens it and a
+ * second tap, a tap elsewhere or a scroll closes it.
+ */
 export class Tooltip {
   private readonly node = document.createElement("div");
+  /** The mark the tooltip is showing for, if any. */
+  private current: Element | null = null;
+  /** Set between a pointer press and its click, so the focus a press gives a mark does not open the tooltip too. */
+  private pressed: string | null = null;
 
   constructor() {
     this.node.className = "tooltip";
     this.node.setAttribute("role", "status");
     this.node.hidden = true;
     document.body.appendChild(this.node);
+    document.addEventListener(
+      "pointerdown",
+      (e) => {
+        if (this.current && !this.current.contains(e.target as Node)) this.hide();
+      },
+      true,
+    );
+    // The tooltip is fixed to the window, so it would stay put while its mark scrolls away.
+    window.addEventListener("scroll", () => this.hide(), { capture: true, passive: true });
   }
 
-  /** Wires a mark: hover and focus show the rows, leaving hides them. */
+  /** Wires a mark: hover, tap and focus show the rows; leaving, a second tap and blur hide them. */
   attach(target: Element, title: string, color: string, rows: readonly TooltipRow[]): void {
     target.setAttribute("tabindex", "0");
     target.setAttribute("aria-label", `${title}: ${rows.map((r) => `${r.label} ${r.value}`).join(", ")}`);
-    const show = (x: number, y: number) => this.show(title, color, rows, x, y);
-    target.addEventListener("pointermove", (e) => show((e as PointerEvent).clientX, (e as PointerEvent).clientY));
-    target.addEventListener("pointerleave", () => this.hide());
-    target.addEventListener("focus", () => {
+    const show = (x: number, y: number) => {
+      this.current = target;
+      this.show(title, color, rows, x, y);
+    };
+    const showAbove = () => {
       const r = target.getBoundingClientRect();
       show(r.left + r.width / 2, r.top);
+    };
+    target.addEventListener("pointerdown", (e) => {
+      this.pressed = (e as PointerEvent).pointerType;
     });
-    target.addEventListener("blur", () => this.hide());
+    target.addEventListener("pointercancel", () => {
+      this.pressed = null;
+    });
+    target.addEventListener("pointermove", (e) => {
+      const p = e as PointerEvent;
+      if (p.pointerType === "mouse") show(p.clientX, p.clientY);
+    });
+    target.addEventListener("pointerleave", (e) => {
+      if ((e as PointerEvent).pointerType === "mouse" && this.current === target) this.hide();
+    });
+    target.addEventListener("click", () => {
+      const touch = this.pressed !== null && this.pressed !== "mouse";
+      this.pressed = null;
+      if (!touch) return;
+      if (this.current === target) this.hide();
+      else showAbove();
+    });
+    target.addEventListener("focus", () => {
+      if (this.pressed === null) showAbove();
+    });
+    target.addEventListener("blur", () => {
+      if (this.current === target) this.hide();
+    });
   }
 
   private show(title: string, color: string, rows: readonly TooltipRow[], x: number, y: number): void {
@@ -81,6 +124,7 @@ export class Tooltip {
   }
 
   hide(): void {
+    this.current = null;
     this.node.hidden = true;
   }
 }

@@ -51,7 +51,8 @@
   font-size: 16px;
   line-height: 1.5;
   color: var(--ink);
-  background: var(--surface);
+  /* The page grey reaches every edge, overscroll and the area behind the browser's own toolbars included. */
+  background: var(--page);
 }
 
 * {
@@ -61,10 +62,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  /* Mobile Safari tints the status bar with body's background colour, so that stays the header's white; the page grey
-     is painted as an image over it, which Safari ignores. */
-  background-color: var(--surface);
-  background-image: linear-gradient(var(--page), var(--page));
+  background: var(--page);
 }
 
 /* Buttons set their own display, which would otherwise override [hidden]. */
@@ -115,6 +113,19 @@ input,
 .site-head {
   border-bottom: 1px solid var(--rule);
   background: var(--surface);
+}
+
+/*
+ * On phones and tablets the white header stays pinned at the top. iOS Safari tints its status bar from whatever is
+ * pinned there (it no longer reads theme-color), so the top stays white while the rest of the page, the bottom
+ * toolbar included, is the page grey. Other browsers take the white from the theme-color meta tag.
+ */
+@media (max-width: 900px) {
+  .site-head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+  }
 }
 
 .site-head .wrap {

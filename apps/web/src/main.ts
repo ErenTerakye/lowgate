@@ -23,6 +23,8 @@ const MAX_STEPS_PER_FRAME = 20;
 /** The confidence line spans a level's longest possible run: 60 one-second decisions. */
 const TIMELINE_DECISIONS = 60;
 const SPEEDS = [1, 2, 4, 8, 16] as const;
+/** How long a touch on a pilot's eye must be held to show only that pilot. */
+const LONG_PRESS_MS = 500;
 
 const results = JSON.parse(raw) as BenchResults;
 const recordingUrls = import.meta.glob<string>("../../../bench/*/*.json", { query: "?url", import: "default" });
@@ -61,7 +63,7 @@ app.innerHTML = `
         <div class="flight-title"><h2 id="course-name">Course</h2><span class="badge" id="level-name"></span></div>
         <p class="verify" id="verify" role="status"></p>
       </div>
-      <div class="screen"><canvas class="lane-canvas" id="canvas" aria-label="All pilots flying the current level"></canvas><button id="screen-toggle" type="button" class="screen-toggle icon-only"></button></div>
+      <div class="screen"><canvas class="lane-canvas" id="canvas" aria-label="All pilots flying the current level"></canvas><div class="screen-empty" id="screen-empty" hidden><p>No pilots shown</p><button type="button" id="show-all">Show all</button></div><button id="screen-toggle" type="button" class="screen-toggle icon-only"></button></div>
       <div class="deck">
         <div class="deck-play">
           <button id="toggle" type="button" class="primary"></button>
@@ -83,7 +85,18 @@ app.innerHTML = `
         <div class="board-scroll"><table class="board" id="board" aria-describedby="board-note"></table></div>
       </div>
     </section>
-    <aside class="side lanes" id="lanes" aria-label="Pilots"><p class="lanes-hint">Each grid holds all ${MANOEUVRES.length} moves. <b>System One models</b> shade every move by probability; the <b>LLM</b> writes its pick as text, so only that move lights. Select a pilot to follow it; the eye hides it.</p></aside>
+    <aside class="side lanes" id="lanes" aria-label="Pilots">
+      <p class="lanes-hint">Each grid holds all ${MANOEUVRES.length} moves. <b>System One models</b> shade every move by probability; the <b>LLM</b> writes its pick as text, so only that move lights. Select a pilot to follow it; the eye hides it, and a double-click or long press on the eye shows only that pilot.</p>
+      <div class="lane-filter" role="group" aria-label="Pilots on the course">
+        <span class="lane-filter-count" id="shown-count" aria-live="polite"></span>
+        <div class="lane-filter-buttons">
+          <button type="button" data-show="all">Show all</button>
+          <button type="button" data-show="none">Hide all</button>
+          <button type="button" data-show="systemone" title="Only the System One models">System One</button>
+          <button type="button" data-show="top3" title="The three pilots with the highest landing rate">Top 3</button>
+        </div>
+      </div>
+    </aside>
   </main>
 `;
 trackHeaderHeight();
@@ -136,7 +149,8 @@ let lanes: PlayerLane[] = [];
 let selected: string | null = params.get("lane");
 /** The lane under the pointer in the panel list: highlighted on the course while hovered. */
 let hovered: string | null = null;
-const hidden = new Set<string>();
+/** Lanes hidden on the course, kept in the URL so a filtered view can be shared. */
+const hidden = new Set((params.get("hide") ?? "").split(",").filter((id) => results.lanes.some((l) => l.lane === id)));
 let running = false;
 let speed = 1;
 let accumulator = 0;
@@ -199,11 +213,14 @@ for (const [id, p] of panels) {
     updateUrl();
     render();
   };
-  p.root.addEventListener("mouseenter", () => {
+  // Only a real pointer hovers: a tap would otherwise leave its pilot highlighted.
+  p.root.addEventListener("pointerenter", (e) => {
+    if (e.pointerType !== "mouse") return;
     hovered = id;
     if (!running) render();
   });
-  p.root.addEventListener("mouseleave", () => {
+  p.root.addEventListener("pointerleave", (e) => {
+    if (e.pointerType !== "mouse") return;
     if (hovered === id) hovered = null;
     if (!running) render();
   });
@@ -214,14 +231,59 @@ for (const [id, p] of panels) {
     e.stopPropagation();
     choose();
   });
+  // A long press on the eye shows only this pilot; the click that ends it is then not a toggle.
+  let pressTimer = 0;
+  let longPressed = false;
+  const cancelPress = () => clearTimeout(pressTimer);
+  p.show.addEventListener("pointerdown", (e) => {
+    longPressed = false;
+    if (e.pointerType === "mouse") return;
+    pressTimer = window.setTimeout(() => {
+      longPressed = true;
+      showOnly([id]);
+    }, LONG_PRESS_MS);
+  });
+  for (const type of ["pointerup", "pointerleave", "pointercancel"] as const) p.show.addEventListener(type, cancelPress);
+  // No text selection or system menu under a long press.
+  p.show.addEventListener("contextmenu", (e) => e.preventDefault());
   p.show.addEventListener("click", (e) => {
     // The icon is replaced as this runs, so the panel could not tell the click came from here: stop it now.
     e.stopPropagation();
+    if (longPressed) {
+      longPressed = false;
+      return;
+    }
     if (hidden.has(id)) hidden.delete(id);
     else hidden.add(id);
+    updateUrl();
     render();
   });
+  p.show.addEventListener("dblclick", (e) => {
+    e.stopPropagation();
+    showOnly([id]);
+  });
 }
+
+/** Shows these lanes on the course and hides every other. */
+function showOnly(ids: readonly string[]): void {
+  hidden.clear();
+  for (const l of results.lanes) if (!ids.includes(l.lane)) hidden.add(l.lane);
+  updateUrl();
+  render();
+}
+
+/** The quick picks above the cards. Top 3 is by the benchmark ranking (results.lanes is in rank order), not this course. */
+const PRESETS: Record<string, () => string[]> = {
+  all: () => results.lanes.map((l) => l.lane),
+  none: () => [],
+  systemone: () => results.lanes.filter((l) => kindOf(l.lane) === "systemone").map((l) => l.lane),
+  top3: () => results.lanes.slice(0, 3).map((l) => l.lane),
+};
+$("lanes").querySelector(".lane-filter")!.addEventListener("click", (e) => {
+  const preset = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-show]")?.dataset.show;
+  if (preset && PRESETS[preset]) showOnly(PRESETS[preset]());
+});
+$("show-all").addEventListener("click", () => showOnly(PRESETS.all!()));
 
 async function loadCourse(next: number): Promise<void> {
   const token = ++loadToken;
@@ -448,12 +510,25 @@ function render(): void {
   }
   for (const l of lanes) renderPanel(l);
   renderBoard();
+  renderFilter();
   const over = courseOver();
   setHtml(toggleBtn, over ? `${icons.restart}<span>Again</span>` : running ? `${icons.pause}<span>Pause</span>` : `${icons.play}<span>Play</span>`);
   setHtml(screenToggle, over ? icons.restart : running ? icons.pause : icons.play);
   screenToggle.setAttribute("aria-label", over ? "Play again" : running ? "Pause" : "Play");
   $<HTMLButtonElement>("prev").disabled = level === 0;
   $<HTMLButtonElement>("next").disabled = level === COURSE_LEVELS - 1;
+}
+
+/** The count above the cards, which quick pick (if any) matches what is shown, and the empty-course notice. */
+function renderFilter(): void {
+  const total = results.lanes.length;
+  const shownIds = results.lanes.filter((l) => !hidden.has(l.lane)).map((l) => l.lane);
+  $("shown-count").textContent = shownIds.length === total ? `All ${total} pilots shown` : `${shownIds.length} of ${total} pilots shown`;
+  for (const b of $("lanes").querySelectorAll<HTMLButtonElement>("button[data-show]")) {
+    const ids = PRESETS[b.dataset.show!]!();
+    b.setAttribute("aria-pressed", String(ids.length === shownIds.length && ids.every((id) => shownIds.includes(id))));
+  }
+  $("screen-empty").hidden = shownIds.length > 0;
 }
 
 function frame(now: number): void {
@@ -487,6 +562,7 @@ function toggle(): void {
 function updateUrl(): void {
   const q = new URLSearchParams({ course: String(seed), level: String(level + 1) });
   if (selected) q.set("lane", selected);
+  if (hidden.size) q.set("hide", results.lanes.filter((l) => hidden.has(l.lane)).map((l) => l.lane).join(","));
   history.replaceState(null, "", `?${q}`);
 }
 
@@ -500,13 +576,14 @@ $("board").addEventListener("click", (e) => {
   if (button) seekLevel(Number(button.dataset.level));
 });
 // A row under the pointer highlights its lane on the course, as its panel does.
-$("board").addEventListener("mouseover", (e) => {
+$("board").addEventListener("pointerover", (e) => {
+  if (e.pointerType !== "mouse") return;
   const lane = (e.target as HTMLElement).closest<HTMLTableRowElement>("tr[data-lane]")?.dataset.lane ?? null;
   if (lane === hovered) return;
   hovered = lane;
   if (!running) render();
 });
-$("board").addEventListener("mouseleave", () => {
+$("board").addEventListener("pointerleave", () => {
   hovered = null;
   if (!running) render();
 });

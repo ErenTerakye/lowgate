@@ -77,14 +77,69 @@ function laneCell(l: LaneResult, withHost = false): HTMLTableCellElement {
   return td;
 }
 
-function headRow(table: HTMLTableElement, cols: readonly string[]): void {
+function headRow(table: HTMLTableElement, cols: readonly string[]): HTMLTableCellElement[] {
   const tr = el("tr");
-  for (const c of cols) {
+  const cells = cols.map((c) => {
     const th = el("th", undefined, c);
     th.scope = "col";
-    tr.append(th);
-  }
+    return th;
+  });
+  tr.append(...cells);
   table.createTHead().append(tr);
+  return cells;
+}
+
+/** What a column sorts by: a number (largest first on the first click) or text (A to Z first). Null sorts last. */
+type SortKey = (l: LaneResult) => number | string | null;
+
+/**
+ * Makes a table's columns sortable by clicking their header. Rows start in ranking order; the first column given
+ * no key restores it. A second click on the same header reverses the order; pilots with no value stay at the bottom.
+ */
+function sortable(table: HTMLTableElement, heads: readonly HTMLTableCellElement[], rows: readonly { lane: LaneResult; tr: HTMLTableRowElement }[], keys: readonly (SortKey | "rank" | null)[]): void {
+  const body = table.tBodies[0]!;
+  let active = -1;
+  let descending = true;
+  const buttons = heads.map((th, i) => {
+    const key = keys[i];
+    if (!key) return null;
+    const button = el("button", "sort");
+    button.type = "button";
+    button.append(...th.childNodes, el("span", "sort-arrow"));
+    button.querySelector(".sort-arrow")!.setAttribute("aria-hidden", "true");
+    th.append(button);
+    button.addEventListener("click", () => {
+      if (active === i) descending = !descending;
+      else {
+        active = i;
+        // Text and rank read naturally from the top; numbers start with the largest.
+        const sample = key === "rank" ? null : rows.map((r) => key(r.lane)).find((v) => v !== null);
+        descending = key !== "rank" && typeof sample === "number";
+      }
+      apply();
+    });
+    return button;
+  });
+  const apply = () => {
+    const key = keys[active];
+    const ordered = rows.map((r, rank) => ({ ...r, rank, v: key === undefined || key === null || key === "rank" ? rank : key(r.lane) }));
+    ordered.sort((a, b) => {
+      if (a.v === null || b.v === null) return a.v === b.v ? a.rank - b.rank : a.v === null ? 1 : -1;
+      const c = typeof a.v === "number" && typeof b.v === "number" ? a.v - b.v : String(a.v).localeCompare(String(b.v));
+      return (descending ? -c : c) || a.rank - b.rank;
+    });
+    body.append(...ordered.map((r) => r.tr));
+    heads.forEach((th, i) => {
+      if (!buttons[i]) return;
+      th.setAttribute("aria-sort", i === active ? (descending ? "descending" : "ascending") : "none");
+      th.classList.toggle("is-sorted", i === active);
+      th.classList.toggle("is-descending", i === active && descending);
+    });
+  };
+  // A table with a rank column starts sorted by it; the others start in ranking order with no column marked.
+  if (keys[0] === "rank") active = 0;
+  descending = false;
+  apply();
 }
 
 /** An inline interval: a track, the 95% range and the point, on a fixed scale. */
@@ -140,13 +195,26 @@ const heroChart = el("div", "chart-host");
 hero.append(heroChart);
 
 // 2. Ranking.
-const rank = section("Ranking", "Ranked by landing rate, ties broken by mean landing quality (0–100: thirds for landing on the centre, touching down gently and fuel left). Bars show the 95% interval.");
+const retried = lanes.filter((l) => l.retried > 0);
+const unanswered = lanes.reduce((n, l) => n + l.unanswered, 0);
+const decisionsNote =
+  unanswered === 0
+    ? ` Every decision was answered. A failed request is retried up to three times${
+        retried.length ? `; only ${retried.map((l) => `${l.label} needed it, on ${l.retried} decision${l.retried === 1 ? "" : "s"}`).join(" and ")}` : ", and none needed it"
+      }.`
+    : "";
+const rank = section(
+  "Ranking",
+  `Ranked by landing rate, ties broken by mean landing quality (0–100: thirds for landing on the centre, touching down gently and fuel left). Bars show the 95% interval. Select a column heading to sort by it.${decisionsNote}`,
+);
 {
   const wrap = el("div", "table-wrap");
   const table = el("table", "data ranked");
-  headRow(table, ["#", "Pilot", "Landed", "Landing rate", "Quality", "Same pick as autopilot", "Unanswered"]);
+  // Unanswered decisions get a column only when a pilot has any; otherwise the note above says so.
+  const cols = ["#", "Pilot", "Landed", "Landing rate", "Quality", "Same pick as autopilot", ...(unanswered ? ["Unanswered"] : [])];
+  const heads = headRow(table, cols);
   const body = table.createTBody();
-  lanes.forEach((l, i) => {
+  const rows = lanes.map((l, i) => {
     const tr = body.insertRow();
     tr.append(el("td", "num", String(i + 1)), laneCell(l));
     tr.append(el("td", "num", `${l.landed}/${l.levels}`));
@@ -165,8 +233,18 @@ const rank = section("Ranking", "Ranked by landing rate, ties broken by mean lan
     } else q.textContent = "–";
     tr.append(q);
     tr.append(el("td", "num", l.lane === "autopilot" ? "–" : pct(l.agreesWithAutopilot.exact)));
-    tr.append(el("td", "num", String(l.unanswered)));
+    if (unanswered) tr.append(el("td", l.unanswered ? "num" : "num is-zero", String(l.unanswered)));
+    return { lane: l, tr };
   });
+  sortable(table, heads, rows, [
+    "rank",
+    (l) => l.label,
+    (l) => l.landed,
+    (l) => l.landingRate,
+    (l) => l.quality?.mean ?? null,
+    (l) => (l.lane === "autopilot" ? null : l.agreesWithAutopilot.exact),
+    (l) => l.unanswered,
+  ]);
   wrap.append(table);
   rank.append(wrap);
 }
@@ -176,9 +254,9 @@ const ends = section("How each level ended", "Counts out of the levels each pilo
 {
   const wrap = el("div", "table-wrap");
   const table = el("table", "data outcomes");
-  headRow(table, ["Pilot", ...OUTCOMES.map((o) => o.label)]);
+  const heads = headRow(table, ["Pilot", ...OUTCOMES.map((o) => o.label)]);
   const body = table.createTBody();
-  for (const l of lanes) {
+  const rows = lanes.map((l) => {
     const tr = body.insertRow();
     tr.append(laneCell(l));
     for (const o of OUTCOMES) {
@@ -190,7 +268,10 @@ const ends = section("How each level ended", "Counts out of the levels each pilo
       td.append(el("span", n ? "num" : "num is-zero", String(n)), bar);
       tr.append(td);
     }
-  }
+    return { lane: l, tr };
+  });
+  // By share, so a pilot still flying compares fairly with the rest.
+  sortable(table, heads, rows, [(l) => l.label, ...OUTCOMES.map((o): SortKey => (l) => (l.levels ? (l.outcomes[o.key] ?? 0) / l.levels : null))]);
   wrap.append(table);
   ends.append(wrap);
 }
@@ -257,7 +338,7 @@ const cost = section(
 {
   const wrap = el("div", "table-wrap");
   const table = el("table", "data");
-  headRow(table, ["Pilot", "Median answer", "95th percentile", "Waiting per course", "Tokens in / out per decision", `Cost for ${COURSES} courses`]);
+  const heads = headRow(table, ["Pilot", "Median answer", "95th percentile", "Waiting per course", "Tokens in / out per decision", `Cost for ${COURSES} courses`]);
   const body = table.createTBody();
   const minutes = (s: number) => (s >= 60 ? `${(s / 60).toFixed(1)} min` : `${s.toFixed(0)} s`);
   /** The model's own cost for every course, then, for a local model with a hosted equivalent, that price as a second labelled line. */
@@ -280,14 +361,23 @@ const cost = section(
     }
     return td;
   };
-  for (const l of models) {
+  const rows = models.map((l) => {
     const tr = body.insertRow();
     tr.append(laneCell(l, true), el("td", "num", ms(l.latencyMs.p50)), el("td", "num", ms(l.latencyMs.p95)));
     tr.append(el("td", "num", l.answerSecondsPerCourse === undefined ? "–" : minutes(l.answerSecondsPerCourse)));
     const t = l.tokensPerDecision;
     tr.append(el("td", "num", t ? `${Math.round(t.input)} / ${t.output === null ? "not reported" : Math.round(t.output)}` : "–"));
     tr.append(costCell(l));
-  }
+    return { lane: l, tr };
+  });
+  sortable(table, heads, rows, [
+    (l) => l.label,
+    (l) => l.latencyMs.p50,
+    (l) => l.latencyMs.p95,
+    (l) => l.answerSecondsPerCourse ?? null,
+    (l) => l.tokensPerDecision?.input ?? null,
+    (l) => (l.costUsd ? (l.costUsd.total * COURSES) / l.courses : null),
+  ]);
   wrap.append(table);
   cost.append(wrap);
 }

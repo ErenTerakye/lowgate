@@ -69,6 +69,73 @@
   color: var(--ink);
 }
 
+/* Which pilots are on the course: a count, then quick picks. The pick that matches what is shown is pressed. */
+.lane-filter {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+
+.lane-filter-count {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.lane-filter-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lane-filter-buttons button {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  border-color: var(--rule-strong);
+}
+
+.lane-filter-buttons button[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+
+/* Every pilot hidden: say so on the course, with the way back. */
+.screen-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #fff;
+  pointer-events: none;
+}
+
+.screen-empty p {
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--banner-bg);
+  font-weight: 600;
+}
+
+.screen-empty button {
+  pointer-events: auto;
+}
+
+.lane-show {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
 .lane-panel {
   padding: 10px 12px 8px;
   background: var(--surface);
@@ -77,8 +144,10 @@
   cursor: pointer;
 }
 
-.lane-panel:hover {
-  border-color: var(--rule-strong);
+@media (hover: hover) {
+  .lane-panel:hover {
+    border-color: var(--rule-strong);
+  }
 }
 
 /* Selected: an even ring in the lane's colour, so no edge is heavier than the others. */
@@ -166,13 +235,13 @@
   font-weight: 600;
 }
 
-/* A 40px target that takes no more room in the head than the 22px icon. */
+/* A 40px target that takes no more room in the head than the 22px icon, with the icon kept inside the card's padding. */
 .lane-show {
   flex: none;
   width: 40px;
   height: 40px;
   padding: 0;
-  margin: -9px -11px -9px -4px;
+  margin: -9px -4px -9px -4px;
   border-color: transparent;
   color: var(--muted);
 }
@@ -344,8 +413,10 @@
   min-width: 34px;
 }
 
-.board tbody tr:hover > * {
-  background: var(--surface-2);
+@media (hover: hover) {
+  .board tbody tr:hover > * {
+    background: var(--surface-2);
+  }
 }
 
 .board td.is-good {
@@ -394,14 +465,6 @@
 
   .replay .flight-head {
     margin-bottom: 0;
-  }
-
-  /* The white header stays pinned above the canvas: iOS Safari tints the status bar from whatever is pinned at the
-     top, and keeps a grey tint from the canvas band after scrolling back up. */
-  .site-head {
-    position: sticky;
-    top: 0;
-    z-index: 3;
   }
 
   .replay .screen {
