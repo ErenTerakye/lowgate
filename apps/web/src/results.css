@@ -424,13 +424,6 @@ table {
   box-shadow: inset 0 0 0 1px var(--rule);
 }
 
-.results-foot {
-  padding-top: 28px;
-  padding-bottom: 40px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
 @media (max-width: 560px) {
 
   .data th,

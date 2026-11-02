@@ -467,6 +467,13 @@
     margin-bottom: 0;
   }
 
+  /* The white header stays pinned above the canvas, so the canvas can stick right under it. */
+  .site-head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+  }
+
   .replay .screen {
     position: sticky;
     top: var(--head-h, 0px);

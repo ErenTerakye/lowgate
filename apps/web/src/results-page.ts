@@ -2,7 +2,7 @@ import { MANOEUVRES, type Outcome } from "@lowgate/engine";
 import type { BenchResults, LaneResult } from "@lowgate/decisions";
 import raw from "../../../bench/results.json?raw";
 import { Tooltip, linear, log, scatter, type TooltipRow } from "./charts.ts";
-import { siteHeader } from "./chrome.ts";
+import { siteFooter, siteHeader } from "./chrome.ts";
 import { HOLLOW, KIND_LABEL, colorOf, kindOf, kindsNote, pilotsPhrase } from "./lanes.ts";
 import "./style.css";
 import "./results.css";
@@ -382,15 +382,7 @@ const cost = section(
   cost.append(wrap);
 }
 
-const foot = el("footer", "results-foot wrap");
-foot.append(
-  el(
-    "p",
-    undefined,
-    `Engine ${results.engine}. Courses ${results.courses[0]}–${results.courses.at(-1)}. Results rebuilt ${new Date(results.at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}. Every course is recorded and replays to its saved state hashes.`,
-  ),
-);
-app.append(foot);
+app.insertAdjacentHTML("beforeend", siteFooter(results));
 
 /** Landing rates run the full 0–100%: the Kev lanes land 0–3%, far below the rest. */
 const Y_DOMAIN = [0, 1] as const;

@@ -51,8 +51,12 @@
   font-size: 16px;
   line-height: 1.5;
   color: var(--ink);
-  /* The page grey reaches every edge, overscroll and the area behind the browser's own toolbars included. */
-  background: var(--page);
+  /*
+   * White at both ends: the header and footer are white, and so is everything a browser paints around the page
+   * (overscroll, the bars it tints from this colour or from theme-color). With one colour at both edges every browser
+   * agrees, whichever source it reads. The page grey is the body, between the two.
+   */
+  background: var(--surface);
 }
 
 * {
@@ -61,8 +65,15 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
   background: var(--page);
+}
+
+/* The page fills at least the screen, so on a short page the footer still sits at the bottom edge. */
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Buttons set their own display, which would otherwise override [hidden]. */
@@ -115,19 +126,6 @@ input,
   background: var(--surface);
 }
 
-/*
- * On phones and tablets the white header stays pinned at the top. iOS Safari tints its status bar from whatever is
- * pinned there (it no longer reads theme-color), so the top stays white while the rest of the page, the bottom
- * toolbar included, is the page grey. Other browsers take the white from the theme-color meta tag.
- */
-@media (max-width: 900px) {
-  .site-head {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-  }
-}
-
 .site-head .wrap {
   display: flex;
   flex-wrap: wrap;
@@ -168,6 +166,64 @@ input,
 .site-head nav a[aria-current="page"] {
   color: var(--ink);
   border-bottom-color: var(--accent);
+}
+
+/* Site footer: the header's white band and rule, mirrored. Links on one row, provenance under them. */
+.site-foot {
+  margin-top: auto;
+  border-top: 1px solid var(--rule);
+  background: var(--surface);
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+/* A gap above the footer, whatever the page ends with (the footer's own margin is taken by auto). */
+#app > :nth-last-child(2) {
+  margin-bottom: 40px;
+}
+
+.site-foot .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding-top: 20px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+.site-foot nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+
+.site-foot a {
+  color: var(--ink-2);
+  font-weight: 500;
+  text-decoration: none;
+  padding: 4px 0;
+}
+
+.site-foot a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+
+.site-foot .credit a {
+  color: var(--ink);
+}
+
+.site-foot .provenance {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.site-foot p {
+  margin: 0;
 }
 
 /*

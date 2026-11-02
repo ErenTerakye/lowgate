@@ -1,7 +1,7 @@
 import { COURSE_LEVELS, DT, MANOEUVRES, THROTTLE_LEVELS, type LaneState, type Manoeuvre, type Outcome } from "@lowgate/engine";
 import { LaneReplay, argmax, usdFor, type BenchResults, type LaneResult, type Recording } from "@lowgate/decisions";
 import raw from "../../../bench/results.json?raw";
-import { siteHeader, trackHeaderHeight } from "./chrome.ts";
+import { siteFooter, siteHeader, trackHeaderHeight } from "./chrome.ts";
 import { icons } from "./icons.ts";
 import { KIND_LABEL, colorOf, darkColorOf, inkOn, kindOf, pilotsPhrase, tagOf } from "./lanes.ts";
 import { CourseRenderer, type Banner, type LanderView } from "./render.ts";
@@ -98,6 +98,7 @@ app.innerHTML = `
       </div>
     </aside>
   </main>
+  ${siteFooter(results)}
 `;
 trackHeaderHeight();
 

@@ -17,3 +17,25 @@ export function trackHeaderHeight(): void {
   if (!head) return;
   new ResizeObserver(() => document.documentElement.style.setProperty("--head-h", `${head.offsetHeight}px`)).observe(head);
 }
+
+const WRITE_UP = "https://erenterakye.com/blog/flying-a-lander-with-system-one-models/";
+const SOURCE = "https://github.com/ErenTerakye/lowgate";
+
+/** The footer both pages share: the pages again, where the project lives, who built it, and what the figures come from. */
+export function siteFooter(bench: { readonly engine: string; readonly courses: readonly number[]; readonly at: string }): string {
+  const rebuilt = new Date(bench.at).toLocaleDateString("en-GB", { dateStyle: "medium" });
+  return `
+    <footer class="site-foot">
+      <div class="wrap">
+        <nav aria-label="More">
+          <a href="./">Replays</a>
+          <a href="./results.html">Benchmark results</a>
+          <a href="${WRITE_UP}">Write-up</a>
+          <a href="${SOURCE}">Source on GitHub</a>
+          <a href="${SOURCE}/blob/main/LICENSE">MIT licence</a>
+        </nav>
+        <p class="credit">Built by <a href="https://erenterakye.com">Eren Terakye</a></p>
+        <p class="provenance">Engine ${bench.engine} · courses ${bench.courses[0]}–${bench.courses.at(-1)} · results rebuilt ${rebuilt}. Every course is recorded and replays to its saved state hashes.</p>
+      </div>
+    </footer>`;
+}
