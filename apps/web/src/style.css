@@ -65,7 +65,10 @@
 
 body {
   margin: 0;
-  background: var(--page);
+  /* iOS Safari tints its status bar and the area under its toolbar with body's background colour, not the root's,
+     so that colour is white too. The page grey is painted as an image over it, which Safari does not read. */
+  background-color: var(--surface);
+  background-image: linear-gradient(var(--page), var(--page));
 }
 
 /* The page fills at least the screen, so on a short page the footer still sits at the bottom edge. */
