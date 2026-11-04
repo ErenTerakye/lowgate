@@ -7,6 +7,10 @@
  *   pnpm bench                               the fast lanes: autopilot, laya, jev, clef
  *   caffeinate -i pnpm bench --lanes gemma-local    the chat lane, ~10 h on an M3 MacBook Pro
  *   pnpm bench --summary                     rebuild results.json from the recordings only
+ *   pnpm bench --check                       fail unless results.json is exactly what the recordings give (CI)
+ *
+ * results.json is a pure function of the recordings: its timestamp is the newest
+ * recording's, so a rebuild from unchanged recordings changes nothing.
  *
  * Resumable: a course with a recording is skipped, so an interrupted run (a
  * crash, a closed lid, Workers AI's daily quota) picks up where it stopped.
@@ -25,7 +29,19 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { COURSE_LEVELS, ENGINE_VERSION } from "@lowgate/engine";
-import { MODEL_LANES, benchResults, flyCourse, makeRecording, percentile, replayRecording, summarizeLane, type LaneResult, type Recording } from "../src/index.ts";
+import {
+  MODEL_LANES,
+  benchResults,
+  flyCourse,
+  lastFlown,
+  makeRecording,
+  percentile,
+  replayRecording,
+  resultsDiff,
+  summarizeLane,
+  type BenchResults,
+  type Recording,
+} from "../src/index.ts";
 import { isLocalLane, laneClient } from "./lane-client.ts";
 
 const { values } = parseArgs({
@@ -34,6 +50,7 @@ const { values } = parseArgs({
     courses: { type: "string", default: "5001-5020" },
     dir: { type: "string", default: "bench" },
     summary: { type: "boolean", default: false },
+    check: { type: "boolean", default: false },
   },
 });
 const LOCAL_TIMEOUT_MS = 60_000;
@@ -81,11 +98,52 @@ async function flyLane(id: string): Promise<void> {
   }
 }
 
-function summarize(id: string): LaneResult | null {
+/** A lane's recordings on the benchmark's courses. A file must sit where its own lane and seed say it belongs. */
+function recordingsOf(id: string): Recording[] {
   const files = existsSync(`${dir}/${id}`) ? readdirSync(`${dir}/${id}`).filter((f) => f.endsWith(".json")) : [];
-  const recs = files.map((f) => JSON.parse(readFileSync(`${dir}/${id}/${f}`, "utf8")) as Recording).filter((r) => seeds.includes(r.seed));
-  const hostedEquivalent = MODEL_LANES[id]?.hostedEquivalent;
-  return recs.length ? summarizeLane(recs, hostedEquivalent ? { hostedEquivalent } : {}) : null;
+  const recs = files.map((f) => {
+    const rec = JSON.parse(readFileSync(`${dir}/${id}/${f}`, "utf8")) as Recording;
+    if (rec.lane !== id || f !== `${rec.seed}.json`) throw new Error(`${dir}/${id}/${f} holds lane ${rec.lane}, course ${rec.seed}: it belongs at ${recordingPath(rec.lane, rec.seed)}`);
+    return rec;
+  });
+  return recs.filter((r) => seeds.includes(r.seed));
+}
+
+/** Every lane on disk summarised: each recording is replayed against its state hashes on the way. */
+function rebuild(): BenchResults {
+  const laneDirs = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name) : [];
+  const recorded = laneDirs.map((id) => ({ id, recs: recordingsOf(id) })).filter((l) => l.recs.length > 0);
+  if (recorded.length === 0) throw new Error(`No recordings for courses ${seeds[0]}-${seeds.at(-1)} under ${dir}/`);
+  const lanes = recorded.map(({ id, recs }) => {
+    const hostedEquivalent = MODEL_LANES[id]?.hostedEquivalent;
+    return summarizeLane(recs, hostedEquivalent ? { hostedEquivalent } : {});
+  });
+  return benchResults(seeds, lanes, lastFlown(recorded.flatMap((l) => l.recs)));
+}
+
+const resultsPath = `${dir}/results.json`;
+const serialise = (r: BenchResults) => JSON.stringify(r, null, 2) + "\n";
+
+if (values.check) {
+  // CI: the published figures must be exactly what the recordings on disk give.
+  let rebuilt: BenchResults;
+  try {
+    rebuilt = rebuild();
+  } catch (err) {
+    console.error(`The recordings under ${dir}/ do not check out: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
+  const committed = existsSync(resultsPath) ? readFileSync(resultsPath, "utf8") : "";
+  if (committed === serialise(rebuilt)) {
+    const recordings = rebuilt.lanes.reduce((n, l) => n + l.courses, 0);
+    const decisions = rebuilt.lanes.reduce((n, l) => n + l.decisions, 0);
+    console.log(`${resultsPath} matches its recordings: ${recordings} recordings replayed, ${decisions.toLocaleString("en-GB")} decisions checked against their state hashes`);
+    process.exit(0);
+  }
+  const problems = committed ? resultsDiff(JSON.parse(committed) as BenchResults, rebuilt) : [`${resultsPath} is missing`];
+  console.error(`${resultsPath} does not match its recordings. Run \`pnpm bench --summary\` and commit the result.`);
+  for (const p of problems.length ? problems : ["formatting differs"]) console.error(`  ${p}`);
+  process.exit(1);
 }
 
 if (!values.summary) {
@@ -96,10 +154,9 @@ if (!values.summary) {
   await Promise.all(lanes.map(flyLane));
 }
 
-const laneDirs = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name) : [];
-const results = benchResults(seeds, laneDirs.flatMap((id) => summarize(id) ?? []));
+const results = rebuild();
 const table = results.lanes;
-writeFileSync(`${dir}/results.json`, JSON.stringify(results, null, 2) + "\n");
+writeFileSync(resultsPath, serialise(results));
 
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 console.log(`\n${"lane".padEnd(14)}${"courses".padEnd(9)}${"landed".padEnd(22)}${"quality".padEnd(16)}${"autopilot pick".padEnd(16)}${"unanswered".padEnd(12)}${"p50".padEnd(10)}cost`);

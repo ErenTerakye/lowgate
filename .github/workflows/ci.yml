@@ -1,0 +1,49 @@
+# Every push and pull request: types, tests, the site build, and the benchmark's own evidence. `pnpm bench --check`
+# replays all 180 recordings against their state hashes and fails unless bench/results.json is exactly what they give,
+# so a published figure can never drift from the flights behind it. No keys are needed: nothing here calls a model.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, test, verify recordings, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # Reads the pnpm version from packageManager in package.json.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          # The scripts run as .ts straight from Node, which strips types by default from 22.18.
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Recordings replay and match bench/results.json
+        run: pnpm bench --check
+      - run: pnpm build
+
+  bridge:
+    name: Laya bridge tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # A fake agent stands in for the model, so the tests need only the standard library.
+      - run: python -m unittest discover -s bridge/laya -v

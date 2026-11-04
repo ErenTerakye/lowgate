@@ -40,6 +40,11 @@ export interface BenchResults {
   readonly courses: readonly number[];
   readonly ranking: string;
   readonly lanes: readonly LaneResult[];
+  /**
+   * When the newest recording summarised was flown. Not the time of the rebuild: that keeps the file a pure function
+   * of the recordings, so rebuilding it from the same recordings changes nothing and `pnpm bench --check` can compare
+   * it byte for byte.
+   */
   readonly at: string;
 }
 
@@ -120,6 +125,38 @@ export function summarizeLane(recordings: readonly Recording[], options: { reado
   };
 }
 
-export function benchResults(courses: readonly number[], lanes: readonly LaneResult[], at = new Date()): BenchResults {
-  return { engine: ENGINE_VERSION, courses, ranking: "landing rate, then mean landing quality", lanes: rankLanes(lanes), at: at.toISOString() };
+/** The newest `flownAt` among the recordings, as an ISO timestamp. */
+export function lastFlown(recordings: readonly Pick<Recording, "flownAt">[]): string {
+  if (recordings.length === 0) throw new Error("lastFlown needs at least one recording");
+  return new Date(Math.max(...recordings.map((r) => Date.parse(r.flownAt)))).toISOString();
+}
+
+/** The results file for these lanes; `at` is the newest recording's flownAt (see BenchResults.at). */
+export function benchResults(courses: readonly number[], lanes: readonly LaneResult[], at: string): BenchResults {
+  return { engine: ENGINE_VERSION, courses, ranking: "landing rate, then mean landing quality", lanes: rankLanes(lanes), at };
+}
+
+/**
+ * Where a results file and a rebuild from the recordings disagree, as short lines naming the field, or none when they
+ * match. Lanes are compared by id, field by field, so a stale file says which figure moved.
+ */
+export function resultsDiff(committed: BenchResults, rebuilt: BenchResults): string[] {
+  const out: string[] = [];
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  for (const key of ["engine", "courses", "ranking", "at"] as const) {
+    if (!same(committed[key], rebuilt[key])) out.push(`${key}: file has ${JSON.stringify(committed[key])}, recordings give ${JSON.stringify(rebuilt[key])}`);
+  }
+  const byId = (rs: BenchResults) => new Map(rs.lanes.map((l) => [l.lane, l]));
+  const [a, b] = [byId(committed), byId(rebuilt)];
+  for (const id of new Set([...a.keys(), ...b.keys()])) {
+    const [x, y] = [a.get(id), b.get(id)];
+    if (!x) out.push(`${id}: in the recordings, missing from the file`);
+    else if (!y) out.push(`${id}: in the file, but no recordings`);
+    else {
+      const fields = new Set([...Object.keys(x), ...Object.keys(y)]) as Set<keyof LaneResult>;
+      for (const f of fields) if (!same(x[f], y[f])) out.push(`${id}.${f}: file has ${JSON.stringify(x[f])}, recordings give ${JSON.stringify(y[f])}`);
+    }
+  }
+  if (out.length === 0 && !same(committed.lanes.map((l) => l.lane), rebuilt.lanes.map((l) => l.lane))) out.push("lanes: same figures in a different order");
+  return out;
 }

@@ -23,7 +23,8 @@ const SOURCE = "https://github.com/ErenTerakye/lowgate";
 
 /** The footer both pages share: the pages again, where the project lives, who built it, and what the figures come from. */
 export function siteFooter(bench: { readonly engine: string; readonly courses: readonly number[]; readonly at: string }): string {
-  const rebuilt = new Date(bench.at).toLocaleDateString("en-GB", { dateStyle: "medium" });
+  // The newest recording's date, not the rebuild's: results.json is a pure function of the recordings.
+  const flown = new Date(bench.at).toLocaleDateString("en-GB", { dateStyle: "medium" });
   return `
     <footer class="site-foot">
       <div class="wrap">
@@ -35,7 +36,7 @@ export function siteFooter(bench: { readonly engine: string; readonly courses: r
           <a href="${SOURCE}/blob/main/LICENSE">MIT licence</a>
         </nav>
         <p class="credit">Built by <a href="https://erenterakye.com">Eren Terakye</a></p>
-        <p class="provenance">Engine ${bench.engine} · courses ${bench.courses[0]}–${bench.courses.at(-1)} · results rebuilt ${rebuilt}. Every course is recorded and replays to its saved state hashes.</p>
+        <p class="provenance">Engine ${bench.engine} · courses ${bench.courses[0]}–${bench.courses.at(-1)} · last course flown ${flown}. Every course is recorded and replays to its saved state hashes.</p>
       </div>
     </footer>`;
 }
