@@ -14,6 +14,9 @@
   /* Gold foil fills the primary control; text in that family uses the darker step. */
   --accent: #d9a62e;
   --accent-ink: #8a5a00;
+  /* Hover and press steps for the gold control: darker foil, never a ring. */
+  --accent-hover: color-mix(in srgb, var(--accent) 88%, var(--ink));
+  --accent-press: color-mix(in srgb, var(--accent) 78%, var(--ink));
   --focus: #2456a6;
   --good: #1d6b45;
   --warn: #9a5b00;
@@ -304,6 +307,10 @@ button {
   height: 40px;
 }
 
+/*
+ * Every button answers the pointer the same way: hover fills, press fills one step darker, and borders never
+ * change, so no edge ever reads heavier than another. Hover is for mice only; a tap on a phone does not leave it on.
+ */
 button {
   cursor: pointer;
   display: inline-flex;
@@ -311,19 +318,33 @@ button {
   justify-content: center;
   gap: 6px;
   font-weight: 500;
+  transition: background-color 100ms ease-out;
 }
 
 .icon {
   flex: none;
 }
 
-button:hover:not(:disabled) {
-  border-color: var(--ink-2);
+@media (hover: hover) {
+  button:hover:not(:disabled) {
+    background-color: var(--surface-2);
+  }
 }
 
+button:active:not(:disabled) {
+  background-color: var(--rule);
+}
+
+/* Disabled mutes the label only: the frame keeps its weight, so it lines up with its neighbours. */
 button:disabled {
-  opacity: 0.5;
+  color: var(--rule-strong);
   cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
 }
 
 button.primary {
@@ -339,8 +360,20 @@ button.icon-only {
   padding: 0;
 }
 
-button.primary:hover:not(:disabled) {
-  border-color: var(--ink);
+@media (hover: hover) {
+  button.primary:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+}
+
+button.primary:active:not(:disabled) {
+  background-color: var(--accent-press);
+  border-color: var(--accent-press);
+}
+
+button.primary:disabled {
+  opacity: 0.5;
 }
 
 /* Speed is a single choice of four, so all four stay visible. */
@@ -363,15 +396,17 @@ button.primary:hover:not(:disabled) {
 }
 
 .segmented button + button {
-  border-left: 1px solid var(--rule);
+  border-left: 1px solid var(--rule-strong);
 }
 
-.segmented button:hover:not(:disabled) {
-  color: var(--ink);
-  background: var(--surface-2);
+@media (hover: hover) {
+  .segmented button:hover:not(:disabled) {
+    color: var(--ink);
+  }
 }
 
-.segmented button[aria-pressed="true"] {
+.segmented button[aria-pressed="true"],
+.segmented button[aria-pressed="true"]:is(:hover, :active) {
   background: var(--ink);
   color: var(--surface);
   font-weight: 600;

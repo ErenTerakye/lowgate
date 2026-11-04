@@ -99,7 +99,8 @@
   border-color: var(--rule-strong);
 }
 
-.lane-filter-buttons button[aria-pressed="true"] {
+.lane-filter-buttons button[aria-pressed="true"],
+.lane-filter-buttons button[aria-pressed="true"]:is(:hover, :active) {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--surface);
@@ -402,7 +403,8 @@
   border-color: var(--rule);
 }
 
-.board thead button.is-current {
+.board thead button.is-current,
+.board thead button.is-current:is(:hover, :active) {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--surface);
@@ -502,7 +504,7 @@
     color: #fff;
   }
 
-  .screen-toggle:hover:not(:disabled) {
+  .screen-toggle:is(:hover, :active):not(:disabled) {
     background: rgba(0, 0, 0, 0.75);
   }
 }
