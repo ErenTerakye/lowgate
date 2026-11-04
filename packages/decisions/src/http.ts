@@ -56,6 +56,7 @@ export async function postJson(
 ): Promise<PostResult> {
   const timeout = AbortSignal.timeout(timeoutMs);
   let res: Response;
+  let text: string;
   try {
     res = await fetchImpl(url, {
       method: "POST",
@@ -63,12 +64,13 @@ export async function postJson(
       body: JSON.stringify(payload),
       signal: AbortSignal.any([signal, timeout]),
     });
+    // The deadline covers the body too: a provider that sends headers and then stalls is still a timeout.
+    text = await res.text();
   } catch (err) {
     if (signal.aborted) throw new DecisionFailure({ kind: "aborted", message: "Request cancelled" });
     if (timeout.aborted) throw new DecisionFailure({ kind: "timeout", message: `No answer within ${timeoutMs} ms` });
     throw new DecisionFailure({ kind: "network", message: err instanceof Error ? err.message : String(err) });
   }
-  const text = await res.text();
   let body: unknown = text;
   try {
     body = text ? JSON.parse(text) : null;

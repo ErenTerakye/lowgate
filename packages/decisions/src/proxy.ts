@@ -51,6 +51,7 @@ export async function handleDecide(request: Request, laneId: string, env: ProxyE
   }
   const started = Date.now();
   let upstream: Response;
+  let body: string;
   try {
     upstream = await fetchImpl(upstreamUrl.url, {
       method: "POST",
@@ -58,6 +59,8 @@ export async function handleDecide(request: Request, laneId: string, env: ProxyE
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
+    // Inside the try: the deadline also covers an upstream that sends headers and then stalls.
+    body = await upstream.text();
   } catch (err) {
     const timedOut = err instanceof Error && err.name === "TimeoutError";
     if (timedOut) return reply(504, { detail: `${lane.model.provider} did not answer in ${UPSTREAM_TIMEOUT_MS} ms` });
@@ -65,7 +68,6 @@ export async function handleDecide(request: Request, laneId: string, env: ProxyE
     const detail = lane.keyEnv ? `Could not reach ${lane.model.provider}` : `${lane.label} is not running at ${new URL(upstreamUrl.url).host}`;
     return reply(502, { detail });
   }
-  const body = await upstream.text();
   return new Response(body, {
     status: upstream.status,
     headers: {

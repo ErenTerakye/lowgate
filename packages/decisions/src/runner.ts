@@ -11,7 +11,7 @@ import {
   type LaneState,
   type LevelResult,
 } from "@lowgate/engine";
-import { FATAL_ERRORS, type DecisionClient, type DecisionError, type DecisionResult, type Usage } from "./types.ts";
+import { FATAL_ERRORS, type Decision, type DecisionClient, type DecisionError, type DecisionResult, type Usage } from "./types.ts";
 
 /** A transient failure is retried this many times before the decision counts as unanswered. */
 export const MAX_RETRIES = 3;
@@ -79,14 +79,33 @@ function sleepFor(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+/**
+ * Why a client's answer cannot be flown or recorded, or null when it can. Every answer passes here, so a client bug
+ * (a pick off the menu, a NaN probability) becomes a retried bad response instead of a crashed course or a
+ * recording with nulls where its probabilities should be.
+ */
+export function invalidDecision(d: Decision): string | null {
+  if (!Number.isInteger(d.pick) || d.pick < 0 || d.pick >= MANOEUVRES.length) return `pick ${d.pick} is not a menu index (0-${MANOEUVRES.length - 1})`;
+  if (d.probs !== null) {
+    if (d.probs.length !== MANOEUVRES.length) return `${d.probs.length} probabilities, expected ${MANOEUVRES.length}`;
+    const i = d.probs.findIndex((p) => !Number.isFinite(p) || p < 0);
+    if (i >= 0) return `probability ${i} is ${d.probs[i]}`;
+  }
+  return null;
+}
+
 async function attempt(client: DecisionClient, lane: LaneState, signal: AbortSignal): Promise<DecisionResult> {
   const started = performance.now();
+  const bad = (message: string): DecisionResult => ({ ok: false, error: { kind: "bad_response", message }, latencyMs: performance.now() - started });
+  let result: DecisionResult;
   try {
-    return await client.decide({ lane, signal });
+    result = await client.decide({ lane, signal });
   } catch (err) {
     // Clients report failures as results; a throw is a bug in one, not a reason to stop the course.
-    return { ok: false, error: { kind: "bad_response", message: err instanceof Error ? err.message : String(err) }, latencyMs: performance.now() - started };
+    return bad(err instanceof Error ? err.message : String(err));
   }
+  const problem = result.ok ? invalidDecision(result.decision) : null;
+  return problem ? bad(problem) : result;
 }
 
 /**

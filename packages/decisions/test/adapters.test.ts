@@ -103,6 +103,9 @@ describe("parseSystemOne", () => {
     [{ answers: { manoeuvre: { probabilities: { "UP-T9": 1 } } } }, /not on the menu: UP-T9/],
     [{ answers: { manoeuvre: { probabilities: { "UP-T2": 0 } } } }, /all zero/],
     [{ answers: { manoeuvre: { probabilities: { "UP-T2": -1 } } } }, /not a probability/],
+    // An all-zero score in level order would normalise to NaN and fly the first option on the menu.
+    [{ answers: { tilt: { probabilities: { UP: 1 } }, throttle: { probabilities: [0, 0, 0, 0, 0] } } }, /throttle probabilities are all zero/],
+    [{ answers: { tilt: { probabilities: { UP: 0 } }, throttle: { probabilities: [0, 0, 1, 0, 0] } } }, /tilt probabilities are all zero/],
   ])("rejects %j", (body, message) => {
     expect(() => parseSystemOne(body)).toThrow(message);
   });
@@ -147,6 +150,21 @@ describe("SystemOneClient", () => {
         new Promise<Response>((_, reject) => init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")))),
     );
     const r = await client(hang, 30).decide({ lane, signal });
+    expect(!r.ok && r.error.kind).toBe("timeout");
+  });
+
+  it("times out a provider that sends headers and then stalls the body", async () => {
+    // As real fetch does, the request's signal also errors a body that is still streaming.
+    const stall = fakeFetch(({ init }) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"answers":'));
+          init.signal?.addEventListener("abort", () => controller.error(new DOMException("aborted", "AbortError")));
+        },
+      });
+      return new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+    });
+    const r = await client(stall, 30).decide({ lane, signal });
     expect(!r.ok && r.error.kind).toBe("timeout");
   });
 

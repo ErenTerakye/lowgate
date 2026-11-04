@@ -7,6 +7,7 @@ import {
   autopilotClient,
   decideWithRetry,
   flyCourse,
+  invalidDecision,
   type DecisionClient,
   type DecisionError,
   type DecisionResult,
@@ -135,6 +136,26 @@ describe("decideWithRetry", () => {
     };
     const { record } = await decideWithRetry(throwing, lane, 0, { sleep: noSleep });
     expect(record).toMatchObject({ answered: true, retries: 1, error: { kind: "bad_response", message: "boom" } });
+  });
+
+  it.each([
+    ["a pick off the menu", { pick: MANOEUVRES.length, probs: null }, /not a menu index/],
+    ["a fractional pick", { pick: 2.5, probs: null }, /not a menu index/],
+    ["probabilities of the wrong length", { pick: 0, probs: [1] }, /1 probabilities, expected 35/],
+    ["a NaN probability", { pick: 0, probs: MANOEUVRES.map((_, i) => (i === 4 ? NaN : 0.02)) }, /probability 4 is NaN/],
+  ])("retries %s as a bad response instead of flying or recording it", async (_, answer, message) => {
+    const client = scripted([{ ok: true, decision: { ...answer, latencyMs: 5, usage: null } }]);
+    const { record, stop } = await decideWithRetry(client, lane, 0, { sleep: noSleep });
+    expect(stop).toBeNull();
+    // The retry is the autopilot's answer, which is valid.
+    expect(record).toMatchObject({ answered: true, retries: 1, pick: autopilot(lane.level, lane.lander), error: { kind: "bad_response" } });
+    expect(record.error?.message).toMatch(message);
+  });
+
+  it("accepts every valid decision shape", () => {
+    const uniform = MANOEUVRES.map(() => 1 / MANOEUVRES.length);
+    expect(invalidDecision({ pick: 0, probs: null, latencyMs: 0, usage: null })).toBeNull();
+    expect(invalidDecision({ pick: MANOEUVRES.length - 1, probs: uniform, latencyMs: 0, usage: null })).toBeNull();
   });
 
   it("rounds probabilities to 4 decimals and records usage and the served model", async () => {

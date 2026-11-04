@@ -99,15 +99,18 @@ function num(v: unknown, what: string): number {
 function probsFor(answer: Record<string, unknown> | undefined, keys: readonly string[], what: string): number[] {
   const given = answer?.probabilities;
   if (!given || typeof given !== "object") bad(`${what} answer has no probabilities`);
+  let probs: number[];
   if (Array.isArray(given)) {
     // Score answers can come back as an array in level order.
     if (given.length !== keys.length) bad(`${what} answer has ${given.length} probabilities, expected ${keys.length}`);
-    return given.map((p, i) => num(p, `${what}.${i}`));
+    probs = given.map((p, i) => num(p, `${what}.${i}`));
+  } else {
+    const byKey = given as Record<string, unknown>;
+    const unknown = Object.keys(byKey).filter((k) => !keys.includes(k));
+    if (unknown.length) bad(`${what} answer has options not on the menu: ${unknown.slice(0, 3).join(", ")}`);
+    probs = keys.map((k) => num(byKey[k] ?? 0, `${what}.${k}`));
   }
-  const byKey = given as Record<string, unknown>;
-  const unknown = Object.keys(byKey).filter((k) => !keys.includes(k));
-  if (unknown.length) bad(`${what} answer has options not on the menu: ${unknown.slice(0, 3).join(", ")}`);
-  const probs = keys.map((k) => num(byKey[k] ?? 0, `${what}.${k}`));
+  // Either shape: all zeros would normalise to NaN and silently fly the first option on the menu.
   if (probs.every((p) => p === 0)) bad(`${what} probabilities are all zero`);
   return probs;
 }

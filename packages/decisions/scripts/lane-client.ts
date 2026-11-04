@@ -11,6 +11,7 @@ import {
   isPromptId,
   observe,
   observePrompt,
+  resolveUpstream,
   type DecisionClient,
 } from "../src/index.ts";
 
@@ -35,16 +36,17 @@ export function laneClient(id: string, options: { prompt?: string; timeoutMs?: n
   const lane = MODEL_LANES[id];
   if (!lane) throw new Error(`Unknown lane "${id}". Known: ${LANE_IDS.join(", ")}`);
   const promptId = options.prompt ?? lane.prompt;
+  const unset = (name: string) => new Error(`${name} is not set. Add it to .env at the repo root (see .env.example).`);
   const key = lane.keyEnv ? process.env[lane.keyEnv] : undefined;
-  if (lane.keyEnv && !key) throw new Error(`${lane.keyEnv} is not set. Add it to .env at the repo root (see .env.example).`);
-  const account = lane.accountEnv ? process.env[lane.accountEnv] : undefined;
-  if (lane.accountEnv && !account) throw new Error(`${lane.accountEnv} is not set. Add it to .env at the repo root (see .env.example).`);
-  const endpoint = account ? lane.upstream.replace("{account}", encodeURIComponent(account)) : lane.upstream;
+  if (lane.keyEnv && !key) throw unset(lane.keyEnv);
+  // The same resolution as the proxy, so a lane flown from Node and through the dev server reaches the same URL.
+  const upstream = resolveUpstream(lane, process.env);
+  if ("missing" in upstream) throw unset(upstream.missing);
   const common = {
     id: lane.id,
     label: lane.label,
     model: lane.model,
-    endpoint,
+    endpoint: upstream.url,
     ...(key ? { apiKey: key } : {}),
     ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
   };

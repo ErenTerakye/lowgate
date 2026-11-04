@@ -62,6 +62,14 @@ describe("handleDecide", () => {
 });
 
 describe("handleDecide prompts", () => {
+  it("maps an upstream that stalls after its headers to 504, not a crash", async () => {
+    // What fetch does when the request's timeout signal fires while the body is still streaming.
+    const stalled = new ReadableStream<Uint8Array>({ pull: (c) => c.error(new DOMException("The operation timed out.", "TimeoutError")) });
+    const res = await handleDecide(post({ state: "s" }), "jev", env, upstream(() => new Response(stalled, { status: 200 })).fetchImpl);
+    expect(res.status).toBe(504);
+    expect((await res.json()).detail).toMatch(/did not answer/);
+  });
+
   it("uses the questions of the requested prompt and rejects unknown ids", async () => {
     const { calls, fetchImpl } = upstream(() => new Response("{}"));
     await handleDecide(post({ state: "s", prompt: "m1" }), "jev", env, fetchImpl);
