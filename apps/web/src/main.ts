@@ -27,7 +27,9 @@ const SPEEDS = [1, 2, 4, 8, 16] as const;
 const LONG_PRESS_MS = 500;
 
 const results = JSON.parse(raw) as BenchResults;
-const recordingUrls = import.meta.glob<string>("../../../bench/*/*.json", { query: "?url", import: "default" });
+// Eager: the map of 180 fingerprinted URLs is a few kB in the bundle, where lazy entries were 180 one-line modules,
+// each a request the course load had to wait for before it could fetch the recording itself.
+const recordingUrls = import.meta.glob<string>("../../../bench/*/*.json", { query: "?url", import: "default", eager: true });
 const urlFor = (lane: string, seed: number) => recordingUrls[`../../../bench/${lane}/${seed}.json`];
 
 const SHORT_OUTCOME: Record<Outcome, string> = {
@@ -300,7 +302,7 @@ async function loadCourse(next: number): Promise<void> {
       const url = urlFor(result.lane, seed);
       if (!url) return { ...base, replay: null, missing: "not flown on this course" };
       try {
-        const response = await fetch(await url());
+        const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const replay = new LaneReplay((await response.json()) as Recording);
         return { ...base, replay, missing: replay.check.ok ? null : `does not replay: ${replay.check.reason}` };
