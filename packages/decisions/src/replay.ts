@@ -1,4 +1,16 @@
-import { MANOEUVRES, createLane, flyDecision, needsDecision, nextLevel, stateHash, stepLane, type LaneState, type Manoeuvre } from "@lowgate/engine";
+import {
+  MANOEUVRES,
+  PHYSICS_HZ,
+  STEPS_PER_DECISION,
+  createLane,
+  flyDecision,
+  needsDecision,
+  nextLevel,
+  stateHash,
+  stepLane,
+  type LaneState,
+  type Manoeuvre,
+} from "@lowgate/engine";
 import { replayRecording, type Recording, type ReplayCheck } from "./recording.ts";
 import type { DecisionRecord } from "./runner.ts";
 
@@ -70,6 +82,19 @@ export class LaneReplay {
     this.flying = null;
     this.latest = null;
     return true;
+  }
+
+  /**
+   * Physics steps this lane flies in a level before it is over (landed, crashed, out of time, or stopped by a fatal
+   * error), read from the recording; null for a level it never reached. A player's timeline is the longest of these.
+   */
+  levelSteps(level: number): number | null {
+    if (level >= this.levelStarts.length) return null;
+    const result = this.rec.results[level];
+    if (result) return Math.round(result.seconds * PHYSICS_HZ);
+    // Stopped on this level: it flew the decisions it has here, and stopped at the boundary after the last of them.
+    const flown = this.rec.decisions.slice(0, this.flownDecisions()).filter((d) => d.level === level).length;
+    return flown * STEPS_PER_DECISION;
   }
 
   /** One physics step. At a decision boundary the next recorded pick is checked against the state and taken. */

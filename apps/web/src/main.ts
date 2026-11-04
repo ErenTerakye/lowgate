@@ -1,10 +1,10 @@
-import { COURSE_LEVELS, DT, MANOEUVRES, THROTTLE_LEVELS, type LaneState, type Manoeuvre, type Outcome } from "@lowgate/engine";
+import { COURSE_LEVELS, DT, MANOEUVRES, PHYSICS_HZ, STEPS_PER_DECISION, THROTTLE_LEVELS, type LaneState, type Manoeuvre, type Outcome } from "@lowgate/engine";
 import { LaneReplay, argmax, usdFor, type BenchResults, type LaneResult, type Recording } from "@lowgate/decisions";
 import raw from "../../../bench/results.json?raw";
 import { siteFooter, siteHeader, trackHeaderHeight } from "./chrome.ts";
 import { icons } from "./icons.ts";
 import { KIND_LABEL, colorOf, darkColorOf, inkOn, kindOf, pilotsPhrase, tagOf } from "./lanes.ts";
-import { CourseRenderer, type Banner, type LanderView } from "./render.ts";
+import { BANNER_IN_S, CourseRenderer, type Banner, type LanderView } from "./render.ts";
 import "./style.css";
 import "./replay.css";
 
@@ -25,6 +25,11 @@ const TIMELINE_DECISIONS = 60;
 const SPEEDS = [1, 2, 4, 8, 16] as const;
 /** How long a touch on a pilot's eye must be held to show only that pilot. */
 const LONG_PRESS_MS = 500;
+/** A trail keeps a point every this many physics steps, up to this many points: the last 10 simulated seconds at any speed. */
+const TRAIL_EVERY = 4;
+const TRAIL_POINTS = 150;
+/** Page Up and Page Down on the timeline jump this many decisions. */
+const PAGE_DECISIONS = 10;
 
 const results = JSON.parse(raw) as BenchResults;
 // Eager: the map of 180 fingerprinted URLs is a few kB in the bundle, where lazy entries were 180 one-line modules,
@@ -49,6 +54,11 @@ const describe = (m: Manoeuvre): string => {
   return `${tilt} · ${throttle}`;
 };
 const ms = (v: number): string => (v >= 1000 ? `${(v / 1000).toFixed(1)} s` : `${Math.round(v)} ms`);
+/** Physics steps as whole seconds of the level, "0:42". */
+const clockText = (steps: number): string => {
+  const s = Math.floor(steps / PHYSICS_HZ);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
 const usd = (v: number): string => (v === 0 ? "$0" : v < 0.001 ? "<$0.001" : `$${v.toFixed(3)}`);
 
 const params = new URLSearchParams(location.search);
@@ -66,6 +76,14 @@ app.innerHTML = `
         <p class="verify" id="verify" role="status"></p>
       </div>
       <div class="screen"><canvas class="lane-canvas" id="canvas" aria-label="All pilots flying the current level"></canvas><div class="screen-empty" id="screen-empty" hidden><p>No pilots shown</p><button type="button" id="show-all">Show all</button></div><button id="screen-toggle" type="button" class="screen-toggle icon-only"></button></div>
+      <div class="timeline" title="Drag to any moment of the level. Coloured ticks mark when each pilot's level ended.">
+        <span class="timeline-time" id="time-now">0:00</span>
+        <div class="timeline-track">
+          <div class="timeline-marks" id="marks" aria-hidden="true"></div>
+          <input type="range" id="scrub" min="0" max="0" step="1" value="0" aria-label="Time in this level" />
+        </div>
+        <span class="timeline-time" id="time-end">0:00</span>
+      </div>
       <div class="deck">
         <div class="deck-play">
           <button id="toggle" type="button" class="primary"></button>
@@ -81,7 +99,7 @@ app.innerHTML = `
           <select id="course">${results.courses.map((c) => `<option value="${c}">${c}</option>`).join("")}</select>
         </div>
       </div>
-      <p class="keys" aria-label="Keyboard shortcuts"><span><kbd>Space</kbd> play / pause</span><span><kbd>←</kbd> <kbd>→</kbd> level</span><span><kbd>R</kbd> replay level</span></p>
+      <p class="keys" aria-label="Keyboard shortcuts"><span><kbd>Space</kbd> play / pause</span><span><kbd>←</kbd> <kbd>→</kbd> level</span><span><kbd>,</kbd> <kbd>.</kbd> decision</span><span><kbd>R</kbd> replay level</span></p>
       <div class="board-wrap">
         <p class="board-note" id="board-note">How each level ended, shown as the replay reaches it. A number is the landing quality (0–100). Engine ${results.engine}.</p>
         <div class="board-scroll"><table class="board" id="board" aria-describedby="board-note"></table></div>
@@ -122,6 +140,7 @@ const toggleBtn = $<HTMLButtonElement>("toggle");
 const screenToggle = $<HTMLButtonElement>("screen-toggle");
 const courseSelect = $<HTMLSelectElement>("course");
 const speedGroup = $<HTMLDivElement>("speed");
+const scrub = $<HTMLInputElement>("scrub");
 
 /** One lane in the player: its replay for the loaded course and its panel. */
 interface PlayerLane {
@@ -132,6 +151,8 @@ interface PlayerLane {
   readonly panel: Panel;
   /** Top probability of each decision played in this level, for the confidence line. */
   confidence: number[];
+  /** Where the lander has been in this level, sampled every TRAIL_EVERY steps. */
+  trail: { x: number; y: number }[];
   shownPosition: number;
 }
 
@@ -160,6 +181,10 @@ let accumulator = 0;
 let lastFrame = 0;
 /** Simulated seconds left on the end-of-level pause; null while the level is still being flown. */
 let pauseLeft: number | null = null;
+/** Physics steps flown in this level: the replay clock, the same for every lane, since they fly in lockstep. */
+let clock = 0;
+/** Step at which the last lane's level is over: the length of the timeline. */
+let levelEnd = 0;
 let loadToken = 0;
 let renderer = new CourseRenderer(canvas, seed);
 
@@ -298,7 +323,7 @@ async function loadCourse(next: number): Promise<void> {
   const loaded = await Promise.all(
     results.lanes.map(async (result): Promise<PlayerLane> => {
       const panel = panels.get(result.lane)!;
-      const base = { result, panel, confidence: [], shownPosition: -1 };
+      const base = { result, panel, confidence: [], trail: [], shownPosition: -1 };
       const url = urlFor(result.lane, seed);
       if (!url) return { ...base, replay: null, missing: "not flown on this course" };
       try {
@@ -323,22 +348,37 @@ async function loadCourse(next: number): Promise<void> {
   $("verify").classList.toggle("is-bad", ok.length !== lanes.length);
   buildBoard();
   seekLevel(Math.min(COURSE_LEVELS - 1, Math.max(0, Number(params.get("level") ?? 1) - 1)));
+  // A shared link can point at one moment of the level: ?t= is in seconds.
+  const t = Number(params.get("t"));
+  if (t > 0) seekTime(t * PHYSICS_HZ);
   params.delete("level");
+  params.delete("t");
 }
 
 function playable(l: PlayerLane): l is PlayerLane & { replay: LaneReplay } {
   return l.replay !== null && l.missing === null;
 }
 
-function seekLevel(n: number): void {
-  level = n;
+/** Puts every lane back at the start of the current level, with empty trails and confidence lines. */
+function resetLevel(): void {
   pauseLeft = null;
+  clock = 0;
   for (const l of lanes) {
     l.confidence = [];
+    l.trail = [];
     l.shownPosition = -1;
-    if (playable(l) && !l.replay.seek(level)) l.confidence = [];
+    if (playable(l) && l.replay.seek(level)) {
+      const { x, y } = l.replay.lane.lander;
+      l.trail.push({ x, y });
+    }
   }
+  levelEnd = Math.max(0, ...lanes.filter(flyingHere).map((l) => l.replay!.levelSteps(level) ?? 0));
   renderer.reset();
+}
+
+function seekLevel(n: number): void {
+  level = n;
+  resetLevel();
   updateUrl();
   render();
 }
@@ -348,18 +388,60 @@ function flyingHere(l: PlayerLane): boolean {
   return playable(l) && l.replay.levelStarts.length > level;
 }
 
-function step(): void {
-  const here = lanes.filter(flyingHere);
-  if (pauseLeft === null) {
-    for (const l of here) {
-      const before = l.replay!.position;
-      l.replay!.step();
-      if (l.replay!.position !== before) {
-        const d = l.replay!.current!;
-        if (d.probs) l.confidence.push(Math.max(...d.probs));
-      }
+/** True once every lane here has an outcome (or stopped), so the level is over. */
+function levelDone(): boolean {
+  return lanes.filter(flyingHere).every((l) => l.replay!.levelOver() || l.replay!.mismatch !== null);
+}
+
+/** One physics step for every lane still flying this level, in lockstep, with their trails and confidence lines. */
+function advance(): void {
+  clock++;
+  for (const l of lanes) {
+    if (!flyingHere(l)) continue;
+    const r = l.replay!;
+    const [before, position] = [r.lane, r.position];
+    r.step();
+    if (r.position !== position && r.current!.probs) l.confidence.push(Math.max(...r.current!.probs));
+    // Every TRAIL_EVERY steps, and the step that ends the level, so the trail reaches the touchdown.
+    if (r.lane !== before && (clock % TRAIL_EVERY === 0 || r.lane.outcome !== null)) {
+      l.trail.push({ x: r.lane.lander.x, y: r.lane.lander.y });
+      if (l.trail.length > TRAIL_POINTS) l.trail.shift();
     }
-    if (here.every((l) => l.replay!.levelOver() || l.replay!.mismatch)) pauseLeft = OUTCOME_PAUSE_S;
+  }
+}
+
+/**
+ * Moves the level to `target` physics steps from its start, as if it had played there: forward by flying on, back by
+ * flying again from the start, which is cheap (a level is at most 3,600 steps per lane) and rebuilds the trails exactly.
+ */
+function seekTime(target: number): void {
+  const to = Math.max(0, Math.min(levelEnd, Math.round(target)));
+  if (to < clock) resetLevel();
+  while (clock < to) advance();
+  // A seek is not playback: crashes jumped over fire no debris or flash, and the camera frames the new moment at once.
+  renderer.reset();
+  // Arriving at the end shows its banner already in, rather than easing in on the next frame played. Staying at the
+  // end keeps the pause's countdown where it was.
+  pauseLeft = levelDone() ? (pauseLeft ?? OUTCOME_PAUSE_S - BANNER_IN_S) : null;
+  updateUrl();
+  render();
+}
+
+/** One decision forward or back: to the next or previous decision boundary, and from the end of a level to the next. */
+function stepDecision(decisions: number): void {
+  pause();
+  if (decisions > 0 && pauseLeft !== null) {
+    if (level < COURSE_LEVELS - 1) seekLevel(level + 1);
+    return;
+  }
+  const at = decisions > 0 ? Math.floor(clock / STEPS_PER_DECISION) : Math.ceil(clock / STEPS_PER_DECISION);
+  seekTime((at + decisions) * STEPS_PER_DECISION);
+}
+
+function step(): void {
+  if (pauseLeft === null) {
+    advance();
+    if (levelDone()) pauseLeft = OUTCOME_PAUSE_S;
     return;
   }
   pauseLeft -= DT;
@@ -501,7 +583,7 @@ function render(): void {
       .filter((l) => !hidden.has(l.result.lane))
       .map((l) => {
         const color = darkColorOf(l.result.lane);
-        return { id: l.result.lane, label: l.result.label, tag: tagOf(l.result.lane), color, ink: inkOn(color), state: l.replay!.lane };
+        return { id: l.result.lane, label: l.result.label, tag: tagOf(l.result.lane), color, ink: inkOn(color), state: l.replay!.lane, trail: l.trail };
       });
     let banner: Banner | null = null;
     if (pauseLeft !== null) {
@@ -514,12 +596,31 @@ function render(): void {
   for (const l of lanes) renderPanel(l);
   renderBoard();
   renderFilter();
+  renderTimeline();
   const over = courseOver();
   setHtml(toggleBtn, over ? `${icons.restart}<span>Again</span>` : running ? `${icons.pause}<span>Pause</span>` : `${icons.play}<span>Play</span>`);
   setHtml(screenToggle, over ? icons.restart : running ? icons.pause : icons.play);
   screenToggle.setAttribute("aria-label", over ? "Play again" : running ? "Pause" : "Play");
   $<HTMLButtonElement>("prev").disabled = level === 0;
   $<HTMLButtonElement>("next").disabled = level === COURSE_LEVELS - 1;
+}
+
+/**
+ * The level's timeline: the clock against the moment the last lane's level is over, and a tick in a lane's colour
+ * where its level ended, shown once the replay gets there (the course table also fills in only as it is reached).
+ */
+function renderTimeline(): void {
+  scrub.max = String(levelEnd);
+  scrub.value = String(clock);
+  scrub.disabled = levelEnd === 0;
+  scrub.style.setProperty("--at", levelEnd ? (clock / levelEnd).toFixed(4) : "0");
+  scrub.setAttribute("aria-valuetext", `${Math.floor(clock / PHYSICS_HZ)} of ${Math.floor(levelEnd / PHYSICS_HZ)} seconds`);
+  $("time-now").textContent = clockText(clock);
+  $("time-end").textContent = clockText(levelEnd);
+  const marks = lanes
+    .filter((l) => flyingHere(l) && !hidden.has(l.result.lane) && l.replay!.levelOver())
+    .map((l) => `<span style="--at:${((l.replay!.levelSteps(level) ?? 0) / (levelEnd || 1)).toFixed(4)};--lane:${colorOf(l.result.lane)}"></span>`);
+  setHtml($("marks"), marks.join(""));
 }
 
 /** The count above the cards, which quick pick (if any) matches what is shown, and the empty-course notice. */
@@ -549,24 +650,43 @@ function frame(now: number): void {
   if (running) requestAnimationFrame(frame);
 }
 
-function toggle(): void {
-  if (courseOver()) {
-    seekLevel(0);
-  }
-  running = !running;
-  if (running) {
-    lastFrame = performance.now();
-    accumulator = 0;
-    requestAnimationFrame(frame);
-  }
+function play(): void {
+  if (running) return;
+  if (courseOver()) seekLevel(0);
+  running = true;
+  lastFrame = performance.now();
+  accumulator = 0;
+  requestAnimationFrame(frame);
   render();
 }
 
+function pause(): void {
+  if (!running) return;
+  running = false;
+  // The paused moment goes in the URL, so it can be shared.
+  updateUrl();
+  render();
+}
+
+function toggle(): void {
+  if (running) pause();
+  else play();
+}
+
+let urlTimer = 0;
+/**
+ * Mirrors the view in the URL, so it can be shared: course, level, pilots, and the moment when paused. Debounced: a
+ * scrub writes on every move, and Safari throws after 100 history writes in 30 seconds.
+ */
 function updateUrl(): void {
-  const q = new URLSearchParams({ course: String(seed), level: String(level + 1) });
-  if (selected) q.set("lane", selected);
-  if (hidden.size) q.set("hide", results.lanes.filter((l) => hidden.has(l.lane)).map((l) => l.lane).join(","));
-  history.replaceState(null, "", `?${q}`);
+  clearTimeout(urlTimer);
+  urlTimer = window.setTimeout(() => {
+    const q = new URLSearchParams({ course: String(seed), level: String(level + 1) });
+    if (!running && clock > 0) q.set("t", String(Math.floor(clock / PHYSICS_HZ)));
+    if (selected) q.set("lane", selected);
+    if (hidden.size) q.set("hide", results.lanes.filter((l) => hidden.has(l.lane)).map((l) => l.lane).join(","));
+    history.replaceState(null, "", `?${q}`);
+  }, 150);
 }
 
 toggleBtn.addEventListener("click", toggle);
@@ -591,6 +711,28 @@ $("board").addEventListener("pointerleave", () => {
   if (!running) render();
 });
 courseSelect.addEventListener("change", () => void loadCourse(Number(courseSelect.value)));
+// Dragging the timeline holds playback, so the clock does not pull the thumb from under the pointer, then resumes it.
+let resumeAfterScrub = false;
+scrub.addEventListener("pointerdown", () => {
+  resumeAfterScrub = running;
+  if (running) pause();
+});
+scrub.addEventListener("input", () => seekTime(Number(scrub.value)));
+scrub.addEventListener("change", () => {
+  if (resumeAfterScrub) play();
+  resumeAfterScrub = false;
+});
+// On the timeline, arrows step whole decisions (the input's own step is one physics step), and Space still plays.
+scrub.addEventListener("keydown", (e) => {
+  const by = { ArrowLeft: -1, ArrowDown: -1, ",": -1, ArrowRight: 1, ArrowUp: 1, ".": 1, PageDown: -PAGE_DECISIONS, PageUp: PAGE_DECISIONS }[e.key];
+  if (by !== undefined) {
+    e.preventDefault();
+    stepDecision(by);
+  } else if (e.key === " ") {
+    e.preventDefault();
+    toggle();
+  }
+});
 speedGroup.addEventListener("click", (e) => {
   const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-speed]");
   if (!btn) return;
@@ -610,6 +752,8 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     toggle();
   } else if (e.key === "r" || e.key === "R") seekLevel(level);
+  else if (e.key === ",") stepDecision(-1);
+  else if (e.key === ".") stepDecision(1);
   else if (e.key === "ArrowLeft" && level > 0) seekLevel(level - 1);
   else if (e.key === "ArrowRight" && level < COURSE_LEVELS - 1) seekLevel(level + 1);
 });

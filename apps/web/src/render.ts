@@ -23,7 +23,6 @@ export const OUTCOME_TEXT: Record<Outcome, string> = {
   timeout: "Out of time",
 };
 
-const TRAIL_STEPS = 150;
 /** Closest the camera gets: the world is shown at most this many times larger. */
 const MAX_ZOOM = 3.6;
 /** Metres of space the camera keeps around the lander and the pad. */
@@ -38,7 +37,7 @@ const MAX_TAG_SHIFT_PX = 160;
 const LOOKAHEAD_S = 2;
 const FONT = '"IBM Plex Sans", system-ui, sans-serif';
 /** Simulated seconds the level-end banner takes to ease in. */
-const BANNER_IN_S = 0.3;
+export const BANNER_IN_S = 0.3;
 
 interface Particle {
   x: number;
@@ -63,6 +62,11 @@ export interface LanderView {
   readonly color: string;
   readonly ink: string;
   readonly state: LaneState;
+  /**
+   * Where the lander has been, oldest first, sampled on simulation time by the player. Kept by the player rather than
+   * built from frames here, so a trail is the same at every speed and after any seek.
+   */
+  readonly trail: readonly { readonly x: number; readonly y: number }[];
 }
 
 /** The line shown once a level is over; age is the simulated seconds since, for its entrance. */
@@ -72,9 +76,8 @@ export interface Banner {
   readonly age: number;
 }
 
-/** Per-lander memory between frames: its trail and the last outcome seen, for one-off effects. */
+/** Per-lander memory between frames: the last outcome and step seen, for one-off effects. */
 interface Track {
-  trail: { x: number; y: number }[];
   lastOutcome: Outcome | null;
   lastStep: number;
 }
@@ -112,7 +115,7 @@ export class CourseRenderer {
     }));
   }
 
-  /** Forget trails and effects, for a jump to another level or course. */
+  /** Forget effects and the camera's history, for a jump: to another level or course, or back in time. */
   reset(): void {
     this.levelIndex = -1;
   }
@@ -171,21 +174,16 @@ export class CourseRenderer {
     if (banner) this.drawBanner(banner, w, h, dpr, color);
   }
 
-  /** Extends a lander's trail and fires its one-off effects. Returns the simulated seconds since its last frame. */
+  /** Fires a lander's one-off effects. Returns the simulated seconds since its last frame. */
   private trackEvents(level: Level, view: LanderView): number {
     const { lander, outcome, step } = view.state;
     let t = this.tracks.get(view.id);
     if (!t) {
-      t = { trail: [], lastOutcome: outcome, lastStep: step };
+      t = { lastOutcome: outcome, lastStep: step };
       this.tracks.set(view.id, t);
     }
     const simDt = Math.max(0, step - t.lastStep) * DT;
     t.lastStep = step;
-    if (outcome === null) {
-      const last = t.trail.at(-1);
-      if (!last || last.x !== lander.x || last.y !== lander.y) t.trail.push({ x: lander.x, y: lander.y });
-      if (t.trail.length > TRAIL_STEPS) t.trail.shift();
-    }
 
     const intensity = reducedMotion.matches ? 0.3 : 1;
     if (outcome !== t.lastOutcome && outcome !== null) {
@@ -361,10 +359,12 @@ export class CourseRenderer {
     ctx.globalAlpha = 1;
   }
 
-  /** The path flown, in the lane's colour; lanes other than the selected one recede. */
+  /** The path flown, in the lane's colour, up to where the lander is now; lanes other than the selected one recede. */
   private drawTrail(view: LanderView, strong: boolean, s: number, X: (x: number) => number, Y: (y: number) => number): void {
     const { ctx } = this;
-    const trail = this.tracks.get(view.id)?.trail ?? [];
+    const { lander } = view.state;
+    const last = view.trail.at(-1);
+    const trail = last && (last.x !== lander.x || last.y !== lander.y) ? [...view.trail, lander] : view.trail;
     if (trail.length < 2) return;
     const dpr = window.devicePixelRatio || 1;
     ctx.lineWidth = Math.max((strong ? 2 : 1.5) * dpr, s * (strong ? 0.45 : 0.3));
