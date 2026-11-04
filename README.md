@@ -1,12 +1,14 @@
 # Low Gate
 
+[![CI](https://github.com/ErenTerakye/lowgate/actions/workflows/ci.yml/badge.svg)](https://github.com/ErenTerakye/lowgate/actions/workflows/ci.yml)
+
 AI decision models fly the same seeded lunar-lander courses, and the benchmark measures their judgment. Each decision picks one manoeuvre from a fixed menu of 35 (a target tilt and a throttle level, held for one second). The game waits for every answer, so latency and cost are measured and shown, but never change the score.
 
 The name comes from Apollo: low gate is the point in the descent where the crew took over and chose where to touch down.
 
 [![Nine lanes flying level 1 of course 5001 at 4× speed, with each lane's choice and its probability beside the canvas](docs/media/replay.gif)](https://lowgate.erenterakye.com)
 
-Watch every course at [lowgate.erenterakye.com](https://lowgate.erenterakye.com), see the full results with 95% intervals on the [results page](https://lowgate.erenterakye.com/results), or read the [write-up](https://erenterakye.com/blog/flying-a-lander-with-system-one-models/). The rules and milestones are in [docs/redesign.md](docs/redesign.md); lane setup and measurements are in [docs/lanes.md](docs/lanes.md).
+Watch every course at [lowgate.erenterakye.com](https://lowgate.erenterakye.com) (scrub any level, step one decision at a time with <kbd>,</kbd> and <kbd>.</kbd>, and share a paused moment by its link), see the full results with 95% intervals on the [results page](https://lowgate.erenterakye.com/results), or read the [write-up](https://erenterakye.com/blog/flying-a-lander-with-system-one-models/). The rules and milestones are in [docs/redesign.md](docs/redesign.md); lane setup and measurements are in [docs/lanes.md](docs/lanes.md).
 
 ## Results
 
@@ -24,7 +26,7 @@ Watch every course at [lowgate.erenterakye.com](https://lowgate.erenterakye.com)
 | Kev 4B | System One | 5/160 (3%) | 40.6 | 61 ms |
 | Kev 0.8B | System One | 0/160 (0%) | – | 28 ms |
 
-Landing quality is a 0–100 score for the levels a lane landed: equal parts how close to the pad centre, how gently, and how much fuel was left. The numbers come from `bench/results.json`, which `pnpm bench --summary` rebuilds from the recordings in `bench/`.
+Landing quality is a 0–100 score for the levels a lane landed: equal parts how close to the pad centre, how gently, and how much fuel was left. The numbers come from `bench/results.json`, which `pnpm bench --summary` rebuilds from the recordings in `bench/`. The file is a pure function of the recordings, and CI replays all 180 of them against their state hashes on every push and fails unless the file is exactly what they give (`pnpm bench --check`).
 
 The first, real-time version of the arena is kept under the tag [`v0-realtime`](https://github.com/ErenTerakye/lowgate/tree/v0-realtime).
 
@@ -49,6 +51,7 @@ pnpm test
 pnpm typecheck
 pnpm bench             # 20 courses per lane, resumable, recordings in bench/
 pnpm bench --summary   # rebuild bench/results.json from the recordings
+pnpm bench --check     # replay every recording and confirm results.json matches them (CI runs this)
 ```
 
 ## Deploy
