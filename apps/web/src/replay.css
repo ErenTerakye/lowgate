@@ -5,13 +5,124 @@
  */
 .viewer.replay {
   --side: 340px;
-  /* Header, the page intro, course title, deck and shortcuts: the canvas takes the rest of the screen. */
-  --canvas-max: calc((100svh - 395px) * 4 / 3);
+  /* Header, the page intro, course title, timeline, deck and shortcuts: the canvas takes the rest of the screen. */
+  --canvas-max: calc((100svh - 433px) * 4 / 3);
 }
 
 /* Play / pause on the canvas itself: only where the canvas stays on screen and the deck scrolls away (phones, below). */
 .screen-toggle {
   display: none;
+}
+
+/*
+ * The level's timeline under the canvas, like a video's: elapsed time, a track to scrub, and the time the last lane's
+ * level is over. The thumb and the played part are ink, as the pressed speed is. Ticks above the track are in lane
+ * colours, where each pilot's level ended.
+ */
+.timeline {
+  --thumb: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 0 2px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.timeline-time {
+  min-width: 4ch;
+}
+
+.timeline-time:last-child {
+  text-align: right;
+}
+
+.timeline-track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+#scrub {
+  /* The played part ends under the thumb's centre, which travels the track less one thumb. */
+  --played: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--at, 0));
+  display: block;
+  width: 100%;
+  height: 32px;
+  margin: 0;
+  /* Not the boxed text field every other input is: the track is the control. */
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+#scrub:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+#scrub::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--ink-2) var(--played), var(--rule) var(--played));
+}
+
+#scrub::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--ink-2) var(--played), var(--rule) var(--played));
+}
+
+#scrub::-webkit-slider-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-top: calc((6px - var(--thumb)) / 2);
+  border: 0;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 2px var(--surface);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+#scrub::-moz-range-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  border: 0;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+#scrub:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.timeline-marks {
+  position: absolute;
+  inset: 0 calc(var(--thumb) / 2);
+  pointer-events: none;
+}
+
+.timeline-marks span {
+  position: absolute;
+  left: calc(var(--at) * 100%);
+  top: 2px;
+  width: 3px;
+  height: 10px;
+  margin-left: -1.5px;
+  border-radius: 1.5px;
+  background: var(--lane);
+  /* A keyline in the page colour keeps ticks that land together apart. */
+  box-shadow: 0 0 0 1px var(--surface);
 }
 
 .verify {
@@ -485,7 +596,7 @@
     background: var(--page);
   }
 
-  .replay .screen + .deck {
+  .replay .screen + .timeline {
     margin-top: 2px;
   }
 

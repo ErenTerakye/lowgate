@@ -6,14 +6,20 @@ import { LaneReplay, autopilotClient, flyCourse, makeRecording, type DecisionCli
 const noSleep = async (): Promise<void> => {};
 const BENCH = new URL("../../../bench/", import.meta.url);
 
-/** Plays every level from its start, as the player does, and returns each level's outcome. */
+/**
+ * Plays every level from its start, as the player does, and returns each level's outcome. Also checks the level's
+ * length read from the recording against the steps it really took, which the player's timeline relies on.
+ */
 function playAll(replay: LaneReplay): string[] {
   const outcomes: string[] = [];
   for (let level = 0; replay.seek(level); level++) {
-    while (!replay.levelOver()) replay.step();
+    let steps = 0;
+    for (; !replay.levelOver(); steps++) replay.step();
     expect(replay.mismatch).toBeNull();
+    expect(replay.levelSteps(level), `level ${level}`).toBe(steps);
     outcomes.push(replay.stopped() ? "stopped" : replay.lane.outcome!);
   }
+  expect(replay.levelSteps(replay.levelStarts.length)).toBeNull();
   return outcomes;
 }
 

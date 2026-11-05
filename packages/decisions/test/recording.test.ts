@@ -1,6 +1,22 @@
 import { ENGINE_VERSION, MANOEUVRES } from "@lowgate/engine";
 import { describe, expect, it } from "vitest";
-import { autopilotClient, flyCourse, makeRecording, meanSpread, percentile, rankLanes, replayRecording, summarizeLane, wilson, type DecisionClient, type HostedPrice, type Recording } from "../src/index.ts";
+import {
+  autopilotClient,
+  benchResults,
+  flyCourse,
+  lastFlown,
+  makeRecording,
+  meanSpread,
+  percentile,
+  rankLanes,
+  replayRecording,
+  resultsDiff,
+  summarizeLane,
+  wilson,
+  type DecisionClient,
+  type HostedPrice,
+  type Recording,
+} from "../src/index.ts";
 
 const noSleep = async (): Promise<void> => {};
 
@@ -90,5 +106,30 @@ describe("summarizeLane", () => {
     expect(r.answerSecondsPerCourse).toBeCloseTo((decisions.length * latencyMs) / 1000, 9);
     expect(summarizeLane([{ ...rec, decisions }]).hostedEquivalentUsd).toBeNull();
     expect(summarizeLane([rec], { hostedEquivalent: hosted }).hostedEquivalentUsd).toBeNull();
+  });
+});
+
+describe("results file", () => {
+  const lane = async (seed: number, flownAt: string) => makeRecording(autopilotClient, "none", await flyCourse(autopilotClient, seed, { levels: 1 }), new Date(flownAt));
+
+  it("is stamped with the newest recording, so a rebuild from the same recordings is identical", async () => {
+    const recs = [await lane(42, "2026-10-31T08:00:00Z"), await lane(7, "2026-10-31T09:30:00Z")];
+    expect(lastFlown(recs)).toBe("2026-10-31T09:30:00.000Z");
+    const build = () => JSON.stringify(benchResults([7, 42], [summarizeLane(recs)], lastFlown(recs)));
+    expect(build()).toBe(build());
+    expect(() => lastFlown([])).toThrow();
+  });
+
+  it("names every figure that differs from a rebuild, and nothing when they match", async () => {
+    const recs = [await lane(42, "2026-10-31T08:00:00Z")];
+    const rebuilt = benchResults([42], [summarizeLane(recs)], lastFlown(recs));
+    expect(resultsDiff(rebuilt, rebuilt)).toEqual([]);
+    const [only] = rebuilt.lanes;
+    const edited = { ...rebuilt, at: "2026-11-01T00:00:00.000Z", lanes: [{ ...only!, landed: only!.landed + 1 }, { ...only!, lane: "ghost" }] };
+    expect(resultsDiff(edited, rebuilt)).toEqual([
+      `at: file has "2026-11-01T00:00:00.000Z", recordings give "2026-10-31T08:00:00.000Z"`,
+      `autopilot.landed: file has ${only!.landed + 1}, recordings give ${only!.landed}`,
+      "ghost: in the file, but no recordings",
+    ]);
   });
 });

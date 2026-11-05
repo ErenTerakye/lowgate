@@ -1,4 +1,4 @@
-import { MANOEUVRES, type Outcome } from "@lowgate/engine";
+import { COURSE_LEVELS, MANOEUVRES, type Outcome } from "@lowgate/engine";
 import type { BenchResults, LaneResult } from "@lowgate/decisions";
 import raw from "../../../bench/results.json?raw";
 import { Tooltip, linear, log, scatter, type TooltipRow } from "./charts.ts";
@@ -15,7 +15,8 @@ import "./results.css";
 
 const results = JSON.parse(raw) as BenchResults;
 const COURSES = results.courses.length;
-const LEVELS_PER_COURSE = 8;
+/** From the engine, which defines a course; the recordings were flown with it. */
+const LEVELS_PER_COURSE = COURSE_LEVELS;
 
 /** A lane's key: a filled dot, or a ring for the lanes drawn hollow. */
 function swatch(lane: string): HTMLSpanElement {
