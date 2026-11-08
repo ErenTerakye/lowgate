@@ -1370,5 +1370,583 @@
       "answerSecondsPerCourse": 8.6846
     }
   ],
+  "paired": [
+    {
+      "higher": "autopilot",
+      "lower": "jev",
+      "courses": 20,
+      "won": 3,
+      "lost": 0,
+      "tied": 17,
+      "difference": 0.01875,
+      "difference95": {
+        "low": 0,
+        "high": 0.0375
+      },
+      "p": 0.25,
+      "pAdjusted": 1,
+      "separated": false
+    },
+    {
+      "higher": "autopilot",
+      "lower": "kev-27b",
+      "courses": 20,
+      "won": 7,
+      "lost": 0,
+      "tied": 13,
+      "difference": 0.05,
+      "difference95": {
+        "low": 0.01875,
+        "high": 0.08125
+      },
+      "p": 0.015625,
+      "pAdjusted": 0.140625,
+      "separated": false
+    },
+    {
+      "higher": "autopilot",
+      "lower": "gemma-local",
+      "courses": 20,
+      "won": 11,
+      "lost": 1,
+      "tied": 8,
+      "difference": 0.075,
+      "difference95": {
+        "low": 0.0375,
+        "high": 0.1125
+      },
+      "p": 0.00634765625,
+      "pAdjusted": 0.06982421875,
+      "separated": false
+    },
+    {
+      "higher": "autopilot",
+      "lower": "laya",
+      "courses": 20,
+      "won": 10,
+      "lost": 1,
+      "tied": 9,
+      "difference": 0.10625,
+      "difference95": {
+        "low": 0.05,
+        "high": 0.16875
+      },
+      "p": 0.01171875,
+      "pAdjusted": 0.1171875,
+      "separated": false
+    },
+    {
+      "higher": "autopilot",
+      "lower": "kev-9b",
+      "courses": 20,
+      "won": 19,
+      "lost": 1,
+      "tied": 0,
+      "difference": 0.25625,
+      "difference95": {
+        "low": 0.2,
+        "high": 0.30625
+      },
+      "p": 0.0000400543212890625,
+      "pAdjusted": 0.0006008148193359375,
+      "separated": true
+    },
+    {
+      "higher": "autopilot",
+      "lower": "clef",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.525,
+      "difference95": {
+        "low": 0.46875,
+        "high": 0.58125
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "autopilot",
+      "lower": "kev-4b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.9625,
+      "difference95": {
+        "low": 0.9375,
+        "high": 0.9875
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "autopilot",
+      "lower": "kev-0.8b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.99375,
+      "difference95": {
+        "low": 0.98125,
+        "high": 1
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "jev",
+      "lower": "kev-27b",
+      "courses": 20,
+      "won": 7,
+      "lost": 3,
+      "tied": 10,
+      "difference": 0.03125,
+      "difference95": {
+        "low": -0.0125,
+        "high": 0.075
+      },
+      "p": 0.34375,
+      "pAdjusted": 1,
+      "separated": false
+    },
+    {
+      "higher": "jev",
+      "lower": "gemma-local",
+      "courses": 20,
+      "won": 10,
+      "lost": 3,
+      "tied": 7,
+      "difference": 0.05625,
+      "difference95": {
+        "low": 0.0125,
+        "high": 0.10625
+      },
+      "p": 0.09228515625,
+      "pAdjusted": 0.5537109375,
+      "separated": false
+    },
+    {
+      "higher": "jev",
+      "lower": "laya",
+      "courses": 20,
+      "won": 9,
+      "lost": 1,
+      "tied": 10,
+      "difference": 0.0875,
+      "difference95": {
+        "low": 0.03125,
+        "high": 0.15
+      },
+      "p": 0.021484375,
+      "pAdjusted": 0.171875,
+      "separated": false
+    },
+    {
+      "higher": "jev",
+      "lower": "kev-9b",
+      "courses": 20,
+      "won": 17,
+      "lost": 1,
+      "tied": 2,
+      "difference": 0.2375,
+      "difference95": {
+        "low": 0.175,
+        "high": 0.29375
+      },
+      "p": 0.00014495849609375,
+      "pAdjusted": 0.00188446044921875,
+      "separated": true
+    },
+    {
+      "higher": "jev",
+      "lower": "clef",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.50625,
+      "difference95": {
+        "low": 0.45,
+        "high": 0.56875
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "jev",
+      "lower": "kev-4b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.94375,
+      "difference95": {
+        "low": 0.91875,
+        "high": 0.96875
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "jev",
+      "lower": "kev-0.8b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.975,
+      "difference95": {
+        "low": 0.95,
+        "high": 0.99375
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "kev-27b",
+      "lower": "gemma-local",
+      "courses": 20,
+      "won": 8,
+      "lost": 5,
+      "tied": 7,
+      "difference": 0.025,
+      "difference95": {
+        "low": -0.025,
+        "high": 0.075
+      },
+      "p": 0.5810546875,
+      "pAdjusted": 1,
+      "separated": false
+    },
+    {
+      "higher": "kev-27b",
+      "lower": "laya",
+      "courses": 20,
+      "won": 8,
+      "lost": 5,
+      "tied": 7,
+      "difference": 0.05625,
+      "difference95": {
+        "low": -0.00625,
+        "high": 0.125
+      },
+      "p": 0.5810546875,
+      "pAdjusted": 1,
+      "separated": false
+    },
+    {
+      "higher": "kev-27b",
+      "lower": "kev-9b",
+      "courses": 20,
+      "won": 19,
+      "lost": 1,
+      "tied": 0,
+      "difference": 0.20625,
+      "difference95": {
+        "low": 0.15,
+        "high": 0.2625
+      },
+      "p": 0.0000400543212890625,
+      "pAdjusted": 0.0006008148193359375,
+      "separated": true
+    },
+    {
+      "higher": "kev-27b",
+      "lower": "clef",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.475,
+      "difference95": {
+        "low": 0.425,
+        "high": 0.51875
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "kev-27b",
+      "lower": "kev-4b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.9125,
+      "difference95": {
+        "low": 0.8625,
+        "high": 0.95625
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "kev-27b",
+      "lower": "kev-0.8b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.94375,
+      "difference95": {
+        "low": 0.9125,
+        "high": 0.975
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "gemma-local",
+      "lower": "laya",
+      "courses": 20,
+      "won": 8,
+      "lost": 4,
+      "tied": 8,
+      "difference": 0.03125,
+      "difference95": {
+        "low": -0.025,
+        "high": 0.0875
+      },
+      "p": 0.3876953125,
+      "pAdjusted": 1,
+      "separated": false
+    },
+    {
+      "higher": "gemma-local",
+      "lower": "kev-9b",
+      "courses": 20,
+      "won": 16,
+      "lost": 0,
+      "tied": 4,
+      "difference": 0.18125,
+      "difference95": {
+        "low": 0.13125,
+        "high": 0.2375
+      },
+      "p": 0.000030517578125,
+      "pAdjusted": 0.00048828125,
+      "separated": true
+    },
+    {
+      "higher": "gemma-local",
+      "lower": "clef",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.45,
+      "difference95": {
+        "low": 0.38125,
+        "high": 0.51875
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "gemma-local",
+      "lower": "kev-4b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.8875,
+      "difference95": {
+        "low": 0.85,
+        "high": 0.925
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "gemma-local",
+      "lower": "kev-0.8b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.91875,
+      "difference95": {
+        "low": 0.88125,
+        "high": 0.95625
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "laya",
+      "lower": "kev-9b",
+      "courses": 20,
+      "won": 14,
+      "lost": 2,
+      "tied": 4,
+      "difference": 0.15,
+      "difference95": {
+        "low": 0.08125,
+        "high": 0.2125
+      },
+      "p": 0.004180908203125,
+      "pAdjusted": 0.0501708984375,
+      "separated": false
+    },
+    {
+      "higher": "laya",
+      "lower": "clef",
+      "courses": 20,
+      "won": 19,
+      "lost": 0,
+      "tied": 1,
+      "difference": 0.41875,
+      "difference95": {
+        "low": 0.34375,
+        "high": 0.4875
+      },
+      "p": 0.000003814697265625,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "laya",
+      "lower": "kev-4b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.85625,
+      "difference95": {
+        "low": 0.8,
+        "high": 0.90625
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "laya",
+      "lower": "kev-0.8b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.8875,
+      "difference95": {
+        "low": 0.83125,
+        "high": 0.94375
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "kev-9b",
+      "lower": "clef",
+      "courses": 20,
+      "won": 17,
+      "lost": 0,
+      "tied": 3,
+      "difference": 0.26875,
+      "difference95": {
+        "low": 0.19375,
+        "high": 0.34375
+      },
+      "p": 0.0000152587890625,
+      "pAdjusted": 0.0002593994140625,
+      "separated": true
+    },
+    {
+      "higher": "kev-9b",
+      "lower": "kev-4b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.70625,
+      "difference95": {
+        "low": 0.65,
+        "high": 0.7625
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "kev-9b",
+      "lower": "kev-0.8b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.7375,
+      "difference95": {
+        "low": 0.6875,
+        "high": 0.7875
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "clef",
+      "lower": "kev-4b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.4375,
+      "difference95": {
+        "low": 0.375,
+        "high": 0.5
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "clef",
+      "lower": "kev-0.8b",
+      "courses": 20,
+      "won": 20,
+      "lost": 0,
+      "tied": 0,
+      "difference": 0.46875,
+      "difference95": {
+        "low": 0.4125,
+        "high": 0.525
+      },
+      "p": 0.0000019073486328125,
+      "pAdjusted": 0.00006866455078125,
+      "separated": true
+    },
+    {
+      "higher": "kev-4b",
+      "lower": "kev-0.8b",
+      "courses": 20,
+      "won": 5,
+      "lost": 0,
+      "tied": 15,
+      "difference": 0.03125,
+      "difference95": {
+        "low": 0.0125,
+        "high": 0.05625
+      },
+      "p": 0.0625,
+      "pAdjusted": 0.4375,
+      "separated": false
+    }
+  ],
   "at": "2026-10-31T08:25:19.553Z"
 }

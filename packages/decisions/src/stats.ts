@@ -40,3 +40,53 @@ export function percentile(xs: readonly number[], p: number): number | null {
   const sorted = [...xs].sort((a, b) => a - b);
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1))]!;
 }
+
+/** Two-sided exact sign test: the chance of a split at least this uneven if each non-tied pair were a coin flip. */
+export function signTest(wins: number, losses: number): number {
+  const n = wins + losses;
+  if (n === 0) return 1;
+  let term = 0.5 ** n;
+  let tail = term;
+  for (let k = 1; k <= Math.min(wins, losses); k++) {
+    term *= (n - k + 1) / k;
+    tail += term;
+  }
+  return Math.min(1, 2 * tail);
+}
+
+/** Holm's step-down adjustment for testing several hypotheses at once; the result is in the order of `ps`. */
+export function holm(ps: readonly number[]): number[] {
+  const order = ps.map((p, i) => ({ p, i })).sort((a, b) => a.p - b.p || a.i - b.i);
+  const adjusted = new Array<number>(ps.length).fill(1);
+  let highest = 0;
+  order.forEach(({ p, i }, rank) => {
+    highest = Math.max(highest, Math.min(1, (ps.length - rank) * p));
+    adjusted[i] = highest;
+  });
+  return adjusted;
+}
+
+const BOOTSTRAP_RESAMPLES = 10_000;
+
+/**
+ * Percentile bootstrap 95% interval of the sum of `xs`, resampling the items with replacement. The generator is seeded
+ * the same way every call (mulberry32), so a results file built from the same recordings stays byte-identical.
+ */
+export function bootstrapSum95(xs: readonly number[]): Interval | null {
+  if (xs.length === 0) return null;
+  let state = 0x1f123bb5;
+  const next = () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const sums: number[] = [];
+  for (let r = 0; r < BOOTSTRAP_RESAMPLES; r++) {
+    let sum = 0;
+    for (let i = 0; i < xs.length; i++) sum += xs[Math.floor(next() * xs.length)]!;
+    sums.push(sum);
+  }
+  sums.sort((a, b) => a - b);
+  return { low: sums[Math.floor(BOOTSTRAP_RESAMPLES * 0.025)]!, high: sums[Math.ceil(BOOTSTRAP_RESAMPLES * 0.975) - 1]! };
+}

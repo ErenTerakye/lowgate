@@ -3,18 +3,23 @@ import { describe, expect, it } from "vitest";
 import {
   autopilotClient,
   benchResults,
+  bootstrapSum95,
   flyCourse,
+  holm,
   lastFlown,
   makeRecording,
   meanSpread,
+  pairedComparisons,
   percentile,
   rankLanes,
   replayRecording,
   resultsDiff,
+  signTest,
   summarizeLane,
   wilson,
   type DecisionClient,
   type HostedPrice,
+  type LaneResult,
   type Recording,
 } from "../src/index.ts";
 
@@ -131,5 +136,42 @@ describe("results file", () => {
       `autopilot.landed: file has ${only!.landed + 1}, recordings give ${only!.landed}`,
       "ghost: in the file, but no recordings",
     ]);
+  });
+});
+
+describe("paired comparisons", () => {
+  const lane = (id: string, landed: readonly number[]): LaneResult =>
+    ({ lane: id, courses: landed.length, levels: landed.length * 8, perCourse: landed.map((n, i) => ({ seed: 100 + i, landed: n })) }) as unknown as LaneResult;
+
+  it("computes the exact two-sided sign test", () => {
+    expect(signTest(0, 0)).toBe(1);
+    expect(signTest(3, 0)).toBeCloseTo(0.25, 12);
+    expect(signTest(14, 2)).toBeCloseTo((2 * (1 + 16 + 120)) / 2 ** 16, 12);
+    expect(signTest(5, 5)).toBe(1);
+  });
+
+  it("applies Holm's adjustment and keeps it monotone", () => {
+    expect(holm([0.01, 0.04, 0.03])).toEqual([0.03, 0.06, 0.06]);
+    expect(holm([])).toEqual([]);
+    expect(holm([0.9, 0.9])).toEqual([1, 1]);
+  });
+
+  it("bootstraps the same interval every time, inside the possible sums", () => {
+    const xs = [2, -1, 0, 3, 1];
+    const a = bootstrapSum95(xs)!;
+    expect(bootstrapSum95(xs)).toEqual(a);
+    expect(a.low).toBeGreaterThanOrEqual(-5);
+    expect(a.high).toBeLessThanOrEqual(15);
+    expect(a.low).toBeLessThanOrEqual(a.high);
+    expect(bootstrapSum95([])).toBeNull();
+  });
+
+  it("pairs lanes on the courses both flew", () => {
+    const partial = { ...lane("c", [8]), courses: 1, levels: 8 };
+    const [ab, ac, bc] = pairedComparisons([lane("a", [8, 8, 8]), lane("b", [4, 8, 6]), partial]);
+    expect(ab).toMatchObject({ higher: "a", lower: "b", courses: 3, won: 2, lost: 0, tied: 1 });
+    expect(ab!.difference).toBeCloseTo(6 / 24, 12);
+    expect(ac).toMatchObject({ courses: 1, won: 0, lost: 0, tied: 1, p: 1 });
+    expect(bc).toMatchObject({ courses: 1, won: 0, lost: 1, tied: 0, separated: false });
   });
 });
