@@ -26,6 +26,8 @@ Watch every course at [lowgate.erenterakye.com](https://lowgate.erenterakye.com)
 | Kev 4B | System One | 5/160 (3%) | 40.6 | 61 ms |
 | Kev 0.8B | System One | 0/160 (0%) | – | 28 ms |
 
+Treat the order at the top with care. Compared course by course, with a correction for testing all 36 pairs, the order within Autopilot, Jev, Kev 27B, Gemma and Laya is not established by these 20 courses, and Laya over Kev 9B narrowly misses (corrected p = 0.0502). 24 of the 36 pairs are clearly apart; the method and every pair are on the [results page](https://lowgate.erenterakye.com/results) and in `bench/results.json`.
+
 Landing quality is a 0–100 score for the levels a lane landed: equal parts how close to the pad centre, how gently, and how much fuel was left. The numbers come from `bench/results.json`, which `pnpm bench --summary` rebuilds from the recordings in `bench/`. The file is a pure function of the recordings, and CI replays all 180 of them against their state hashes on every push and fails unless the file is exactly what they give (`pnpm bench --check`).
 
 The first, real-time version of the arena is kept under the tag [`v0-realtime`](https://github.com/ErenTerakye/lowgate/tree/v0-realtime).

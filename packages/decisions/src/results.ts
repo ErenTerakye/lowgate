@@ -1,7 +1,7 @@
 import { ENGINE_VERSION, MANOEUVRES, autopilot, type Outcome } from "@lowgate/engine";
 import { usdFor } from "./cost.ts";
 import { replayRecording, type Recording } from "./recording.ts";
-import { meanSpread, percentile, wilson, type Interval, type MeanSpread } from "./stats.ts";
+import { bootstrapSum95, holm, meanSpread, percentile, signTest, wilson, type Interval, type MeanSpread } from "./stats.ts";
 import type { HostedPrice, ModelInfo, PriceSource } from "./types.ts";
 
 /** One lane's benchmark figures, as bench/results.json stores them and the results page reads them. */
@@ -35,11 +35,33 @@ export interface LaneResult {
   readonly answerSecondsPerCourse: number;
 }
 
+/** Two lanes compared on the courses both flew, the higher-ranked one first. */
+export interface PairedComparison {
+  readonly higher: string;
+  readonly lower: string;
+  readonly courses: number;
+  /** Courses where the higher-ranked lane landed more levels, fewer, and the same number. */
+  readonly won: number;
+  readonly lost: number;
+  readonly tied: number;
+  /** Higher lane's landing rate minus the lower's, as a fraction, with a course-resampling bootstrap 95% interval. */
+  readonly difference: number;
+  readonly difference95: Interval | null;
+  /** Exact sign test over the non-tied courses. */
+  readonly p: number;
+  /** `p` after Holm's adjustment across every pair of lanes. */
+  readonly pAdjusted: number;
+  /** Whether `pAdjusted` is below 0.05. */
+  readonly separated: boolean;
+}
+
 export interface BenchResults {
   readonly engine: string;
   readonly courses: readonly number[];
   readonly ranking: string;
   readonly lanes: readonly LaneResult[];
+  /** Every pair of lanes, in ranking order. Lanes share seeds, so courses are compared pair by pair. */
+  readonly paired: readonly PairedComparison[];
   /**
    * When the newest recording summarised was flown. Not the time of the rebuild: that keeps the file a pure function
    * of the recordings, so rebuilding it from the same recordings changes nothing and `pnpm bench --check` can compare
@@ -51,6 +73,41 @@ export interface BenchResults {
 /** Ranking: landing rate, ties broken by mean landing quality. */
 export function rankLanes(lanes: readonly LaneResult[]): LaneResult[] {
   return [...lanes].sort((a, b) => b.landingRate - a.landingRate || (b.quality?.mean ?? 0) - (a.quality?.mean ?? 0));
+}
+
+/**
+ * Compares every pair of lanes course by course. A course is the unit because its levels share a seed-derived run and
+ * every lane flies the same courses; pairing removes the difference between easy and hard courses from the comparison.
+ */
+export function pairedComparisons(ranked: readonly LaneResult[]): PairedComparison[] {
+  const pairs: Omit<PairedComparison, "pAdjusted" | "separated">[] = [];
+  ranked.forEach((a, i) => {
+    for (const b of ranked.slice(i + 1)) {
+      const theirs = new Map(b.perCourse.map((c) => [c.seed, c.landed]));
+      const diffs = a.perCourse.flatMap((c) => {
+        const other = theirs.get(c.seed);
+        return other === undefined ? [] : [c.landed - other];
+      });
+      if (diffs.length === 0 || a.courses === 0) continue;
+      const scale = diffs.length * (a.levels / a.courses);
+      const won = diffs.filter((d) => d > 0).length;
+      const lost = diffs.filter((d) => d < 0).length;
+      const sum = bootstrapSum95(diffs);
+      pairs.push({
+        higher: a.lane,
+        lower: b.lane,
+        courses: diffs.length,
+        won,
+        lost,
+        tied: diffs.length - won - lost,
+        difference: diffs.reduce((n, d) => n + d, 0) / scale,
+        difference95: sum && { low: sum.low / scale, high: sum.high / scale },
+        p: signTest(won, lost),
+      });
+    }
+  });
+  const adjusted = holm(pairs.map((p) => p.p));
+  return pairs.map((p, i) => ({ ...p, pAdjusted: adjusted[i]!, separated: adjusted[i]! < 0.05 }));
 }
 
 /**
@@ -133,7 +190,8 @@ export function lastFlown(recordings: readonly Pick<Recording, "flownAt">[]): st
 
 /** The results file for these lanes; `at` is the newest recording's flownAt (see BenchResults.at). */
 export function benchResults(courses: readonly number[], lanes: readonly LaneResult[], at: string): BenchResults {
-  return { engine: ENGINE_VERSION, courses, ranking: "landing rate, then mean landing quality", lanes: rankLanes(lanes), at };
+  const ranked = rankLanes(lanes);
+  return { engine: ENGINE_VERSION, courses, ranking: "landing rate, then mean landing quality", lanes: ranked, paired: pairedComparisons(ranked), at };
 }
 
 /**
@@ -143,7 +201,7 @@ export function benchResults(courses: readonly number[], lanes: readonly LaneRes
 export function resultsDiff(committed: BenchResults, rebuilt: BenchResults): string[] {
   const out: string[] = [];
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-  for (const key of ["engine", "courses", "ranking", "at"] as const) {
+  for (const key of ["engine", "courses", "ranking", "paired", "at"] as const) {
     if (!same(committed[key], rebuilt[key])) out.push(`${key}: file has ${JSON.stringify(committed[key])}, recordings give ${JSON.stringify(rebuilt[key])}`);
   }
   const byId = (rs: BenchResults) => new Map(rs.lanes.map((l) => [l.lane, l]));

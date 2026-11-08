@@ -13,3 +13,4 @@ __pycache__/
 # Laya fine-tuning data and checkpoints: rebuilt by pnpm laya-dataset, too big for git
 bridge/laya/data/
 bridge/laya/models/
+bridge/laya/release/

@@ -250,6 +250,37 @@ const rank = section(
   rank.append(wrap);
 }
 
+// Which gaps the courses can tell apart.
+{
+  const separated = results.paired.filter((p) => p.separated).length;
+  const sep = section(
+    "Which gaps are clear",
+    `Every pilot flies the same courses, so each pair is compared course by course. Of the ${results.paired.length} pairs, ${separated} are clearly apart after correcting for testing them all (exact sign test on courses, Holm correction, 5% level). The table shows each pilot against the next one down: the difference is in landing rate, with a 95% interval from resampling courses. "Not established" means these ${COURSES} courses can't settle the order, not that the pilots are equal.`,
+  );
+  const wrap = el("div", "table-wrap");
+  const table = el("table", "data");
+  headRow(table, ["Comparison", "Difference", "95% interval", "Courses won / lost / tied", "p", "Corrected p", "Order"]);
+  const body = table.createTBody();
+  const label = (id: string) => lanes.find((l) => l.lane === id)?.label ?? id;
+  const points = (x: number) => `${x > 0 ? "+" : ""}${(x * 100).toFixed(1)}`;
+  // Four places beside the 5% line, so 0.0502 doesn't read as 0.050 and look like it should have passed.
+  const pValue = (x: number) => (x < 0.001 ? "<0.001" : x.toFixed(Math.abs(x - 0.05) < 0.0005 ? 4 : 3));
+  lanes.slice(0, -1).forEach((l, i) => {
+    const next = lanes[i + 1]!;
+    const p = results.paired.find((c) => c.higher === l.lane && c.lower === next.lane);
+    if (!p) return;
+    const tr = body.insertRow();
+    const th = el("th", "lane-cell compact", `${label(p.higher)} over ${label(p.lower)}`);
+    th.scope = "row";
+    tr.append(th, el("td", "num", `${points(p.difference)} pts`));
+    tr.append(el("td", "num", p.difference95 ? `${points(p.difference95.low)} to ${points(p.difference95.high)}` : "–"));
+    tr.append(el("td", "num", `${p.won} / ${p.lost} / ${p.tied}`), el("td", "num", pValue(p.p)), el("td", "num", pValue(p.pAdjusted)));
+    tr.append(el("td", undefined, p.separated ? "Clear" : "Not established"));
+  });
+  wrap.append(table);
+  sep.append(wrap);
+}
+
 // 3. How levels ended.
 const ends = section("How each level ended", "Counts out of the levels each pilot flew. The bar is the share of that pilot's levels.");
 {

@@ -167,8 +167,10 @@ Every lane flew the same 20 courses (160 levels), unseen by every lane during tu
 
 Intervals: Wilson for landing rate, normal-approximation 95% for the mean quality of landed levels.
 
+Pairs (`paired` in `bench/results.json`, rebuilt and checked with the rest): every lane flies the same courses, so each of the 36 pairs is compared on landings per course, with an exact sign test, Holm's correction across all pairs and a 95% bootstrap interval that resamples courses. 24 pairs are clearly apart at the 5% level. The order within Autopilot, Jev, Kev 27B, Gemma and Laya is not, and neither are Laya over Kev 9B (p = 0.004, 0.0502 corrected) or Kev 4B over Kev 0.8B.
+
 - **Jev lands nearly as often as the autopilot** and lands better (quality 46.7 vs 42.3), while agreeing with the autopilot's exact pick only 39% of the time. It flies its own way, not a copy of the script.
-- **Gemma matches Jev's landing quality** (46.8) but lands less often: 13 misses against Jev's 4. The intervals barely overlap, so the gap is probably real but not large. It is also 27× slower per answer and the only lane whose run took a night (about 9.4 hours of answers on the Mac).
+- **Gemma matches Jev's landing quality** (46.8) but lands less often: 13 misses against Jev's 4. Course by course Jev does better on 10 and worse on 3 (5.6 points, sign test p = 0.09, 0.55 after correcting for all 36 pairs), so these courses don't establish the gap. It is also 27× slower per answer and the only lane whose run took a night (about 9.4 hours of answers on the Mac).
 - **Laya v4 is close to the autopilot's picks** (79% the same, as trained) but lands less softly than any other lane (41.1). Imitation got it to 89% landed; it does not improve on its teacher.
 - **Kev scales from nothing to near Jev**: 0.8B and 4B land 0–3%, 9B 74%, 27B 94% with the best landing quality of any lane (47.4). Details and the tilt analysis are under Kev on Colab below.
 - **Clef-flash is far behind** at 47%, and the roughest landings of the model lanes. Its last 8 courses ran a day later (2026-10-31), after Workers AI's free allowance came back: Cloudflare's dashboard showed the block lasting about 24 hours from the heavy use, not ending at 00:00 UTC. The 12 courses of 2026-10-30 used about 14k neurons by the dashboard's chart (read off, not exported), about 6% above the listed 3,455 neurons per million tokens, so the cost shown here may be slightly low.
@@ -226,6 +228,8 @@ The benchmark flew Laya v4 as an MLX build on the Mac. `pnpm agree` asks another
 | PyTorch checkpoint `laya-descent-v4` | Colab G4, NVIDIA RTX PRO 6000 Blackwell (`bridge/laya/repro_colab.ipynb`) | 5001–5020, 5,801 decisions | 5,795 (99.9%; 99.8–99.95%) | 0.0029 / 0.0168 | 13 ms |
 
 The MLX row is the baseline: the remaining distance is the recordings rounding probabilities to 4 decimals. Measured, 2026-10-31.
+
+**Release files.** `python3 bridge/laya/prepare_release.py` stages the PyTorch checkpoint, the MLX build that flew the benchmark, the training report and the `f3-dagger1` data with their licence and hashes. It writes `repro/laya-descent-v4-release.json`, the record of dataset, split, training settings, commits, commands and results. Publishing the data also removes the need for v3's checkpoint, which the DAgger round flew to collect it. `bridge/laya/repro_colab.ipynb` checks every checkpoint file against those hashes, and downloads from the revision named in the file once one is recorded.
 
 - **Laya's results belong to the model, not to the Mac.** The PyTorch build on a CUDA GPU picks the same manoeuvre as the MLX build at 5,795 of 5,801 recorded states. Its probabilities move by 0.003 on average (total variation distance), at most 0.017.
 - **The 6 different picks are near ties.** At those states the MLX build's top two options were a median 0.0031 apart, so a rounding-sized change flips them. The check is open loop: in a flown course one flipped pick could change the states that follow, so this bounds how often the builds disagree, not how a PyTorch course would end.

@@ -1,0 +1,131 @@
+{
+  "release": "laya-descent-v4",
+  "license": "apache-2.0",
+  "hub": {
+    "repo": null,
+    "revision": null
+  },
+  "provenance": {
+    "base": {
+      "repo": "convaiinnovations/laya",
+      "revision": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+      "license": "apache-2.0",
+      "revisionNote": "The newest revision on the Hub when v4 was trained (2026-10-30); the download was not pinned at the time."
+    },
+    "encoderConfig": "answerdotai/ModernBERT-large (apache-2.0), as named by torch/rl_agent_config.json",
+    "dataset": {
+      "files": "data/f3-dagger1/",
+      "split": "train: courses 1000-1119 autopilot states plus 3000-3029 DAgger states; eval: courses 9000-9011",
+      "features": "prompt f3",
+      "build": [
+        "pnpm laya-dataset --prompt f3",
+        "pnpm laya-dagger (flies the v3 checkpoint; the published train.jsonl removes the need to)"
+      ]
+    },
+    "training": {
+      "notebook": "bridge/laya/finetune_colab.ipynb",
+      "laya": "0.4.17",
+      "hardware": "Google Colab A100",
+      "seed": 42,
+      "report": "torch/train_report.json",
+      "reportCaveat": "2 of the 2,728 eval items overlap training, so laya labels the run overlapping_eval rather than strictly held out."
+    },
+    "benchmarkBuild": {
+      "files": "mlx/",
+      "convert": "laya-mlx convert --model <torch> --output <mlx>",
+      "environment": "M3 MacBook Pro, 16 GB; laya-mlx 0.6.0, mlx 0.32.4, Node v24.21.0"
+    },
+    "results": {
+      "engine": "descent-3",
+      "recordings": "bench/laya/5001.json to 5020.json",
+      "firstCommitted": "a5915e8",
+      "command": "pnpm bench --check",
+      "landed": "142/160"
+    },
+    "crossBuildCheck": {
+      "notebook": "bridge/laya/repro_colab.ipynb",
+      "report": "repro/laya-torch-g4.json",
+      "commit": "d7c6a54",
+      "command": "pnpm agree --lane laya --courses 5001-5020 --label torch-g4",
+      "samePick": "5795/5801"
+    }
+  },
+  "files": {
+    "LICENSE": {
+      "bytes": 9197,
+      "sha256": "a7d00bfd54525bc694b6e32f64c7ebcf5e6b7ae3657be5cc12767bce74654a47"
+    },
+    "NOTICE": {
+      "bytes": 308,
+      "sha256": "0629920bd57efce7d12fd66f8b5e21addf8cf951f5884064c524a61cf29b6463"
+    },
+    "README.md": {
+      "bytes": 1429,
+      "sha256": "9bf899bbd8ab9adf7289d004cbf2b8ba3f337022ca3f465131a4dc1b5cfc4d03"
+    },
+    "data/f3-dagger1/dagger.jsonl": {
+      "bytes": 15086023,
+      "sha256": "30deaf3d53fe8f26f9330fd40f1c16019101940ea1538c8624b4c316b69ca0be"
+    },
+    "data/f3-dagger1/eval.jsonl": {
+      "bytes": 2360948,
+      "sha256": "a10871d9f76b75e61f2ca0b9f607cdaf387db59e6a0b1f291ed33b5f611fc2ea"
+    },
+    "data/f3-dagger1/train.jsonl": {
+      "bytes": 38687539,
+      "sha256": "19b7ed3337c8d13480b4f5090d24005dd0022bd395e11d8210e72d86adae818d"
+    },
+    "mlx/encoder/config.json": {
+      "bytes": 2084,
+      "sha256": "666d3dc67b572356b7b651333a46de24635c6ce52ecde250c268e7c6a94e2a0c"
+    },
+    "mlx/mlx_config.json": {
+      "bytes": 163,
+      "sha256": "3318b9d64bd3f7bc0e1b4a84c0371c9ae023fedd1977640091a49e9591de13d6"
+    },
+    "mlx/model.safetensors": {
+      "bytes": 842609225,
+      "sha256": "0aeca60ff2a4885776bf904c20e9957d9af270955e19d8d9e14d140f56434f7c"
+    },
+    "mlx/rl_agent_config.json": {
+      "bytes": 5697,
+      "sha256": "3388fc3d111ae2c8c8c6c8d727ed085c10ab29410e8c16a6dc1c99a7d5e14b42"
+    },
+    "mlx/tokenizer/tokenizer.json": {
+      "bytes": 3583325,
+      "sha256": "0b3214f8efe1327290428b84e5d344ff3f2442686c1b89fb7b42c13a79ce6779"
+    },
+    "mlx/tokenizer/tokenizer_config.json": {
+      "bytes": 379,
+      "sha256": "5926e6ec4294f80294bd98d9176defa9fbae7f140525d06a1da987488e74a973"
+    },
+    "torch/encoder/config.json": {
+      "bytes": 2084,
+      "sha256": "666d3dc67b572356b7b651333a46de24635c6ce52ecde250c268e7c6a94e2a0c"
+    },
+    "torch/model.safetensors": {
+      "bytes": 842609220,
+      "sha256": "d3d96491a6463f0bde0dcb648f799b6a859ee2b0f67bc6921704e1507567d330"
+    },
+    "torch/questions.json": {
+      "bytes": 1350,
+      "sha256": "985897a9204c1bf6ca9de542256ea9d8635d0cf40da04ccd70c96c98445e523a"
+    },
+    "torch/rl_agent_config.json": {
+      "bytes": 5696,
+      "sha256": "0c90ffb7e65ffa2698ed428003e5730db138df15e6b87f854a15a7b117303a54"
+    },
+    "torch/tokenizer/tokenizer.json": {
+      "bytes": 3583325,
+      "sha256": "0b3214f8efe1327290428b84e5d344ff3f2442686c1b89fb7b42c13a79ce6779"
+    },
+    "torch/tokenizer/tokenizer_config.json": {
+      "bytes": 379,
+      "sha256": "5926e6ec4294f80294bd98d9176defa9fbae7f140525d06a1da987488e74a973"
+    },
+    "torch/train_report.json": {
+      "bytes": 3112,
+      "sha256": "277876f78b6ffe080458108e1af8b78423510969ae6ebc069f0e33be2a0fb594"
+    }
+  }
+}
