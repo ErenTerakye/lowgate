@@ -2,8 +2,8 @@
   "release": "laya-descent-v4",
   "license": "apache-2.0",
   "hub": {
-    "repo": null,
-    "revision": null
+    "repo": "eren8392/laya-descent-v4",
+    "revision": "5e7249ebefcbacc96ce27d14d6a7181d55a3f950"
   },
   "provenance": {
     "base": {
