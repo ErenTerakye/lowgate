@@ -1,0 +1,7 @@
+{
+  "commit": "a3a6119d2ae948502c58a2d9128db261866ed604",
+  "checkpoint": "eren8392/laya-descent-v4@5e7249ebefcbacc96ce27d14d6a7181d55a3f950",
+  "laya": "0.4.17",
+  "torch": "2.14.1+cu130",
+  "node": "v24.21.0"
+}
