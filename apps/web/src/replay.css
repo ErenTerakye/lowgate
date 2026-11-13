@@ -280,7 +280,7 @@
   min-width: 0;
 }
 
-/* Name over kind, so "System One model" or "LLM" sits with the name it describes. */
+/* Name over kind, so "Decision model" or "LLM" sits with the name it describes. */
 .lane-name-block {
   display: flex;
   flex-direction: column;

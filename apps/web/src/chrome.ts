@@ -18,7 +18,7 @@ export function trackHeaderHeight(): void {
   new ResizeObserver(() => document.documentElement.style.setProperty("--head-h", `${head.offsetHeight}px`)).observe(head);
 }
 
-const WRITE_UP = "https://erenterakye.com/blog/flying-a-lander-with-system-one-models/";
+const WRITE_UP = "https://erenterakye.com/blog/landing-a-spacecraft-with-decision-models/";
 const SOURCE = "https://github.com/ErenTerakye/lowgate";
 
 /** The footer both pages share: the pages again, where the project lives, who built it, and what the figures come from. */

@@ -53,7 +53,7 @@ const TAG: Record<string, string> = {
 export const tagOf = (lane: string): string => TAG[lane] ?? lane.slice(0, 4);
 
 /**
- * What kind of pilot a lane is, from the catalog's protocol: System One models
+ * What kind of pilot a lane is, from the catalog's protocol: decision models
  * give a probability for every move, chat models (LLMs) write their pick as
  * text, and anything outside the catalog is the scripted autopilot.
  */
@@ -64,19 +64,19 @@ export function kindOf(lane: string): Kind {
   return protocol === "chat" ? "llm" : protocol === "systemone" ? "systemone" : "scripted";
 }
 
-export const KIND_LABEL: Record<Kind, string> = { systemone: "System One model", llm: "LLM", scripted: "Scripted baseline" };
+export const KIND_LABEL: Record<Kind, string> = { systemone: "Decision model", llm: "LLM", scripted: "Scripted baseline" };
 
 /** How many pilots of each kind are on show. */
 function pilotCounts(lanes: readonly string[]): { kind: Kind; n: number; text: string }[] {
   const n = (k: Kind) => lanes.filter((l) => kindOf(l) === k).length;
   return [
-    { kind: "systemone" as const, n: n("systemone"), text: n("systemone") === 1 ? " System One model" : " System One models" },
+    { kind: "systemone" as const, n: n("systemone"), text: n("systemone") === 1 ? " decision model" : " decision models" },
     { kind: "llm" as const, n: n("llm"), text: n("llm") === 1 ? " LLM" : " LLMs" },
     { kind: "scripted" as const, n: n("scripted"), text: n("scripted") === 1 ? " autopilot" : " autopilots" },
   ].filter((c) => c.n > 0);
 }
 
-/** "7 System One models, 1 LLM and 1 autopilot", for the page intros. */
+/** "7 decision models, 1 LLM and 1 autopilot", for the page intros. */
 export function pilotsPhrase(lanes: readonly string[]): string {
   const counts = pilotCounts(lanes);
   return counts.map((c, i) => `${i === 0 ? "" : i === counts.length - 1 ? " and " : ", "}${c.n}${c.text}`).join("");
@@ -84,7 +84,7 @@ export function pilotsPhrase(lanes: readonly string[]): string {
 
 /** One line telling the two kinds of model apart, for the results intro. */
 export const kindsNote = (moves: number): string =>
-  `Every model picks one of ${moves} moves each second. <b>System One models</b> give a probability for every move; an <b>LLM</b> is a chat model that writes its pick as text.`;
+  `Every model picks one of ${moves} moves each second. <b>Decision models</b> give a probability for every move; an <b>LLM</b> is a chat model that writes its pick as text.`;
 
 /** Black or white, whichever reads better on a lane colour (WCAG relative luminance). */
 export function inkOn(hex: string): string {

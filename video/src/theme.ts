@@ -47,12 +47,12 @@ export const LANE_COLOR: Record<string, string> = {
 
 export const KIND: Record<string, string> = {
   autopilot: "Scripted autopilot",
-  jev: "System One",
-  laya: "System One, trained by me",
+  jev: "Decision model",
+  laya: "Decision model, trained by me",
   "gemma-local": "LLM",
-  clef: "System One",
-  "kev-4b": "System One",
-  "kev-0.8b": "System One",
-  "kev-9b": "System One",
-  "kev-27b": "System One",
+  clef: "Decision model",
+  "kev-4b": "Decision model",
+  "kev-0.8b": "Decision model",
+  "kev-9b": "Decision model",
+  "kev-27b": "Decision model",
 };

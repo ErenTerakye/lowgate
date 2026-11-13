@@ -106,13 +106,13 @@ app.innerHTML = `
       </div>
     </section>
     <aside class="side lanes" id="lanes" aria-label="Pilots">
-      <p class="lanes-hint">Each grid holds all ${MANOEUVRES.length} moves. <b>System One models</b> shade every move by probability; the <b>LLM</b> writes its pick as text, so only that move lights. Select a pilot to follow it; the eye hides it, and a double-click or long press on the eye shows only that pilot.</p>
+      <p class="lanes-hint">Each grid holds all ${MANOEUVRES.length} moves. <b>Decision models</b> shade every move by probability; the <b>LLM</b> writes its pick as text, so only that move lights. Select a pilot to follow it; the eye hides it, and a double-click or long press on the eye shows only that pilot.</p>
       <div class="lane-filter" role="group" aria-label="Pilots on the course">
         <span class="lane-filter-count" id="shown-count" aria-live="polite"></span>
         <div class="lane-filter-buttons">
           <button type="button" data-show="all">Show all</button>
           <button type="button" data-show="none">Hide all</button>
-          <button type="button" data-show="systemone" title="Only the System One models">System One</button>
+          <button type="button" data-show="systemone" title="Only the decision models">Decision models</button>
           <button type="button" data-show="top3" title="The three pilots with the highest landing rate">Top 3</button>
         </div>
       </div>
